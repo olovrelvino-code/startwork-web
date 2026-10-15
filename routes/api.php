@@ -355,40 +355,7 @@ Route::post('/job-posts', function (Request $request) {
     ], 201);
 });
 
-// Update Job Post
-// Route::put('/job-posts/{id}', function (Request $request, string $id) {
-//     $input = $request->validate([
-//         'title' => ['required', 'string', 'max:255'],
-//         'location' => ['required', 'string', 'max:255'],
-//         'description' => ['nullable', 'string'],
-//         'category' => ['nullable', 'string'],
-//         'status' => ['nullable', 'in:active,inactive,expired'],
-//     ]);
-
-//     abort_unless(DB::table('job_posts')->where('id', $id)->exists(), 404);
-
-//     $updateData = [
-//         'title' => $input['title'],
-//         'location' => $input['location'],
-//         'description' => $input['description'] ?? null,
-//         'updated_at' => now(),
-//     ];
-//     if (isset($input['category'])) {
-//         $updateData['category'] = $input['category'];
-//     }
-//     if (isset($input['status'])) {
-//         $updateData['status'] = $input['status'];
-//     }
-
-//     DB::table('job_posts')->where('id', $id)->update($updateData);
-
-//     return response()->json([
-//         'message' => 'updated',
-//         'data' => DB::table('job_posts')->where('id', $id)->first(),
-//     ]);
-// });
-
-
+//Update Job Post
 Route::put('/job-posts/{id}', function (Request $request, string $id) {
     abort_unless(DB::table('job_posts')->where('id', $id)->exists(), 404);
 
