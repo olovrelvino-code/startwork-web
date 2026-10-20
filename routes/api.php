@@ -48,6 +48,7 @@ $query = DB::table('job_posts')
     ->where('job_posts.status', 'active')
     ->select(
         'companies.name as company_name',
+            'job_posts.id',
             'job_posts.title',
             'job_posts.category',
             'job_posts.location',
@@ -59,7 +60,8 @@ $query = DB::table('job_posts')
             'job_posts.responsibilities',
             'job_posts.requirements',
             'job_posts.skills',
-            'job_posts.benefits'
+            'job_posts.benefits',
+            'job_posts.apply_url'
         );
 
     // Filter Kategori
@@ -281,6 +283,17 @@ Route::get('/job-posts/{id}', function (string $id) {
     return response()->json(['data' => $job]);
 });
 
+Route::get('/job-posts/{id}/apply-now', function (string $id) {
+    $job = DB::table('job_posts')->where('id', $id)->first();
+    abort_if($job === null, 404, 'Lowongan tidak ditemukan');
+    abort_if($job->status !== 'active' || empty($job->apply_url), 404, 'Link pendaftaran tidak tersedia');
+
+    $scheme = strtolower((string) parse_url($job->apply_url, PHP_URL_SCHEME));
+    abort_unless(in_array($scheme, ['http', 'https', 'mailto'], true), 404);
+
+    return redirect()->away($job->apply_url);
+});
+
 // Tambah Job Post (PRD 3.1 & 3.7)
 Route::post('/job-posts', function (Request $request) {
     $input = $request->validate([
@@ -445,6 +458,17 @@ Route::get('/companies/{id}', function (string $id) {
     ]);
 });
 
+Route::get('/companies/{id}/logo', function (string $id) {
+    $company = DB::table('companies')->where('id', $id)->first();
+    abort_if($company === null || empty($company->logo), 404, 'Logo perusahaan tidak ditemukan');
+    abort_if(basename($company->logo) !== $company->logo, 404);
+
+    $path = "company-logos/{$id}/{$company->logo}";
+    abort_unless(\Illuminate\Support\Facades\Storage::disk('public')->exists($path), 404);
+
+    return \Illuminate\Support\Facades\Storage::disk('public')->response($path);
+});
+
 Route::post('/companies', function (Request $request) {
     $input = $request->validate([
         'name' => ['required', 'string', 'max:255'],
@@ -495,6 +519,7 @@ Route::post('/job-posts/{id}/apply', function (Request $request, string $id) {
 
     // 2. Cek apakah loker masih aktif
     abort_if($job->status !== 'active', 400, 'Lowongan sudah tidak aktif');
+    abort_if(! empty($job->apply_url), 409, 'Gunakan tombol Apply Sekarang untuk pendaftaran eksternal');
 
     // 3. Cek profile & kelengkapan CV jobseeker (PRD 3.6 Syarat Melamar)
     $profile = DB::table('jobseeker_profiles')
@@ -895,6 +920,273 @@ Route::post('/admin/companies/{companyId}/grant-trial', function (Request $reque
     ], 201);
 });
 
+$applyUrlRule = static function (string $attribute, mixed $value, \Closure $fail): void {
+    if (! is_string($value)) {
+        $fail('Link pendaftaran tidak valid.');
+
+        return;
+    }
+
+    if (str_starts_with(strtolower($value), 'mailto:')) {
+        if (filter_var(substr($value, 7), FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+    } elseif (
+        filter_var($value, FILTER_VALIDATE_URL)
+        && in_array(strtolower((string) parse_url($value, PHP_URL_SCHEME)), ['http', 'https'], true)
+    ) {
+        return;
+    }
+
+    $fail('Link pendaftaran harus berupa URL HTTP(S) atau mailto:alamat@email.');
+};
+
+Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($applyUrlRule) {
+    Route::post('/companies', function (Request $request) {
+        abort_unless($request->user()->role === 'admin', 403);
+
+        $input = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'location' => ['required', 'string', 'max:255'],
+            'logo' => ['nullable', 'url', 'max:255'],
+            'website' => ['nullable', 'url', 'max:255'],
+            'contact_url' => ['nullable', 'url', 'max:255'],
+            'description' => ['nullable', 'string'],
+        ]);
+
+        abort_if(
+            DB::table('companies')->where('name', $input['name'])->exists(),
+            409,
+            'Perusahaan sudah terdaftar; pilih perusahaan yang ada'
+        );
+
+        $companyId = (string) Str::uuid();
+        DB::table('companies')->insert([
+            'id' => $companyId,
+            'owner_user_id' => null,
+            'created_by' => $request->user()->id,
+            'name' => $input['name'],
+            'location' => $input['location'],
+            'logo' => $input['logo'] ?? null,
+            'website' => $input['website'] ?? null,
+            'contact_url' => $input['contact_url'] ?? null,
+            'description' => $input['description'] ?? null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Perusahaan berhasil dibuat oleh admin',
+            'data' => DB::table('companies')->where('id', $companyId)->first(),
+        ], 201);
+    });
+
+    Route::post('/companies/{companyId}/logo', function (Request $request, string $companyId) {
+        abort_unless($request->user()->role === 'admin', 403);
+
+        $company = DB::table('companies')
+            ->where('id', $companyId)
+            ->where('owner_user_id', $request->user()->id)
+            ->first();
+        abort_if($company === null, 404, 'Perusahaan milik admin tidak ditemukan');
+
+        $input = $request->validate([
+            'logo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'extensions:jpg,jpeg,png', 'max:2048'],
+        ]);
+
+        $file = $input['logo'];
+        $baseName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'logo';
+        $filename = $baseName.'.'.strtolower($file->getClientOriginalExtension());
+        $path = $file->storeAs("company-logos/{$companyId}", $filename, 'public');
+        abort_if($path === false, 500, 'Gagal menyimpan logo perusahaan');
+
+        DB::table('companies')->where('id', $companyId)->update([
+            'logo' => $filename,
+            'updated_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Logo perusahaan tersimpan',
+            'data' => DB::table('companies')->where('id', $companyId)->first(),
+        ]);
+    });
+
+    Route::post('/companies/{companyId}/assign-employer', function (Request $request, string $companyId) {
+        abort_unless($request->user()->role === 'admin', 403);
+
+        $input = $request->validate([
+            'employer_user_id' => ['required', 'uuid'],
+        ]);
+
+        return DB::transaction(function () use ($companyId, $input) {
+            $company = DB::table('companies')->where('id', $companyId)->lockForUpdate()->first();
+            abort_if($company === null, 404, 'Perusahaan tidak ditemukan');
+
+            $employer = DB::table('users')->where('id', $input['employer_user_id'])->first();
+            abort_if($employer === null || $employer->role !== 'employer', 422, 'Akun employer tidak valid');
+
+            if ($company->owner_user_id === $employer->id) {
+                return response()->json(['message' => 'Employer sudah terhubung', 'data' => $company]);
+            }
+
+            abort_if($company->owner_user_id !== null, 409, 'Perusahaan sudah memiliki employer');
+            abort_if(
+                DB::table('companies')->where('owner_user_id', $employer->id)->exists(),
+                409,
+                'Employer sudah memiliki perusahaan'
+            );
+
+            $updated = DB::table('companies')
+                ->where('id', $companyId)
+                ->whereNull('owner_user_id')
+                ->update(['owner_user_id' => $employer->id, 'updated_at' => now()]);
+            abort_if($updated !== 1, 409, 'Perusahaan sudah dihubungkan oleh proses lain');
+
+            return response()->json([
+                'message' => 'Employer berhasil dihubungkan',
+                'data' => DB::table('companies')->where('id', $companyId)->first(),
+            ]);
+        });
+    });
+
+    Route::post('/job-posts', function (Request $request) use ($applyUrlRule) {
+        abort_unless($request->user()->role === 'admin', 403);
+
+        $input = $request->validate([
+            'company_id' => ['required', 'uuid'],
+            'title' => ['required', 'string', 'max:255'],
+            'location' => ['required', 'string', 'max:255'],
+            'job_type' => ['required', 'string', 'max:255'],
+            'work_type' => ['required', 'string', 'max:255'],
+            'category' => ['nullable', 'string', 'max:255'],
+            'salary_min' => ['nullable', 'numeric', 'min:0'],
+            'salary_max' => ['nullable', 'numeric', 'min:0'],
+            'description' => ['nullable', 'string'],
+            'responsibilities' => ['nullable', 'string'],
+            'requirements' => ['nullable', 'string'],
+            'skills' => ['nullable', 'string'],
+            'benefits' => ['nullable', 'string'],
+            'expires_at' => ['nullable', 'date'],
+            'apply_url' => ['nullable', 'string', 'max:2048', $applyUrlRule],
+        ]);
+
+        abort_unless(DB::table('companies')->where('id', $input['company_id'])->exists(), 404);
+
+        $jobId = (string) Str::uuid();
+        DB::table('job_posts')->insert([
+            'id' => $jobId,
+            'company_id' => $input['company_id'],
+            'posted_by' => $request->user()->id,
+            'subscription_id' => null,
+            'title' => $input['title'],
+            'category' => $input['category'] ?? 'Umum',
+            'location' => $input['location'],
+            'job_type' => $input['job_type'],
+            'work_type' => $input['work_type'],
+            'salary_min' => $input['salary_min'] ?? null,
+            'salary_max' => $input['salary_max'] ?? null,
+            'description' => $input['description'] ?? null,
+            'responsibilities' => $input['responsibilities'] ?? null,
+            'requirements' => $input['requirements'] ?? null,
+            'skills' => $input['skills'] ?? null,
+            'benefits' => $input['benefits'] ?? null,
+            'apply_url' => $input['apply_url'] ?? null,
+            'status' => 'active',
+            'expires_at' => isset($input['expires_at'])
+                ? \Illuminate\Support\Carbon::parse($input['expires_at'])->format('Y-m-d H:i:s')
+                : null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Lowongan berhasil dibuat oleh admin',
+            'data' => DB::table('job_posts')->where('id', $jobId)->first(),
+        ], 201);
+    });
+
+    Route::put('/job-posts/{id}', function (Request $request, string $id) use ($applyUrlRule) {
+        abort_unless($request->user()->role === 'admin', 403);
+
+        $job = DB::table('job_posts')
+            ->where('id', $id)
+            ->where('posted_by', $request->user()->id)
+            ->first();
+        abort_if($job === null, 404, 'Lowongan admin tidak ditemukan');
+
+        $input = $request->validate([
+            'id' => ['missing'],
+            'company_id' => ['missing'],
+            'posted_by' => ['missing'],
+            'subscription_id' => ['missing'],
+            'created_at' => ['missing'],
+            'updated_at' => ['missing'],
+            'title' => ['sometimes', 'required', 'string', 'max:255'],
+            'category' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'location' => ['sometimes', 'required', 'string', 'max:255'],
+            'job_type' => ['sometimes', 'required', 'string', 'max:255'],
+            'work_type' => ['sometimes', 'required', 'string', 'max:255'],
+            'salary_min' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'salary_max' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'description' => ['sometimes', 'nullable', 'string'],
+            'responsibilities' => ['sometimes', 'nullable', 'string'],
+            'requirements' => ['sometimes', 'nullable', 'string'],
+            'skills' => ['sometimes', 'nullable', 'string'],
+            'benefits' => ['sometimes', 'nullable', 'string'],
+            'status' => ['sometimes', 'required', 'in:active,inactive,expired'],
+            'expires_at' => ['sometimes', 'nullable', 'date'],
+            'apply_url' => ['sometimes', 'required', 'string', 'max:2048', $applyUrlRule],
+        ]);
+
+        $input['updated_at'] = now();
+        DB::table('job_posts')->where('id', $id)->update($input);
+
+        return response()->json([
+            'message' => 'Lowongan admin diperbarui',
+            'data' => DB::table('job_posts')->where('id', $id)->first(),
+        ]);
+    });
+
+    Route::get('/applicants', function (Request $request) {
+        abort_unless($request->user()->role === 'admin', 403);
+
+        $filters = $request->validate([
+            'name' => ['nullable', 'string', 'max:255'],
+            'company_id' => ['nullable', 'uuid'],
+        ]);
+
+        $query = DB::table('applications')
+            ->join('jobseeker_profiles', 'applications.profile_id', '=', 'jobseeker_profiles.id')
+            ->join('job_posts', 'applications.job_posts_id', '=', 'job_posts.id')
+            ->join('companies', 'job_posts.company_id', '=', 'companies.id')
+            ->select(
+                'applications.id as application_id',
+                'applications.status',
+                'applications.applied_at',
+                'jobseeker_profiles.user_id',
+                'jobseeker_profiles.full_name as applicant_name',
+                'companies.id as company_id',
+                'companies.name as company_name',
+                'job_posts.id as job_id',
+                'job_posts.title as job_title'
+            );
+
+        if (! empty($filters['name'])) {
+            $query->where('jobseeker_profiles.full_name', 'like', '%'.$filters['name'].'%');
+        }
+        if (! empty($filters['company_id'])) {
+            $query->where('companies.id', $filters['company_id']);
+        }
+
+        $applicants = $query->orderByDesc('applications.applied_at')->get();
+
+        return response()->json([
+            'total' => $applicants->count(),
+            'data' => $applicants,
+        ]);
+    });
+});
+
 // Registrasi employer: akun dibuat pada tabel users yang sudah digunakan aplikasi.
 Route::post('/employer/register', function (Request $request) {
     $input = $request->validate([
@@ -931,18 +1223,31 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function () {
     Route::get('/company', function (Request $request) {
         abort_unless($request->user()->role === 'employer', 403);
 
-        abort_unless(
-    DB::table('companies')
-        ->where('id', $companyId)
-        ->where('owner_user_id', $request->user()->id)
-        ->exists(),
-    404
-);
+        $company = DB::table('companies')
+            ->where('owner_user_id', $request->user()->id)
+            ->first();
+        abort_if($company === null, 404, 'Employer belum terhubung ke perusahaan');
+
+        return response()->json(['data' => $company]);
+    });
+
+    Route::get('/job-posts', function (Request $request) {
+        abort_unless($request->user()->role === 'employer', 403);
+
+        $company = DB::table('companies')
+            ->where('owner_user_id', $request->user()->id)
+            ->first();
+        abort_if($company === null, 404, 'Employer belum terhubung ke perusahaan');
+
+        $jobs = DB::table('job_posts')
+            ->where('company_id', $company->id)
+            ->orderByDesc('created_at')
+            ->get();
 
         return response()->json([
-            'data' => DB::table('companies')
-                ->where('owner_user_id', $request->user()->id)
-                ->first(),
+            'company' => $company,
+            'total' => $jobs->count(),
+            'data' => $jobs,
         ]);
     });
 
