@@ -1,13 +1,15 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Str;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
 /*
@@ -38,16 +40,31 @@ Route::get('/', function () {
     }
 });
 
+Route::get('/me', function (Request $request) {
+    $user = $request->user();
+
+    return response()->json(['data' => [
+        'id' => $user->id,
+        'full_name' => $user->full_name,
+        'email' => $user->email,
+        'role' => $user->role,
+        'email_verified_at' => $user->email_verified_at,
+    ]]);
+})->middleware(['web', 'auth']);
+
 // ==========================================
 // 2. LOWONGAN KERJA (JOB POSTS) - PRD 3.1, 3.2, 4.1
 // ==========================================
 
 Route::get('/job-posts', function (Request $request) {
-$query = DB::table('job_posts')
-    ->leftJoin('companies', 'job_posts.company_id', '=', 'companies.id')
-    ->where('job_posts.status', 'active')
-    ->select(
-        'companies.name as company_name',
+    $query = DB::table('job_posts')
+        ->leftJoin('companies', 'job_posts.company_id', '=', 'companies.id')
+        ->where('job_posts.status', 'active')
+        ->where(function ($q) {
+            $q->whereNull('job_posts.expires_at')->orWhere('job_posts.expires_at', '>', now());
+        })
+        ->select(
+            'companies.name as company_name',
             'job_posts.id',
             'job_posts.title',
             'job_posts.category',
@@ -114,8 +131,10 @@ $query = DB::table('job_posts')
 // Form HTML Pengujian Post Job
 Route::get('/job-posts/form', function () {
     abort_unless(app()->environment(['local', 'testing']), 404);
+    abort_unless(request()->user()?->role === 'employer', 403);
 
     $csrf = e(csrf_token() ?? '');
+    $employerEmail = e(request()->user()->email);
 
     return response(<<<HTML
 <!DOCTYPE html>
@@ -207,10 +226,10 @@ Route::get('/job-posts/form', function () {
         <div class="header">
             <h1>Tambah Lowongan Kerja (Test Form)</h1>
             <p>Berdasarkan PRD StartWork: Lowongan Kerja Employer/Admin</p>
-            <span class="badge">Employer: demo-employer@startwork.test</span>
+            <span class="badge">Employer: {$employerEmail}</span>
         </div>
 
-        <form method="POST" action="/api/job-posts">
+        <form method="POST" action="/api/employer/job-posts">
             <input type="hidden" name="_token" value="{$csrf}">
             <div class="form-group">
                 <label for="title">Judul Lowongan *</label>
@@ -262,15 +281,36 @@ Route::get('/job-posts/form', function () {
 </body>
 </html>
 HTML);
-});
+})->middleware(['web', 'auth']);
 
 // Detail Job Post
 Route::get('/job-posts/{id}', function (string $id) {
     $job = DB::table('job_posts')
         ->leftJoin('companies', 'job_posts.company_id', '=', 'companies.id')
         ->where('job_posts.id', $id)
+        ->where('job_posts.status', 'active')
+        ->where(function ($q) {
+            $q->whereNull('job_posts.expires_at')->orWhere('job_posts.expires_at', '>', now());
+        })
         ->select(
-            'job_posts.*',
+            'job_posts.id',
+            'job_posts.company_id',
+            'job_posts.title',
+            'job_posts.category',
+            'job_posts.location',
+            'job_posts.job_type',
+            'job_posts.work_type',
+            'job_posts.salary_min',
+            'job_posts.salary_max',
+            'job_posts.description',
+            'job_posts.responsibilities',
+            'job_posts.requirements',
+            'job_posts.skills',
+            'job_posts.benefits',
+            'job_posts.apply_url',
+            'job_posts.status',
+            'job_posts.expires_at',
+            'job_posts.created_at',
             'companies.name as company_name',
             'companies.location as company_location',
             'companies.logo as company_logo',
@@ -286,7 +326,7 @@ Route::get('/job-posts/{id}', function (string $id) {
 Route::get('/job-posts/{id}/apply-now', function (string $id) {
     $job = DB::table('job_posts')->where('id', $id)->first();
     abort_if($job === null, 404, 'Lowongan tidak ditemukan');
-    abort_if($job->status !== 'active' || empty($job->apply_url), 404, 'Link pendaftaran tidak tersedia');
+    abort_if($job->status !== 'active' || empty($job->apply_url) || ($job->expires_at !== null && Carbon::parse($job->expires_at)->lessThanOrEqualTo(now())), 404, 'Link pendaftaran tidak tersedia');
 
     $scheme = strtolower((string) parse_url($job->apply_url, PHP_URL_SCHEME));
     abort_unless(in_array($scheme, ['http', 'https', 'mailto'], true), 404);
@@ -296,128 +336,16 @@ Route::get('/job-posts/{id}/apply-now', function (string $id) {
 
 // Tambah Job Post (PRD 3.1 & 3.7)
 Route::post('/job-posts', function (Request $request) {
-    $input = $request->validate([
-        'title' => ['required', 'string', 'max:255'],
-        'location' => ['required', 'string', 'max:255'],
-        'job_type' => ['required', 'string', 'max:255'],
-        'work_type' => ['required', 'string', 'max:255'],
-        'category' => ['nullable', 'string', 'max:255'],
-        'salary_min' => ['nullable', 'numeric'],
-        'salary_max' => ['nullable', 'numeric'],
-        'description' => ['nullable', 'string'],
-        'responsibilities' => ['nullable', 'string'],
-        'requirements' => ['nullable', 'string'],
-        'skills' => ['nullable', 'string'],
-        'benefits' => ['nullable', 'string'],
-        'expires_at' => ['nullable', 'date'],
-        'company_id' => ['nullable', 'string'],
-        'posted_by' => ['nullable', 'string'],
-    ]);
-
-    // Cari employer default bila tidak dipassing secara eksplisit
-    $employer = null;
-    if (! empty($input['posted_by'])) {
-        $employer = DB::table('users')->where('id', $input['posted_by'])->first();
-    }
-    if (! $employer) {
-        $employer = DB::table('users')->where('email', 'demo-employer@startwork.test')->first();
-    }
-    abort_if(! $employer, 409, 'Employer tidak ditemukan untuk memposting lowongan');
-
-    // Cari company
-    $company = null;
-    if (! empty($input['company_id'])) {
-        $company = DB::table('companies')->where('id', $input['company_id'])->first();
-    }
-    if (! $company) {
-        $company = DB::table('companies')->where('owner_user_id', $employer->id)->first();
-    }
-    abort_if(! $company, 409, 'Company tidak ditemukan untuk employer ini');
-
-    $id = (string) Str::uuid();
-
-    DB::table('job_posts')->insert([
-        'id' => $id,
-        'company_id' => $company->id,
-        'posted_by' => $employer->id,
-        'subscription_id' => null,
-        'title' => $input['title'],
-        'category' => $input['category'] ?? 'Umum',
-        'location' => $input['location'],
-        'job_type' => $input['job_type'],
-        'work_type' => $input['work_type'],
-        'salary_min' => $input['salary_min'] ?? null,
-        'salary_max' => $input['salary_max'] ?? null,
-        'description' => $input['description'] ?? null,
-        'responsibilities' => $input['responsibilities'] ?? null,
-        'requirements' => $input['requirements'] ?? null,
-        'skills' => $input['skills'] ?? null,
-        'benefits' => $input['benefits'] ?? null,
-        'status' => 'active',
-        'expires_at' => isset($input['expires_at'])
-            ? \Illuminate\Support\Carbon::parse($input['expires_at'])->format('Y-m-d H:i:s')
-    : null,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    return response()->json([
-        'id' => $id,
-        'message' => 'created',
-        'data' => DB::table('job_posts')->where('id', $id)->first(),
-    ], 201);
+    abort(410, 'Gunakan endpoint POST /api/employer/job-posts atau POST /api/admin/job-posts');
 });
 
-//Update Job Post
+// Update Job Post
 Route::put('/job-posts/{id}', function (Request $request, string $id) {
-    abort_unless(DB::table('job_posts')->where('id', $id)->exists(), 404);
-
-    $input = $request->validate([
-        'id' => ['missing'],
-        'company_id' => ['missing'],
-        'posted_by' => ['missing'],
-        'subscription_id' => ['missing'],
-        'created_at' => ['missing'],
-        'updated_at' => ['missing'],
-
-        'title' => ['sometimes', 'required', 'string', 'max:255'],
-        'category' => ['sometimes', 'nullable', 'string', 'max:255'],
-        'location' => ['sometimes', 'required', 'string', 'max:255'],
-        'job_type' => ['sometimes', 'required', 'string', 'max:255'],
-        'work_type' => ['sometimes', 'required', 'string', 'max:255'],
-        'salary_min' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-        'salary_max' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-        'description' => ['sometimes', 'nullable', 'string'],
-        'responsibilities' => ['sometimes', 'nullable', 'string'],
-        'requirements' => ['sometimes', 'nullable', 'string'],
-        'skills' => ['sometimes', 'nullable', 'string'],
-        'benefits' => ['sometimes', 'nullable', 'string'],
-        'status' => ['sometimes', 'required', 'in:active,inactive,expired'],
-        'expires_at' => ['sometimes', 'nullable', 'date'],
-    ]);
-
-    $input['updated_at'] = now();
-    DB::table('job_posts')->where('id', $id)->update($input);
-
-    return response()->json([
-        'message' => 'updated',
-        'data' => DB::table('job_posts')->where('id', $id)->first(),
-    ]);
+    abort(410, 'Gunakan endpoint PUT /api/employer/job-posts/{id} atau PUT /api/admin/job-posts/{id}');
 });
 
-// Hapus Job Post
-Route::delete('/job-posts/{id}', function (string $id) {
-    abort_unless(DB::table('job_posts')->where('id', $id)->exists(), 404);
-
-    if (DB::table('applications')->where('job_posts_id', $id)->exists()) {
-        return response()->json([
-            'message' => 'Lowongan sudah memiliki lamaran. Ubah status menjadi inactive agar tidak tampil di daftar publik.',
-        ], 409);
-    }
-
-    DB::table('job_posts')->where('id', $id)->delete();
-
-    return response()->noContent();
+Route::delete('/job-posts/{id}', function () {
+    abort(410, 'Gunakan endpoint DELETE khusus role');
 });
 
 // ==========================================
@@ -443,13 +371,19 @@ Route::get('/companies', function (Request $request) {
 });
 
 Route::get('/companies/{id}', function (string $id) {
-    $company = DB::table('companies')->where('id', $id)->first();
+    $company = DB::table('companies')->where('id', $id)
+        ->select('id', 'name', 'location', 'logo', 'website', 'contact_url', 'description')->first();
     abort_if(! $company, 404, 'Perusahaan tidak ditemukan');
 
     // Sertakan Open Positions perusahaan tersebut (PRD 4.1)
     $openPositions = DB::table('job_posts')
         ->where('company_id', $id)
         ->where('status', 'active')
+        ->where(function ($q) {
+            $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+        })
+        ->select('id', 'company_id', 'title', 'category', 'location', 'job_type', 'work_type',
+            'salary_min', 'salary_max', 'description', 'apply_url', 'expires_at')
         ->get();
 
     return response()->json([
@@ -464,205 +398,20 @@ Route::get('/companies/{id}/logo', function (string $id) {
     abort_if(basename($company->logo) !== $company->logo, 404);
 
     $path = "company-logos/{$id}/{$company->logo}";
-    abort_unless(\Illuminate\Support\Facades\Storage::disk('public')->exists($path), 404);
+    abort_unless(Storage::disk('public')->exists($path), 404);
 
-    return \Illuminate\Support\Facades\Storage::disk('public')->response($path);
+    return Storage::disk('public')->response($path);
 });
 
-Route::post('/companies', function (Request $request) {
-    $input = $request->validate([
-        'name' => ['required', 'string', 'max:255'],
-        'location' => ['required', 'string', 'max:255'],
-        'logo' => ['nullable', 'string'],
-        'website' => ['nullable', 'url'],
-        'contact_url' => ['nullable', 'url'],
-        'description' => ['nullable', 'string'],
-        'owner_user_id' => ['nullable', 'string'],
-    ]);
-
-    $id = (string) Str::uuid();
-
-    DB::table('companies')->insert([
-        'id' => $id,
-        'owner_user_id' => $input['owner_user_id'] ?? null,
-        'created_by' => $input['owner_user_id'] ?? null,
-        'name' => $input['name'],
-        'location' => $input['location'],
-        'logo' => $input['logo'] ?? null,
-        'website' => $input['website'] ?? null,
-        'contact_url' => $input['contact_url'] ?? null,
-        'description' => $input['description'] ?? null,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    return response()->json([
-        'id' => $id,
-        'message' => 'created',
-        'data' => DB::table('companies')->where('id', $id)->first(),
-    ], 201);
+Route::post('/companies', function () {
+    abort(410, 'Gunakan endpoint POST /api/employer/company atau /api/admin/companies');
 });
 
 // ==========================================
 // 4. LAMARAN KERJA (APPLICATIONS) - PRD 3.6, 7.6
 // ==========================================
 
-// Jobseeker Melamar Lowongan (PRD 3.6 & 7.6)
-Route::post('/job-posts/{id}/apply', function (Request $request, string $id) {
-    $input = $request->validate([
-        'user_id' => ['required', 'string'],
-    ]);
-
-    // 1. Cek keberadaan loker
-    $job = DB::table('job_posts')->where('id', $id)->first();
-    abort_if(! $job, 404, 'Lowongan tidak ditemukan');
-
-    // 2. Cek apakah loker masih aktif
-    abort_if($job->status !== 'active', 400, 'Lowongan sudah tidak aktif');
-    abort_if(! empty($job->apply_url), 409, 'Gunakan tombol Apply Sekarang untuk pendaftaran eksternal');
-
-    // 3. Cek profile & kelengkapan CV jobseeker (PRD 3.6 Syarat Melamar)
-    $profile = DB::table('jobseeker_profiles')
-        ->where('user_id', $input['user_id'])
-        ->first();
-
-    abort_if(! $profile, 422, 'Profil pencari kerja belum dibuat');
-    abort_if(empty($profile->cv_file), 422, 'CV wajib diunggah sebelum dapat melamar pekerjaan');
-
-    // 4. Cek apakah sudah pernah melamar ke loker ini (PRD 3.6 Satu lamaran per loker)
-    $hasApplied = DB::table('applications')
-        ->where('job_posts_id', $id)
-        ->where('profile_id', $profile->id)
-        ->exists();
-
-    abort_if($hasApplied, 409, 'Anda sudah pernah melamar ke lowongan ini');
-
-    // 5. Simpan lamaran baru
-    $appId = (string) Str::uuid();
-    DB::table('applications')->insert([
-        'id' => $appId,
-        'job_posts_id' => $id,
-        'profile_id' => $profile->id,
-        'applied_at' => now(),
-        'status' => 'submitted', // status awal 'submitted' (PRD 3.6 & Database.md)
-        'cv_file' => $profile->cv_file,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    return response()->json([
-        'id' => $appId,
-        'message' => 'Lamaran berhasil dikirim',
-        'status' => 'submitted',
-    ], 201);
-});
-
-// Jobseeker: Lihat Lamaran Saya (PRD 4.1 & 7.7)
-Route::get('/jobseeker/my-applications/{userId}', function (string $userId) {
-    $profile = DB::table('jobseeker_profiles')->where('user_id', $userId)->first();
-    abort_if(! $profile, 404, 'Profil tidak ditemukan');
-
-    $applications = DB::table('applications')
-        ->join('job_posts', 'applications.job_posts_id', '=', 'job_posts.id')
-        ->join('companies', 'job_posts.company_id', '=', 'companies.id')
-        ->where('applications.profile_id', $profile->id)
-        ->select(
-            'applications.id as application_id',
-            'applications.status',
-            'applications.applied_at',
-            'job_posts.id as job_id',
-            'job_posts.title as job_title',
-            'companies.name as company_name',
-            'companies.location as company_location'
-        )
-        ->orderBy('applications.applied_at', 'desc')
-        ->get();
-
-    return response()->json([
-        'total' => $applications->count(),
-        'data' => $applications,
-    ]);
-});
-
-// Employer: Lihat Daftar Pelamar ke Loker Miliknya (PRD 4.2 Pelamar)
-Route::get('/employer/applicants/{companyId}', function (string $companyId) {
-    $applicants = DB::table('applications')
-        ->join('job_posts', 'applications.job_posts_id', '=', 'job_posts.id')
-        ->join('jobseeker_profiles', 'applications.profile_id', '=', 'jobseeker_profiles.id')
-        ->where('job_posts.company_id', $companyId)
-        ->select(
-            'applications.id as application_id',
-            'applications.status',
-            'applications.applied_at',
-            'applications.cv_file',
-            'job_posts.title as job_title',
-            'jobseeker_profiles.full_name as applicant_name',
-            'jobseeker_profiles.domicile',
-            'jobseeker_profiles.last_education'
-        )
-        ->orderBy('applications.applied_at', 'desc')
-        ->get();
-
-    return response()->json([
-        'total' => $applicants->count(),
-        'data' => $applicants,
-    ]);
-});
-
-// Profile Jobseeker (PRD 3.5 & Database.md)
-Route::post('/jobseeker/profile', function (Request $request) {
-    $input = $request->validate([
-        'user_id' => ['required', 'string'],
-        'full_name' => ['required', 'string'],
-        'domicile' => ['required', 'string'],
-        'birth_date' => ['required', 'date'],
-        'gender' => ['required', 'string'],
-        'last_education' => ['required', 'string'],
-        'cv_file' => ['required', 'string'],
-        'cv_filename' => ['nullable', 'string'],
-        'portfolio_link' => ['nullable', 'url'],
-    ]);
-
-    $existing = DB::table('jobseeker_profiles')->where('user_id', $input['user_id'])->first();
-
-    if ($existing) {
-        DB::table('jobseeker_profiles')->where('id', $existing->id)->update([
-            'full_name' => $input['full_name'],
-            'domicile' => $input['domicile'],
-            'birth_date' => $input['birth_date'],
-            'gender' => $input['gender'],
-            'last_education' => $input['last_education'],
-            'cv_file' => $input['cv_file'],
-            'cv_filename' => $input['cv_filename'] ?? null,
-            'portfolio_link' => $input['portfolio_link'] ?? null,
-            'updated_at' => now(),
-        ]);
-        $profileId = $existing->id;
-    } else {
-        $profileId = (string) Str::uuid();
-        DB::table('jobseeker_profiles')->insert([
-            'id' => $profileId,
-            'user_id' => $input['user_id'],
-            'full_name' => $input['full_name'],
-            'domicile' => $input['domicile'],
-            'birth_date' => $input['birth_date'],
-            'gender' => $input['gender'],
-            'last_education' => $input['last_education'],
-            'cv_file' => $input['cv_file'],
-            'cv_filename' => $input['cv_filename'] ?? null,
-            'cv_uploaded_at' => now(),
-            'portfolio_link' => $input['portfolio_link'] ?? null,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-    }
-
-    return response()->json([
-        'id' => $profileId,
-        'message' => 'Profile saved',
-        'data' => DB::table('jobseeker_profiles')->where('id', $profileId)->first(),
-    ], 200);
-});
+require __DIR__.'/secure_jobseeker.php';
 
 // Detail profil jobseeker: skills wajib, empat bagian lain boleh kosong.
 Route::middleware(['web', 'auth'])->group(function () {
@@ -795,7 +544,6 @@ Route::middleware(['web', 'auth'])->group(function () {
     });
 });
 
-
 // ==========================================
 // 5. ARTIKEL / BLOG (PRD 3.3, 4.1, 4.3)
 // ==========================================
@@ -836,35 +584,7 @@ Route::get('/articles/{id}', function (string $id) {
     return response()->json(['data' => $article]);
 });
 
-// Admin Buat Artikel (PRD 4.3 Task 2)
-Route::post('/admin/articles', function (Request $request) {
-    $input = $request->validate([
-        'author_id' => ['required', 'string'],
-        'title' => ['required', 'string', 'max:255'],
-        'content' => ['required', 'string'],
-        'cover_image' => ['nullable', 'string'],
-        'status' => ['required', 'in:draft,published'],
-    ]);
-
-    $id = (string) Str::uuid();
-    DB::table('articles')->insert([
-        'id' => $id,
-        'author_id' => $input['author_id'],
-        'title' => $input['title'],
-        'cover_image' => $input['cover_image'] ?? null,
-        'content' => $input['content'],
-        'status' => $input['status'],
-        'published_at' => $input['status'] === 'published' ? now() : null,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    return response()->json([
-        'id' => $id,
-        'message' => 'Article created',
-        'data' => DB::table('articles')->where('id', $id)->first(),
-    ], 201);
-});
+require __DIR__.'/secure_articles.php';
 
 // ==========================================
 // 6. PACKAGES & SUBSCRIPTIONS (PRD 3.7 & Database.md)
@@ -880,47 +600,11 @@ Route::get('/packages', function () {
     ]);
 });
 
-// Admin Memberikan Trial 7 Hari (PRD 3.7 Trial & 4.3 Task Kelola Loker)
-Route::post('/admin/companies/{companyId}/grant-trial', function (Request $request, string $companyId) {
-    $input = $request->validate([
-        'admin_id' => ['required', 'string'],
-        'package_id' => ['required', 'string'],
-    ]);
-
-    $company = DB::table('companies')->where('id', $companyId)->first();
-    abort_if(! $company, 404, 'Perusahaan tidak ditemukan');
-
-    $package = DB::table('packages')->where('id', $input['package_id'])->first();
-    abort_if(! $package, 404, 'Package tidak ditemukan');
-
-    $subId = (string) Str::uuid();
-
-    DB::table('company_subscriptions')->insert([
-        'id' => $subId,
-        'company_id' => $companyId,
-        'package_id' => $package->id,
-        'source' => 'admin_trial',
-        'change_type' => 'trial',
-        'status' => 'active',
-        'quota_total' => $package->quota,
-        'quota_used' => 0,
-        'price_snapshot' => 0.00, // PRD 3.7: Trial Admin memiliki harga 0
-        'starts_at' => now(),
-        'expires_at' => now()->addDays(7), // Trial 7 hari
-        'granted_by_admin_id' => $input['admin_id'],
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    return response()->json([
-        'id' => $subId,
-        'message' => 'Trial 7 hari berhasil diberikan',
-        'duration_days' => 7,
-        'quota' => $package->quota,
-    ], 201);
+Route::post('/admin/companies/{companyId}/grant-trial', function () {
+    abort(501, 'Subscription dan payment ditunda sesuai keputusan PIC');
 });
 
-$applyUrlRule = static function (string $attribute, mixed $value, \Closure $fail): void {
+$applyUrlRule = static function (string $attribute, mixed $value, Closure $fail): void {
     if (! is_string($value)) {
         $fail('Link pendaftaran tidak valid.');
 
@@ -948,14 +632,14 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
         $input = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'location' => ['required', 'string', 'max:255'],
-            'logo' => ['nullable', 'url', 'max:255'],
+            'logo' => ['missing'],
             'website' => ['nullable', 'url', 'max:255'],
             'contact_url' => ['nullable', 'url', 'max:255'],
             'description' => ['nullable', 'string'],
         ]);
 
         abort_if(
-            DB::table('companies')->where('name', $input['name'])->exists(),
+            DB::table('companies')->where('name', $input['name'])->where('owner_user_id', $request->user()->id)->exists(),
             409,
             'Perusahaan sudah terdaftar; pilih perusahaan yang ada'
         );
@@ -963,11 +647,11 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
         $companyId = (string) Str::uuid();
         DB::table('companies')->insert([
             'id' => $companyId,
-            'owner_user_id' => null,
+            'owner_user_id' => $request->user()->id,
             'created_by' => $request->user()->id,
             'name' => $input['name'],
             'location' => $input['location'],
-            'logo' => $input['logo'] ?? null,
+            'logo' => null,
             'website' => $input['website'] ?? null,
             'contact_url' => $input['contact_url'] ?? null,
             'description' => $input['description'] ?? null,
@@ -1011,42 +695,8 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
         ]);
     });
 
-    Route::post('/companies/{companyId}/assign-employer', function (Request $request, string $companyId) {
-        abort_unless($request->user()->role === 'admin', 403);
-
-        $input = $request->validate([
-            'employer_user_id' => ['required', 'uuid'],
-        ]);
-
-        return DB::transaction(function () use ($companyId, $input) {
-            $company = DB::table('companies')->where('id', $companyId)->lockForUpdate()->first();
-            abort_if($company === null, 404, 'Perusahaan tidak ditemukan');
-
-            $employer = DB::table('users')->where('id', $input['employer_user_id'])->first();
-            abort_if($employer === null || $employer->role !== 'employer', 422, 'Akun employer tidak valid');
-
-            if ($company->owner_user_id === $employer->id) {
-                return response()->json(['message' => 'Employer sudah terhubung', 'data' => $company]);
-            }
-
-            abort_if($company->owner_user_id !== null, 409, 'Perusahaan sudah memiliki employer');
-            abort_if(
-                DB::table('companies')->where('owner_user_id', $employer->id)->exists(),
-                409,
-                'Employer sudah memiliki perusahaan'
-            );
-
-            $updated = DB::table('companies')
-                ->where('id', $companyId)
-                ->whereNull('owner_user_id')
-                ->update(['owner_user_id' => $employer->id, 'updated_at' => now()]);
-            abort_if($updated !== 1, 409, 'Perusahaan sudah dihubungkan oleh proses lain');
-
-            return response()->json([
-                'message' => 'Employer berhasil dihubungkan',
-                'data' => DB::table('companies')->where('id', $companyId)->first(),
-            ]);
-        });
+    Route::post('/companies/{companyId}/assign-employer', function () {
+        abort(410, 'Company admin dan employer memiliki alur terpisah');
     });
 
     Route::post('/job-posts', function (Request $request) use ($applyUrlRule) {
@@ -1070,7 +720,8 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
             'apply_url' => ['nullable', 'string', 'max:2048', $applyUrlRule],
         ]);
 
-        abort_unless(DB::table('companies')->where('id', $input['company_id'])->exists(), 404);
+        abort_unless(DB::table('companies')->where('id', $input['company_id'])
+            ->where('owner_user_id', $request->user()->id)->exists(), 404);
 
         $jobId = (string) Str::uuid();
         DB::table('job_posts')->insert([
@@ -1093,7 +744,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
             'apply_url' => $input['apply_url'] ?? null,
             'status' => 'active',
             'expires_at' => isset($input['expires_at'])
-                ? \Illuminate\Support\Carbon::parse($input['expires_at'])->format('Y-m-d H:i:s')
+                ? Carbon::parse($input['expires_at'])->format('Y-m-d H:i:s')
                 : null,
             'created_at' => now(),
             'updated_at' => now(),
@@ -1111,6 +762,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
         $job = DB::table('job_posts')
             ->where('id', $id)
             ->where('posted_by', $request->user()->id)
+            ->whereIn('company_id', DB::table('companies')->where('owner_user_id', $request->user()->id)->select('id'))
             ->first();
         abort_if($job === null, 404, 'Lowongan admin tidak ditemukan');
 
@@ -1133,7 +785,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
             'requirements' => ['sometimes', 'nullable', 'string'],
             'skills' => ['sometimes', 'nullable', 'string'],
             'benefits' => ['sometimes', 'nullable', 'string'],
-            'status' => ['sometimes', 'required', 'in:active,inactive,expired'],
+            'status' => ['missing'],
             'expires_at' => ['sometimes', 'nullable', 'date'],
             'apply_url' => ['sometimes', 'required', 'string', 'max:2048', $applyUrlRule],
         ]);
@@ -1241,6 +893,7 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function () {
 
         $jobs = DB::table('job_posts')
             ->where('company_id', $company->id)
+            ->where('posted_by', $request->user()->id)
             ->orderByDesc('created_at')
             ->get();
 
@@ -1257,40 +910,37 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function () {
         $input = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'location' => ['required', 'string', 'max:255'],
-            'logo' => ['nullable', 'string', 'max:255'],
+            'logo' => ['missing'],
             'website' => ['nullable', 'url', 'max:255'],
             'contact_url' => ['nullable', 'url', 'max:255'],
             'description' => ['nullable', 'string'],
         ]);
 
-        abort_if(
-            DB::table('companies')
-                ->where('owner_user_id', $request->user()->id)
-                ->exists(),
-            409,
-            'Employer ini sudah memiliki perusahaan'
-        );
+        return DB::transaction(function () use ($request, $input) {
+            DB::table('users')->where('id', $request->user()->id)->lockForUpdate()->first();
+            abort_if(DB::table('companies')->where('owner_user_id', $request->user()->id)->exists(),
+                409, 'Employer ini sudah memiliki perusahaan');
 
-        $id = (string) Str::uuid();
+            $id = (string) Str::uuid();
+            DB::table('companies')->insert([
+                'id' => $id,
+                'owner_user_id' => $request->user()->id,
+                'created_by' => $request->user()->id,
+                'name' => $input['name'],
+                'location' => $input['location'],
+                'logo' => null,
+                'website' => $input['website'] ?? null,
+                'contact_url' => $input['contact_url'] ?? null,
+                'description' => $input['description'] ?? null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
-        DB::table('companies')->insert([
-            'id' => $id,
-            'owner_user_id' => $request->user()->id,
-            'created_by' => $request->user()->id,
-            'name' => $input['name'],
-            'location' => $input['location'],
-            'logo' => $input['logo'] ?? null,
-            'website' => $input['website'] ?? null,
-            'contact_url' => $input['contact_url'] ?? null,
-            'description' => $input['description'] ?? null,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        return response()->json([
-            'message' => 'Perusahaan berhasil dibuat',
-            'data' => DB::table('companies')->where('id', $id)->first(),
-        ], 201);
+            return response()->json([
+                'message' => 'Perusahaan berhasil dibuat',
+                'data' => DB::table('companies')->where('id', $id)->first(),
+            ], 201);
+        });
     });
 
     Route::get('/applications', function (Request $request) {
@@ -1305,6 +955,7 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function () {
             ->join('companies', 'job_posts.company_id', '=', 'companies.id')
             ->join('jobseeker_profiles', 'applications.profile_id', '=', 'jobseeker_profiles.id')
             ->where('companies.owner_user_id', $request->user()->id)
+            ->where('job_posts.posted_by', $request->user()->id)
             ->select(
                 'applications.id as application_id',
                 'applications.status',
@@ -1335,11 +986,12 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function () {
             ->join('jobseeker_profiles', 'applications.profile_id', '=', 'jobseeker_profiles.id')
             ->where('applications.id', $id)
             ->where('companies.owner_user_id', $request->user()->id)
+            ->where('job_posts.posted_by', $request->user()->id)
             ->select(
                 'applications.id as application_id',
                 'applications.status',
                 'applications.applied_at',
-                'applications.cv_file',
+                DB::raw('CASE WHEN applications.cv_file IS NULL THEN 0 ELSE 1 END as has_cv'),
                 'job_posts.id as job_id',
                 'job_posts.title as job_title',
                 'jobseeker_profiles.full_name',
@@ -1368,6 +1020,7 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function () {
             ->join('companies', 'job_posts.company_id', '=', 'companies.id')
             ->where('applications.id', $id)
             ->where('companies.owner_user_id', $request->user()->id)
+            ->where('job_posts.posted_by', $request->user()->id)
             ->select('applications.id', 'applications.status')
             ->first();
 
@@ -1404,3 +1057,6 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function () {
         ]);
     });
 });
+
+require __DIR__.'/job_status.php';
+require __DIR__.'/secure_management.php';

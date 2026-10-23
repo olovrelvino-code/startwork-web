@@ -17,6 +17,9 @@ Route::get('/jobs/{id}', function (string $id) {
         ->join('companies', 'job_posts.company_id', '=', 'companies.id')
         ->where('job_posts.id', $id)
         ->where('job_posts.status', 'active')
+        ->where(function ($q) {
+            $q->whereNull('job_posts.expires_at')->orWhere('job_posts.expires_at', '>', now());
+        })
         ->select('job_posts.*', 'companies.name as company_name', 'companies.logo as company_logo')
         ->first();
     abort_if($job === null, 404, 'Lowongan tidak ditemukan');

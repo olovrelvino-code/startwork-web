@@ -16,6 +16,14 @@ Cakupan PRD: Role Jobseeker, Employer, dan Admin Internal
 
 Status: Fase Analisis & Perencanaan
 
+Addendum implementasi 20 Oktober 2026 (keputusan terbaru untuk pengujian endpoint):
+- Foto profil jobseeker opsional; skills dan CV wajib sebelum apply internal.
+- Status application yang dipakai: submitted, in_process, accepted, rejected. Viewed dan withdrawn tidak dipakai.
+- Company yang dibuat Admin dimiliki Admin tersebut; Admin dapat memiliki beberapa company. Company Employer tetap dimiliki Employer dan kedua alur tidak saling mengambil alih.
+- Subscription, trial, checkout, dan payment gateway ditunda sesuai keputusan PIC. Katalog package tetap dapat dibaca; draft Employer tetap inactive sampai alur berbayar ditetapkan.
+- Login Google masih rancangan PRD; route OAuth belum tersedia. Kolom email_verified_at tidak boleh diisi sebagai bukti login Google tanpa alur OAuth.
+- Rincian endpoint dan langkah curl.exe ada di flow.md/00-MULAI-DI-SINI.md dan tiga panduan role.
+
 DAFTAR ISI
 
 1.  Gambaran Umum Proyek

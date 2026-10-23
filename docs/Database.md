@@ -13,11 +13,9 @@ Enum job_post_status {
 
 Enum application_status {
   submitted
-  viewed
   in_process
   accepted
   rejected
-  withdrawn
 }
 
 Enum article_status {
@@ -137,7 +135,7 @@ Table certificates {
 
 Table companies {
   id uuid [pk]
-  owner_user_id uuid [unique, null, note: 'Akun Employer pemilik perusahaan']
+  owner_user_id uuid [null, note: 'Akun Admin atau Employer pemilik perusahaan; Admin dapat memiliki banyak company']
   created_by uuid [null, note: 'User Employer atau Admin yang membuat data perusahaan']
   name varchar
   location varchar

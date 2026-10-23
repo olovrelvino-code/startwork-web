@@ -46,7 +46,7 @@ class AdminApplyUrlTest extends TestCase
             ->assertRedirect('https://forms.example.test/apply');
         $this->postJson("/api/job-posts/{$jobId}/apply", [
             'user_id' => (string) Str::uuid(),
-        ])->assertStatus(409);
+        ])->assertForbidden();
 
         $this->actingAs($admin)->put("/api/admin/job-posts/{$jobId}", [
             'apply_url' => 'mailto:hr@example.test',
