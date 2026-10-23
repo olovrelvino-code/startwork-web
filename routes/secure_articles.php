@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
@@ -21,12 +22,16 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
             'content' => ['required', 'string'],
             'status' => ['required', 'in:draft,published'],
             'cover_image' => ['nullable', 'string', 'max:255'],
+            'cover_file' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png', 'extensions:jpg,jpeg,png', 'max:2048'],
         ]);
+        $coverImage = isset($input['cover_file'])
+            ? $input['cover_file']->store('article-covers', 'public')
+            : ($input['cover_image'] ?? null);
         $id = (string) Str::uuid();
         DB::table('articles')->insert([
             'id' => $id, 'author_id' => $request->user()->id,
             'title' => $input['title'], 'content' => $input['content'],
-            'status' => $input['status'], 'cover_image' => $input['cover_image'] ?? null,
+            'status' => $input['status'], 'cover_image' => $coverImage,
             'published_at' => $input['status'] === 'published' ? now() : null,
             'created_at' => now(), 'updated_at' => now(),
         ]);
@@ -44,20 +49,33 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
             'content' => ['sometimes', 'required', 'string'],
             'status' => ['sometimes', 'required', 'in:draft,published'],
             'cover_image' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'cover_file' => ['sometimes', 'file', 'image', 'mimes:jpg,jpeg,png', 'extensions:jpg,jpeg,png', 'max:2048'],
         ]);
+        $oldCoverImage = $article->cover_image;
+        if (isset($input['cover_file'])) {
+            $input['cover_image'] = $input['cover_file']->store('article-covers', 'public');
+            unset($input['cover_file']);
+        }
         if (isset($input['status'])) {
             $input['published_at'] = $input['status'] === 'published'
                 ? ($article->published_at ?? now()) : null;
         }
         $input['updated_at'] = now();
         DB::table('articles')->where('id', $id)->update($input);
+        if ($oldCoverImage && isset($input['cover_image']) && $oldCoverImage !== $input['cover_image'] && str_starts_with($oldCoverImage, 'article-covers/')) {
+            Storage::disk('public')->delete($oldCoverImage);
+        }
 
         return response()->json(['data' => DB::table('articles')->where('id', $id)->first()]);
     });
 
     Route::delete('/articles/{id}', function (Request $request, string $id) {
         abort_unless($request->user()->role === 'admin', 403);
+        $coverImage = DB::table('articles')->where('id', $id)->value('cover_image');
         abort_unless(DB::table('articles')->where('id', $id)->delete(), 404);
+        if ($coverImage && str_starts_with($coverImage, 'article-covers/')) {
+            Storage::disk('public')->delete($coverImage);
+        }
 
         return response()->noContent();
     });

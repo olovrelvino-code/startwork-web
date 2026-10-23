@@ -1,3 +1,39 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+    .admin-shell {
+        --admin-brand: #EE8A34;
+        --admin-brand-hover: #D9731D;
+        --admin-canvas: #f8fafc;
+        --admin-surface: #ffffff;
+        --admin-subtle: #f1f5f9;
+        --admin-border: #e2e8f0;
+        --admin-ink: #0f172a;
+        --admin-body: #334155;
+        --admin-muted: #64748b;
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+        color: var(--admin-body);
+        background: var(--admin-canvas);
+    }
+
+    .admin-sheet { @apply bg-white lg:rounded-2xl lg:border lg:border-slate-200; }
+    .admin-panel { @apply rounded-xl border border-slate-200 bg-white; }
+    .admin-input { @apply block w-full rounded-lg border-slate-300 bg-white text-sm text-slate-900 shadow-none focus:border-orange-500 focus:ring-orange-500; }
+    .admin-label { @apply mb-2 block text-sm font-semibold uppercase tracking-normal text-slate-500; }
+    .admin-button { @apply inline-flex min-h-[40px] items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60; }
+    .admin-button-primary { @apply admin-button bg-[#EE8A34] text-slate-950 hover:bg-[#D9731D] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B85B12]; }
+    .admin-button-secondary { @apply admin-button border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B85B12]; }
+    .admin-button-quiet { @apply admin-button px-2 text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B85B12]; }
+    .admin-link { @apply font-medium text-slate-900 underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B85B12]; }
+    .admin-table { @apply w-full border-collapse text-left text-sm; }
+    .admin-table thead { @apply text-sm font-semibold uppercase tracking-normal text-slate-500; }
+    .admin-table th { @apply px-4 py-3 font-semibold; }
+    .admin-table td { @apply border-t border-slate-100 px-4 py-4 align-middle; }
+    .admin-table tbody tr:hover { @apply bg-slate-50; }
+}
+
+.admin-shell [x-cloak] { display: none !important; }
+.admin-shell :focus-visible { outline-color: #B85B12; }
+.admin-shell .admin-number { font-variant-numeric: tabular-nums; }

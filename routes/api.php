@@ -787,7 +787,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
             'benefits' => ['sometimes', 'nullable', 'string'],
             'status' => ['missing'],
             'expires_at' => ['sometimes', 'nullable', 'date'],
-            'apply_url' => ['sometimes', 'required', 'string', 'max:2048', $applyUrlRule],
+            'apply_url' => ['sometimes', 'nullable', 'string', 'max:2048', $applyUrlRule],
         ]);
 
         $input['updated_at'] = now();
@@ -805,6 +805,8 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
         $filters = $request->validate([
             'name' => ['nullable', 'string', 'max:255'],
             'company_id' => ['nullable', 'uuid'],
+            'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'page' => ['nullable', 'integer', 'min:1'],
         ]);
 
         $query = DB::table('applications')
@@ -830,10 +832,15 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
             $query->where('companies.id', $filters['company_id']);
         }
 
-        $applicants = $query->orderByDesc('applications.applied_at')->get();
+        $total = $query->count();
+        $limit = $filters['limit'] ?? 15;
+        $page = $filters['page'] ?? 1;
+        $applicants = $query->orderByDesc('applications.applied_at')
+            ->orderBy('applications.id')
+            ->skip(($page - 1) * $limit)->take($limit)->get();
 
         return response()->json([
-            'total' => $applicants->count(),
+            'total' => $total,
             'data' => $applicants,
         ]);
     });
