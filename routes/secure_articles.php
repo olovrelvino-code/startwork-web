@@ -27,6 +27,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
         $coverImage = isset($input['cover_file'])
             ? $input['cover_file']->store('article-covers', 'public')
             : ($input['cover_image'] ?? null);
+        abort_if($coverImage === false, 500, 'Gagal menyimpan gambar sampul');
         $id = (string) Str::uuid();
         DB::table('articles')->insert([
             'id' => $id, 'author_id' => $request->user()->id,
@@ -54,6 +55,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
         $oldCoverImage = $article->cover_image;
         if (isset($input['cover_file'])) {
             $input['cover_image'] = $input['cover_file']->store('article-covers', 'public');
+            abort_if($input['cover_image'] === false, 500, 'Gagal menyimpan gambar sampul');
             unset($input['cover_file']);
         }
         if (isset($input['status'])) {
@@ -62,7 +64,9 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
         }
         $input['updated_at'] = now();
         DB::table('articles')->where('id', $id)->update($input);
-        if ($oldCoverImage && isset($input['cover_image']) && $oldCoverImage !== $input['cover_image'] && str_starts_with($oldCoverImage, 'article-covers/')) {
+        if ($oldCoverImage && array_key_exists('cover_image', $input) && $oldCoverImage !== $input['cover_image']
+            && str_starts_with($oldCoverImage, 'article-covers/')
+            && ! DB::table('articles')->where('cover_image', $oldCoverImage)->exists()) {
             Storage::disk('public')->delete($oldCoverImage);
         }
 
@@ -73,7 +77,8 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
         abort_unless($request->user()->role === 'admin', 403);
         $coverImage = DB::table('articles')->where('id', $id)->value('cover_image');
         abort_unless(DB::table('articles')->where('id', $id)->delete(), 404);
-        if ($coverImage && str_starts_with($coverImage, 'article-covers/')) {
+        if ($coverImage && str_starts_with($coverImage, 'article-covers/')
+            && ! DB::table('articles')->where('cover_image', $coverImage)->exists()) {
             Storage::disk('public')->delete($coverImage);
         }
 

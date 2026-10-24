@@ -744,7 +744,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
             'apply_url' => $input['apply_url'] ?? null,
             'status' => 'active',
             'expires_at' => isset($input['expires_at'])
-                ? Carbon::parse($input['expires_at'])->format('Y-m-d H:i:s')
+                ? Carbon::parse($input['expires_at'])->utc()->format('Y-m-d H:i:s')
                 : null,
             'created_at' => now(),
             'updated_at' => now(),
@@ -790,6 +790,9 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
             'apply_url' => ['sometimes', 'nullable', 'string', 'max:2048', $applyUrlRule],
         ]);
 
+        if (isset($input['expires_at'])) {
+            $input['expires_at'] = Carbon::parse($input['expires_at'])->utc()->format('Y-m-d H:i:s');
+        }
         $input['updated_at'] = now();
         DB::table('job_posts')->where('id', $id)->update($input);
 

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -181,5 +182,74 @@ class AdminInternalPagesTest extends TestCase
 
         $this->putJson('/api/admin/job-posts/'.$jobId, ['apply_url' => null])
             ->assertOk()->assertJsonPath('data.apply_url', null);
+    }
+
+    public function test_admin_job_expiry_round_trips_between_wib_and_utc(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $companyId = $this->actingAs($admin)->postJson('/api/admin/companies', [
+            'name' => 'Studio Kerja', 'location' => 'Jakarta',
+        ])->assertCreated()->json('data.id');
+
+        $jobId = $this->postJson('/api/admin/job-posts', [
+            'company_id' => $companyId, 'title' => 'Analis Data', 'location' => 'Jakarta',
+            'job_type' => 'Full-time', 'work_type' => 'Hybrid',
+            'expires_at' => '2030-01-01T17:00+07:00',
+        ])->assertCreated()->assertJsonPath('data.expires_at', '2030-01-01 10:00:00')->json('data.id');
+
+        $this->get('/admin/job-posts/'.$jobId.'/edit')->assertOk()->assertSee('value="2030-01-01T17:00"', false);
+        $this->get('/admin/job-posts/'.$jobId)->assertOk()->assertSee('01 Jan 2030, 17:00');
+
+        $this->putJson('/api/admin/job-posts/'.$jobId, [
+            'expires_at' => '2030-01-02T09:30+07:00',
+        ])->assertOk()->assertJsonPath('data.expires_at', '2030-01-02 02:30:00');
+    }
+
+    public function test_failed_cover_upload_keeps_existing_cover(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $articleId = $this->actingAs($admin)->postJson('/api/admin/articles', [
+            'title' => 'Artikel', 'content' => 'Isi', 'status' => 'draft',
+            'cover_image' => 'article-covers/existing.jpg',
+        ])->assertCreated()->json('data.id');
+
+        $disk = \Mockery::mock(FilesystemAdapter::class);
+        $disk->shouldReceive('putFileAs')->once()->andReturn(false);
+        Storage::shouldReceive('disk')->with('public')->once()->andReturn($disk);
+
+        $this->post('/api/admin/articles/'.$articleId, [
+            '_method' => 'PUT',
+            'cover_file' => UploadedFile::fake()->image('replacement.jpg'),
+        ], ['Accept' => 'application/json'])->assertStatus(500);
+
+        $this->assertDatabaseHas('articles', [
+            'id' => $articleId, 'cover_image' => 'article-covers/existing.jpg',
+        ]);
+    }
+
+    public function test_shared_cover_is_deleted_only_after_last_article_stops_using_it(): void
+    {
+        Storage::fake('public');
+        $coverPath = 'article-covers/shared.jpg';
+        Storage::disk('public')->put($coverPath, 'image');
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin);
+        $firstId = $this->postJson('/api/admin/articles', [
+            'title' => 'Pertama', 'content' => 'Isi', 'status' => 'draft',
+            'cover_image' => $coverPath,
+        ])->assertCreated()->json('data.id');
+        $secondId = $this->postJson('/api/admin/articles', [
+            'title' => 'Kedua', 'content' => 'Isi', 'status' => 'draft',
+            'cover_image' => $coverPath,
+        ])->assertCreated()->json('data.id');
+
+        $this->post('/api/admin/articles/'.$firstId, [
+            '_method' => 'PUT',
+            'cover_file' => UploadedFile::fake()->image('replacement.jpg'),
+        ], ['Accept' => 'application/json'])->assertOk();
+        Storage::disk('public')->assertExists($coverPath);
+
+        $this->deleteJson('/api/admin/articles/'.$secondId)->assertNoContent();
+        Storage::disk('public')->assertMissing($coverPath);
     }
 }

@@ -19,7 +19,7 @@
                     <div><dt class="text-slate-500">Kategori</dt><dd class="mt-1 font-medium text-slate-900">{{ $job->category ?: '—' }}</dd></div>
                     <div><dt class="text-slate-500">Sistem kerja</dt><dd class="mt-1 font-medium text-slate-900">{{ $job->work_type }} · {{ $job->job_type }}</dd></div>
                     <div><dt class="text-slate-500">Rentang gaji</dt><dd class="admin-number mt-1 font-medium text-slate-900">@if ($job->salary_min || $job->salary_max) Rp {{ number_format($job->salary_min ?? 0, 0, ',', '.') }} – {{ number_format($job->salary_max ?? 0, 0, ',', '.') }} @else Tidak dicantumkan @endif</dd></div>
-                    <div><dt class="text-slate-500">Batas tayang</dt><dd class="mt-1 font-medium text-slate-900">{{ $job->expires_at ? \Illuminate\Support\Carbon::parse($job->expires_at)->format('d M Y, H:i') : 'Tidak ditentukan' }}</dd></div>
+                    <div><dt class="text-slate-500">Batas tayang (WIB)</dt><dd class="mt-1 font-medium text-slate-900">{{ $job->expires_at ? \Illuminate\Support\Carbon::parse($job->expires_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i') : 'Tidak ditentukan' }}</dd></div>
                     <div><dt class="text-slate-500">Alur lamaran</dt><dd class="mt-1 font-medium text-slate-900">{{ $job->apply_url ? 'Eksternal' : 'Internal' }}</dd></div>
                     <div><dt class="text-slate-500">ID lowongan</dt><dd class="mt-1 break-all font-mono text-xs text-slate-900">{{ $job->id }}</dd></div>
                 </dl>

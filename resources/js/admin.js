@@ -98,6 +98,8 @@ document.addEventListener('submit', async (event) => {
 
     const method = form.dataset.method || 'POST';
     const formData = new FormData(form);
+    const expiresAt = form.querySelector('input[name="expires_at"][type="datetime-local"]');
+    if (expiresAt?.value) formData.set('expires_at', expiresAt.value + '+07:00');
     const isMultipart = form.enctype === 'multipart/form-data';
     const headers = {
         'Accept': 'application/json',
