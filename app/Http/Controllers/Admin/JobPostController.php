@@ -42,19 +42,24 @@ class JobPostController extends Controller
     {
         $job = $this->findJob($id);
         $isOwned = $job->posted_by === $request->user()->id && $job->company_owner_user_id === $request->user()->id;
+        $isEmployerJob = $job->poster_role === 'employer' && $job->company_owner_user_id === $job->posted_by;
         $applicants = DB::table('applications')
             ->join('jobseeker_profiles', 'applications.profile_id', '=', 'jobseeker_profiles.id')
             ->where('applications.job_posts_id', $id)
             ->select('applications.id', 'applications.status', 'applications.applied_at', 'jobseeker_profiles.full_name')
             ->orderByDesc('applications.applied_at')->paginate(10);
 
-        return view('admin.job-posts.show', compact('job', 'isOwned', 'applicants'));
+        return view('admin.job-posts.show', compact('job', 'isOwned', 'isEmployerJob', 'applicants'));
     }
 
     public function edit(Request $request, string $id): View
     {
         $job = $this->findJob($id);
-        abort_unless($job->posted_by === $request->user()->id && $job->company_owner_user_id === $request->user()->id, 404);
+        abort_unless(
+            ($job->posted_by === $request->user()->id && $job->company_owner_user_id === $request->user()->id)
+            || ($job->poster_role === 'employer' && $job->company_owner_user_id === $job->posted_by),
+            404
+        );
 
         return view('admin.job-posts.edit', compact('job'));
     }
@@ -63,8 +68,9 @@ class JobPostController extends Controller
     {
         $job = DB::table('job_posts')
             ->join('companies', 'job_posts.company_id', '=', 'companies.id')
+            ->join('users as posters', 'job_posts.posted_by', '=', 'posters.id')
             ->where('job_posts.id', $id)
-            ->select('job_posts.*', 'companies.name as company_name', 'companies.owner_user_id as company_owner_user_id')
+            ->select('job_posts.*', 'companies.name as company_name', 'companies.owner_user_id as company_owner_user_id', 'posters.role as poster_role')
             ->first();
         abort_if($job === null, 404);
 

@@ -600,9 +600,52 @@ Route::get('/packages', function () {
     ]);
 });
 
-Route::post('/admin/companies/{companyId}/grant-trial', function () {
-    abort(501, 'Subscription dan payment ditunda sesuai keputusan PIC');
-});
+Route::post('/admin/companies/{companyId}/grant-trial', function (Request $request, string $companyId) {
+    abort_unless($request->user()->role === 'admin', 403);
+    $input = $request->validate([
+        'package_id' => ['required', 'uuid'],
+        'starts_at' => ['missing'], 'expires_at' => ['missing'],
+        'quota_total' => ['missing'], 'quota_used' => ['missing'],
+        'source' => ['missing'], 'status' => ['missing'], 'granted_by_admin_id' => ['missing'],
+    ]);
+
+    return DB::transaction(function () use ($request, $companyId, $input) {
+        $company = DB::table('companies')->where('id', $companyId)->lockForUpdate()->first();
+        abort_if($company === null, 404, 'Perusahaan tidak ditemukan');
+        abort_unless(DB::table('users')->where('id', $company->owner_user_id)->where('role', 'employer')->exists(),
+            409, 'Trial hanya untuk perusahaan Employer');
+        abort_if(DB::table('company_subscriptions')->where('company_id', $companyId)->exists(),
+            409, 'Perusahaan sudah memiliki riwayat subscription');
+
+        $package = DB::table('packages')->where('id', $input['package_id'])->where('is_active', true)->first();
+        abort_if($package === null || $package->quota === null || $package->quota < 1,
+            422, 'Paket aktif dengan kuota diperlukan');
+
+        $startsAt = now();
+        $id = (string) Str::uuid();
+        DB::table('company_subscriptions')->insert([
+            'id' => $id,
+            'company_id' => $companyId,
+            'package_id' => $package->id,
+            'source' => 'admin_trial',
+            'change_type' => 'trial',
+            'status' => 'active',
+            'quota_total' => $package->quota,
+            'quota_used' => 0,
+            'price_snapshot' => 0,
+            'starts_at' => $startsAt,
+            'expires_at' => $startsAt->copy()->addDays(30),
+            'granted_by_admin_id' => $request->user()->id,
+            'created_at' => $startsAt,
+            'updated_at' => $startsAt,
+        ]);
+
+        return response()->json([
+            'message' => 'Trial 30 hari berhasil diberikan',
+            'data' => DB::table('company_subscriptions')->where('id', $id)->first(),
+        ], 201);
+    });
+})->middleware(['web', 'auth']);
 
 $applyUrlRule = static function (string $attribute, mixed $value, Closure $fail): void {
     if (! is_string($value)) {
@@ -669,10 +712,14 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
         abort_unless($request->user()->role === 'admin', 403);
 
         $company = DB::table('companies')
-            ->where('id', $companyId)
-            ->where('owner_user_id', $request->user()->id)
+            ->leftJoin('users as owners', 'companies.owner_user_id', '=', 'owners.id')
+            ->where('companies.id', $companyId)
+            ->where(function ($query) use ($request): void {
+                $query->where('companies.owner_user_id', $request->user()->id)
+                    ->orWhere('owners.role', 'employer');
+            })->select('companies.*')
             ->first();
-        abort_if($company === null, 404, 'Perusahaan milik admin tidak ditemukan');
+        abort_if($company === null, 404, 'Perusahaan tidak ditemukan');
 
         $input = $request->validate([
             'logo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'extensions:jpg,jpeg,png', 'max:2048'],
@@ -760,17 +807,28 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
         abort_unless($request->user()->role === 'admin', 403);
 
         $job = DB::table('job_posts')
-            ->where('id', $id)
-            ->where('posted_by', $request->user()->id)
-            ->whereIn('company_id', DB::table('companies')->where('owner_user_id', $request->user()->id)->select('id'))
+            ->join('companies', 'job_posts.company_id', '=', 'companies.id')
+            ->join('users as posters', 'job_posts.posted_by', '=', 'posters.id')
+            ->where('job_posts.id', $id)
+            ->where(function ($query) use ($request): void {
+                $query->where(function ($owned) use ($request): void {
+                    $owned->where('job_posts.posted_by', $request->user()->id)
+                        ->where('companies.owner_user_id', $request->user()->id);
+                })->orWhere(function ($employer): void {
+                    $employer->where('posters.role', 'employer')
+                        ->whereColumn('companies.owner_user_id', 'job_posts.posted_by');
+                });
+            })
+            ->select('job_posts.*', 'posters.role as poster_role')
             ->first();
-        abort_if($job === null, 404, 'Lowongan admin tidak ditemukan');
+        abort_if($job === null, 404, 'Lowongan tidak ditemukan');
 
         $input = $request->validate([
             'id' => ['missing'],
             'company_id' => ['missing'],
             'posted_by' => ['missing'],
             'subscription_id' => ['missing'],
+            'inactive_reason' => ['missing'],
             'created_at' => ['missing'],
             'updated_at' => ['missing'],
             'title' => ['sometimes', 'required', 'string', 'max:255'],
@@ -787,9 +845,18 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
             'benefits' => ['sometimes', 'nullable', 'string'],
             'status' => ['missing'],
             'expires_at' => ['sometimes', 'nullable', 'date'],
-            'apply_url' => ['sometimes', 'nullable', 'string', 'max:2048', $applyUrlRule],
+            'apply_url' => [$job->poster_role === 'employer' ? 'missing' : 'sometimes', 'nullable', 'string', 'max:2048', $applyUrlRule],
         ]);
 
+        if ($job->status === 'active' && array_key_exists('expires_at', $input)) {
+            abort_if($input['expires_at'] === null || Carbon::parse($input['expires_at'])->lessThanOrEqualTo(now()),
+                422, 'expires_at lowongan aktif harus di masa depan');
+            if ($job->subscription_id !== null) {
+                $subscriptionExpiry = DB::table('company_subscriptions')->where('id', $job->subscription_id)->value('expires_at');
+                abort_if($subscriptionExpiry !== null && Carbon::parse($input['expires_at'])->greaterThan($subscriptionExpiry),
+                    422, 'expires_at lowongan melewati masa subscription');
+            }
+        }
         if (isset($input['expires_at'])) {
             $input['expires_at'] = Carbon::parse($input['expires_at'])->utc()->format('Y-m-d H:i:s');
         }
@@ -797,7 +864,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
         DB::table('job_posts')->where('id', $id)->update($input);
 
         return response()->json([
-            'message' => 'Lowongan admin diperbarui',
+            'message' => 'Lowongan diperbarui',
             'data' => DB::table('job_posts')->where('id', $id)->first(),
         ]);
     });

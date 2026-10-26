@@ -24,6 +24,12 @@
         @endforeach
     </section>
 
+    @if ($newCompaniesWithoutTrial > 0)
+        <a href="{{ route('admin.companies.index', ['filter' => 'new']) }}" class="mb-7 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#B85B12]/25 bg-[#B85B12]/5 px-5 py-4 text-sm text-slate-800 hover:border-[#B85B12]/50">
+            <span><strong>{{ $newCompaniesWithoutTrial }} perusahaan baru</strong> belum menerima trial</span><span class="font-semibold text-[#8F460F]">Tinjau perusahaan →</span>
+        </a>
+    @endif
+
     <div class="grid gap-7 xl:grid-cols-[minmax(0,1.5fr)_minmax(300px,1fr)]">
         <section aria-labelledby="recent-applicants-title">
             <div class="mb-3 flex items-baseline justify-between gap-4">

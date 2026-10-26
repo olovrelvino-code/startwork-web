@@ -48,7 +48,7 @@ class AdminInternalPagesTest extends TestCase
         }
     }
 
-    public function test_company_monitoring_shows_employer_data_without_edit_controls(): void
+    public function test_admin_can_manage_employer_company_from_existing_detail_page(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $employer = User::factory()->create(['role' => 'employer']);
@@ -64,7 +64,148 @@ class AdminInternalPagesTest extends TestCase
         ]);
 
         $this->actingAs($admin)->get('/admin/companies')->assertOk()->assertSee('Mitra Nusantara')->assertSee('Milik Employer');
-        $this->get('/admin/companies/'.$companyId)->assertOk()->assertSee('Mitra Nusantara')->assertDontSee('Ubah profil');
+        $this->get('/admin/companies/'.$companyId)->assertOk()->assertSee('Mitra Nusantara')
+            ->assertSee('Ubah profil')->assertSee('Logo perusahaan')->assertSee('Hapus perusahaan');
+        $this->getJson('/api/admin/companies/'.$companyId)->assertOk()
+            ->assertJsonPath('data.owner_user_id', $employer->id);
+    }
+
+    public function test_admin_can_edit_employer_company_but_cannot_change_ownership(): void
+    {
+        Storage::fake('public');
+        $admin = User::factory()->create(['role' => 'admin']);
+        $employer = User::factory()->create(['role' => 'employer']);
+        $companyId = $this->actingAs($employer)->postJson('/api/employer/company', [
+            'name' => 'PT Awal', 'location' => 'Jakarta',
+        ])->assertCreated()->json('data.id');
+
+        $this->actingAs($admin)->putJson('/api/admin/companies/'.$companyId, [
+            'name' => '', 'location' => '', 'website' => 'bukan-url', 'contact_url' => 'bukan-url',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['name', 'location', 'website', 'contact_url']);
+        foreach (['id' => (string) Str::uuid(), 'owner_user_id' => $admin->id, 'created_by' => $admin->id, 'logo' => 'fake.png'] as $field => $value) {
+            $this->putJson('/api/admin/companies/'.$companyId, [$field => $value])
+                ->assertUnprocessable()->assertJsonValidationErrors($field);
+        }
+        $this->putJson('/api/admin/companies/'.$companyId, [
+            'name' => 'PT Baru', 'location' => 'Bandung', 'website' => 'https://example.test',
+            'contact_url' => 'https://example.test/contact', 'description' => 'Profil diperbarui.',
+        ])->assertOk()->assertJsonPath('data.name', 'PT Baru')
+            ->assertJsonPath('data.owner_user_id', $employer->id);
+        $this->post('/api/admin/companies/'.$companyId.'/logo', [
+            'logo' => UploadedFile::fake()->image('logo.png'),
+        ], ['Accept' => 'application/json'])->assertOk();
+        $logo = DB::table('companies')->where('id', $companyId)->value('logo');
+        Storage::disk('public')->assertExists("company-logos/{$companyId}/{$logo}");
+        $this->actingAs($employer)->getJson('/api/employer/company')->assertOk()
+            ->assertJsonPath('data.name', 'PT Baru')->assertJsonPath('data.location', 'Bandung');
+    }
+
+    public function test_employer_and_jobseeker_cannot_use_admin_company_actions(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $employer = User::factory()->create(['role' => 'employer']);
+        $companyId = $this->actingAs($employer)->postJson('/api/employer/company', [
+            'name' => 'PT Role', 'location' => 'Jakarta',
+        ])->assertCreated()->json('data.id');
+
+        foreach ([$employer, User::factory()->create(['role' => 'jobseeker'])] as $user) {
+            $this->actingAs($user)->get('/admin/companies/'.$companyId)->assertForbidden();
+            $this->putJson('/api/admin/companies/'.$companyId, ['name' => 'Disusupi'])->assertForbidden();
+            $this->postJson('/api/admin/companies/'.$companyId.'/logo', [])->assertForbidden();
+            $this->deleteJson('/api/admin/companies/'.$companyId)->assertForbidden();
+        }
+        $this->actingAs($admin)->get('/admin/companies/'.$companyId)->assertOk();
+        $this->post('/logout')->assertRedirect('/');
+        $this->putJson('/api/admin/companies/'.$companyId, ['name' => 'Tanpa login'])->assertUnauthorized();
+        $this->deleteJson('/api/admin/companies/'.$companyId)->assertUnauthorized();
+        $this->assertDatabaseHas('companies', ['id' => $companyId, 'name' => 'PT Role']);
+    }
+
+    public function test_admin_cannot_change_another_admins_company(): void
+    {
+        $owner = User::factory()->create(['role' => 'admin']);
+        $otherAdmin = User::factory()->create(['role' => 'admin']);
+        $companyId = $this->actingAs($owner)->postJson('/api/admin/companies', [
+            'name' => 'PT Internal', 'location' => 'Jakarta',
+        ])->assertCreated()->json('data.id');
+
+        $this->actingAs($otherAdmin)->get('/admin/companies/'.$companyId)->assertOk()
+            ->assertDontSee('Ubah profil')->assertDontSee('Hapus perusahaan');
+        $this->putJson('/api/admin/companies/'.$companyId, ['name' => 'Disusupi'])->assertNotFound();
+        $this->postJson('/api/admin/companies/'.$companyId.'/logo', [])->assertNotFound();
+        $this->deleteJson('/api/admin/companies/'.$companyId)->assertNotFound();
+        $this->assertDatabaseHas('companies', ['id' => $companyId, 'name' => 'PT Internal']);
+    }
+
+    public function test_admin_deletes_only_employer_company_without_job_or_subscription_history(): void
+    {
+        Storage::fake('public');
+        $admin = User::factory()->create(['role' => 'admin']);
+        $employer = User::factory()->create(['role' => 'employer']);
+        $companyId = $this->actingAs($employer)->postJson('/api/employer/company', [
+            'name' => 'PT Kosong', 'location' => 'Jakarta',
+        ])->assertCreated()->json('data.id');
+        $logo = $this->post('/api/employer/company/logo', [
+            'logo' => UploadedFile::fake()->image('company.png'),
+        ], ['Accept' => 'application/json'])->assertOk()->json('data.logo');
+        $logoPath = "company-logos/{$companyId}/{$logo}";
+        Storage::disk('public')->assertExists($logoPath);
+
+        $this->actingAs($admin)->deleteJson('/api/admin/companies/'.$companyId)->assertNoContent();
+        $this->assertDatabaseMissing('companies', ['id' => $companyId]);
+        $this->assertDatabaseHas('users', ['id' => $employer->id, 'role' => 'employer']);
+        Storage::disk('public')->assertMissing($logoPath);
+        $this->actingAs($employer)->get('/employer/dashboard')->assertRedirect(route('employer.setup'));
+        $this->postJson('/api/employer/job-posts', [
+            'title' => 'Tidak boleh yatim', 'location' => 'Jakarta',
+            'job_type' => 'Full-time', 'work_type' => 'Hybrid',
+        ])->assertNotFound();
+        $this->assertDatabaseMissing('job_posts', ['posted_by' => $employer->id]);
+    }
+
+    public function test_admin_delete_preserves_employer_company_with_application_or_subscription_history(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $employer = User::factory()->create(['role' => 'employer']);
+        $companyId = $this->actingAs($employer)->postJson('/api/employer/company', [
+            'name' => 'PT Riwayat', 'location' => 'Jakarta',
+        ])->assertCreated()->json('data.id');
+        $jobId = $this->postJson('/api/employer/job-posts', [
+            'title' => 'Editor', 'location' => 'Jakarta', 'job_type' => 'Full-time', 'work_type' => 'Hybrid',
+        ])->assertCreated()->json('data.id');
+        $seeker = User::factory()->create(['role' => 'jobseeker']);
+        $profileId = (string) Str::uuid();
+        DB::table('jobseeker_profiles')->insert([
+            'id' => $profileId, 'user_id' => $seeker->id, 'full_name' => 'Pelamar',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('applications')->insert([
+            'id' => (string) Str::uuid(), 'job_posts_id' => $jobId, 'profile_id' => $profileId,
+            'status' => 'submitted', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->actingAs($admin)->deleteJson('/api/admin/companies/'.$companyId)->assertStatus(409);
+        $this->get('/admin/companies/'.$companyId)->assertOk()
+            ->assertSee('Perusahaan tidak dapat dihapus')->assertDontSee('Hapus perusahaan');
+        $this->assertDatabaseHas('job_posts', ['id' => $jobId, 'company_id' => $companyId]);
+        $this->assertDatabaseHas('companies', ['id' => $companyId]);
+
+        $otherEmployer = User::factory()->create(['role' => 'employer']);
+        $otherCompanyId = $this->actingAs($otherEmployer)->postJson('/api/employer/company', [
+            'name' => 'PT Trial', 'location' => 'Bogor',
+        ])->assertCreated()->json('data.id');
+        $packageId = (string) Str::uuid();
+        DB::table('packages')->insert([
+            'id' => $packageId, 'name' => 'Uji Riwayat', 'quota' => 1, 'duration_days' => 30,
+            'price' => 0, 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->actingAs($admin)->postJson('/api/admin/companies/'.$otherCompanyId.'/grant-trial', [
+            'package_id' => $packageId,
+        ])->assertCreated();
+        $this->deleteJson('/api/admin/companies/'.$otherCompanyId)->assertStatus(409);
+        $this->get('/admin/companies/'.$otherCompanyId)->assertOk()
+            ->assertSee('Perusahaan tidak dapat dihapus')->assertDontSee('Hapus perusahaan');
+        $this->assertDatabaseHas('company_subscriptions', ['company_id' => $otherCompanyId]);
+        $this->assertDatabaseHas('companies', ['id' => $otherCompanyId]);
     }
 
     public function test_admin_can_open_owned_job_and_article_edit_pages(): void

@@ -7,11 +7,16 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
-    $ownedCompany = static function (Request $request, string $id): object {
+    $manageableCompany = static function (Request $request, string $id, bool $lock = false): object {
         abort_unless($request->user()->role === 'admin', 403);
-        $company = DB::table('companies')->where('id', $id)
-            ->where('owner_user_id', $request->user()->id)->first();
-        abort_if($company === null, 404, 'Perusahaan admin tidak ditemukan');
+        $query = DB::table('companies')->leftJoin('users as owners', 'companies.owner_user_id', '=', 'owners.id')
+            ->where('companies.id', $id)
+            ->where(function ($query) use ($request): void {
+                $query->where('companies.owner_user_id', $request->user()->id)
+                    ->orWhere('owners.role', 'employer');
+            })->select('companies.*');
+        $company = ($lock ? $query->lockForUpdate() : $query)->first();
+        abort_if($company === null, 404, 'Perusahaan tidak ditemukan');
 
         return $company;
     };
@@ -45,8 +50,8 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
         return response()->json(['total' => $jobs->count(), 'data' => $jobs]);
     });
 
-    Route::put('/companies/{id}', function (Request $request, string $id) use ($ownedCompany) {
-        $ownedCompany($request, $id);
+    Route::put('/companies/{id}', function (Request $request, string $id) use ($manageableCompany) {
+        $manageableCompany($request, $id);
         $input = $request->validate([
             'id' => ['missing'], 'owner_user_id' => ['missing'], 'created_by' => ['missing'], 'logo' => ['missing'],
             'name' => ['sometimes', 'required', 'string', 'max:255'],
@@ -61,19 +66,32 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
         return response()->json(['data' => DB::table('companies')->where('id', $id)->first()]);
     });
 
-    Route::delete('/companies/{id}', function (Request $request, string $id) use ($ownedCompany) {
-        $ownedCompany($request, $id);
-        abort_if(DB::table('job_posts')->where('company_id', $id)->exists(), 409, 'Hapus lowongan terlebih dahulu');
-        abort_if(DB::table('company_subscriptions')->where('company_id', $id)->exists(), 409, 'Perusahaan memiliki riwayat subscription');
-        DB::table('companies')->where('id', $id)->delete();
+    Route::delete('/companies/{id}', function (Request $request, string $id) use ($manageableCompany) {
+        DB::transaction(function () use ($request, $id, $manageableCompany): void {
+            $manageableCompany($request, $id, true);
+            abort_if(DB::table('job_posts')->where('company_id', $id)->exists(), 409, 'Perusahaan memiliki riwayat lowongan; penghapusan ditolak');
+            abort_if(DB::table('company_subscriptions')->where('company_id', $id)->exists(), 409, 'Perusahaan memiliki riwayat subscription; penghapusan ditolak');
+            DB::table('companies')->where('id', $id)->delete();
+        });
+        Storage::disk('public')->deleteDirectory("company-logos/{$id}");
 
         return response()->noContent();
     });
 
     Route::delete('/job-posts/{id}', function (Request $request, string $id) {
         abort_unless($request->user()->role === 'admin', 403);
-        $job = DB::table('job_posts')->where('id', $id)->where('posted_by', $request->user()->id)
-            ->whereIn('company_id', DB::table('companies')->where('owner_user_id', $request->user()->id)->select('id'))->first();
+        $job = DB::table('job_posts')->join('companies', 'job_posts.company_id', '=', 'companies.id')
+            ->join('users as posters', 'job_posts.posted_by', '=', 'posters.id')
+            ->where('job_posts.id', $id)
+            ->where(function ($query) use ($request): void {
+                $query->where(function ($owned) use ($request): void {
+                    $owned->where('job_posts.posted_by', $request->user()->id)
+                        ->where('companies.owner_user_id', $request->user()->id);
+                })->orWhere(function ($employer): void {
+                    $employer->where('posters.role', 'employer')
+                        ->whereColumn('companies.owner_user_id', 'job_posts.posted_by');
+                });
+            })->select('job_posts.*')->first();
         abort_if($job === null, 404);
         abort_if($job->status === 'active', 409, 'Ubah lowongan menjadi inactive dahulu');
         abort_if(DB::table('applications')->where('job_posts_id', $id)->exists(), 409, 'Lowongan memiliki lamaran');

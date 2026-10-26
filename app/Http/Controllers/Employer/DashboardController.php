@@ -16,6 +16,8 @@ class DashboardController extends Controller
         if ($company === null) {
             return redirect()->route('employer.setup');
         }
+        $trial = DB::table('company_subscriptions')->where('company_id', $company->id)
+            ->where('source', 'admin_trial')->orderByDesc('starts_at')->first();
 
         $ownJobs = DB::table('job_posts')->where('company_id', $company->id)
             ->where('posted_by', $request->user()->id);
@@ -39,6 +41,6 @@ class DashboardController extends Controller
             ->select('applications.id', 'applications.status', 'job_posts.title as job_title', 'jobseeker_profiles.full_name')
             ->orderByDesc('applications.applied_at')->limit(5)->get();
 
-        return view('employer.dashboard', compact('company', 'counts', 'jobs', 'applications'));
+        return view('employer.dashboard', compact('company', 'trial', 'counts', 'jobs', 'applications'));
     }
 }

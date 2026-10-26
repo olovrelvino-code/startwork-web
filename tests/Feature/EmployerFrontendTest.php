@@ -18,7 +18,9 @@ class EmployerFrontendTest extends TestCase
     {
         $this->get('/')->assertOk()->assertSee('Untuk Perusahaan');
         $this->get('/employer/login')->assertOk()->assertSee('Masuk sebagai Employer')->assertSee('Daftar di sini');
-        $this->get('/employer/register')->assertOk()->assertSee('Buat akun Employer');
+        $this->get('/employer/register')->assertOk()->assertSee('Buat akun dan lanjutkan')
+            ->assertSee('Langkah 1 dari 2')->assertSee('Profil perusahaan')
+            ->assertSee('registration-progress--dark', false);
         $this->get('/employer/dashboard')->assertRedirect(route('employer.login'));
         $this->get('/employer/setup')->assertRedirect(route('employer.login'));
 
@@ -36,7 +38,8 @@ class EmployerFrontendTest extends TestCase
         $this->post('/employer/login', ['email' => $employer->email, 'password' => 'example-password'])
             ->assertRedirect(route('employer.dashboard'));
         $this->get('/employer/dashboard')->assertRedirect(route('employer.setup'));
-        $this->get('/employer/setup')->assertOk()->assertSee('Simpan & lanjutkan');
+        $this->get('/employer/setup')->assertOk()->assertSee('Simpan dan lanjutkan')
+            ->assertSee('Langkah 2 dari 2');
         $this->get('/employer/company')->assertOk()->assertSee('Informasi perusahaan');
         $this->get('/employer/job-posts/create')->assertRedirect(route('employer.setup'));
     }
@@ -46,19 +49,42 @@ class EmployerFrontendTest extends TestCase
         $this->postJson('/api/employer/register', [
             'full_name' => 'Employer Baru', 'phone' => '081234567890',
             'email' => 'employer-baru@example.test',
+            'password' => 'short', 'password_confirmation' => 'short',
+        ])->assertUnprocessable()->assertJsonValidationErrors('password');
+        $this->assertGuest();
+        $this->assertDatabaseMissing('users', ['email' => 'employer-baru@example.test']);
+
+        $this->postJson('/api/employer/register', [
+            'full_name' => 'Employer Baru', 'phone' => '081234567890',
+            'email' => 'employer-baru@example.test',
             'password' => 'example-password', 'password_confirmation' => 'example-password',
         ])->assertCreated()->assertJsonPath('data.role', 'employer');
 
+        $this->get('/employer/register')->assertRedirect(route('employer.dashboard'));
         $this->get('/employer/dashboard')->assertRedirect(route('employer.setup'));
+        $this->get('/employer/setup')->assertOk()->assertSee('Langkah 2 dari 2')
+            ->assertSee('aria-current="step"', false)
+            ->assertSee('data-state="complete"', false)
+            ->assertSee('registration-progress--dark', false)
+            ->assertSee('data-success-url="'.route('employer.dashboard').'"', false);
         $this->get('/employer/setup')->assertOk()->assertSee('Nama perusahaan');
+        $this->assertSame(1, DB::table('users')->where('email', 'employer-baru@example.test')->count());
+
+        $this->postJson('/api/employer/company', ['name' => 'Studio Kerja'])
+            ->assertUnprocessable()->assertJsonValidationErrors('location');
+        $this->get('/employer/dashboard')->assertRedirect(route('employer.setup'));
+        $this->assertSame(0, DB::table('companies')->where('owner_user_id', auth()->id())->count());
 
         $companyId = $this->postJson('/api/employer/company', [
             'name' => 'Studio Kerja', 'location' => 'Jakarta',
         ])->assertCreated()->json('data.id');
 
-        $this->get('/employer/setup')->assertOk()->assertSee('Logo perusahaan')
-            ->assertSee('Lanjut ke dashboard');
+        $this->get('/employer/setup')->assertRedirect(route('employer.dashboard'));
         $this->get('/employer/dashboard')->assertOk()->assertSee('Studio Kerja');
+        $this->get('/employer/company')->assertOk()->assertSee('Logo perusahaan');
+        $this->postJson('/api/employer/company', ['name' => 'Perusahaan Duplikat', 'location' => 'Bandung'])
+            ->assertStatus(409);
+        $this->assertSame(1, DB::table('companies')->where('owner_user_id', auth()->id())->count());
         $this->assertDatabaseHas('companies', ['id' => $companyId, 'owner_user_id' => auth()->id()]);
     }
 
@@ -74,7 +100,7 @@ class EmployerFrontendTest extends TestCase
             'job_type' => 'Full-time', 'work_type' => 'Hybrid',
         ])->assertCreated()->json('data.id');
         $this->get('/employer/job-posts/'.$jobId)->assertOk()
-            ->assertSee('Lowongan tersimpan sebagai draft')->assertDontSee('Coba aktifkan');
+            ->assertSee('Lowongan belum diterbitkan')->assertDontSee('Terbitkan lowongan');
         $seeker = User::factory()->create(['role' => 'jobseeker']);
         $profileId = (string) Str::uuid();
         $applicationId = (string) Str::uuid();

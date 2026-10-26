@@ -7,7 +7,7 @@
     <x-admin.page-header :title="$job->title" :back="route('admin.job-posts.index')" :description="$job->company_name.' · '.$job->location">
         <x-slot:actions>
             <x-admin.status-badge :status="$job->status" />
-            @if ($isOwned)<a href="{{ route('admin.job-posts.edit', $job->id) }}" class="admin-button-secondary">Ubah lowongan</a>@endif
+            @if ($isOwned || $isEmployerJob)<a href="{{ route('admin.job-posts.edit', $job->id) }}" class="admin-button-secondary">Ubah lowongan</a>@endif
         </x-slot:actions>
     </x-admin.page-header>
 
@@ -41,7 +41,7 @@
         </div>
 
         <div class="space-y-7">
-            @if ($isOwned)
+            @if ($isOwned || $isEmployerJob)
                 <section class="admin-panel p-5 sm:p-6" aria-labelledby="job-status-title">
                     <h2 id="job-status-title" class="text-lg font-semibold text-slate-900">Status tayang</h2>
                     @if ($job->status === 'active')
@@ -51,20 +51,22 @@
                             <div><label class="admin-label" for="inactive-reason">Alasan penutupan</label><textarea class="admin-input min-h-24" id="inactive-reason" name="inactive_reason" required maxlength="255"></textarea></div>
                             <button type="submit" class="admin-button-secondary">Nonaktifkan lowongan</button>
                         </form>
-                    @else
+                    @elseif ($isOwned)
                         <p class="mt-2 text-sm text-slate-600">{{ $job->inactive_reason ?: ($job->status === 'expired' ? 'Lowongan telah melewati batas tayang.' : 'Lowongan sedang tidak aktif.') }}</p>
                         @if ($job->expires_at && \Illuminate\Support\Carbon::parse($job->expires_at)->isFuture())
                             <form data-admin-form data-method="PUT" data-success-url="{{ route('admin.job-posts.show', $job->id) }}" data-success-message="Lowongan diaktifkan kembali." action="{{ url('/api/admin/job-posts/'.$job->id.'/status') }}" class="mt-5">@csrf<input type="hidden" name="status" value="active"><button type="submit" class="admin-button-primary">Aktifkan kembali</button></form>
                         @else
                             <p class="mt-4 text-sm text-slate-600">Perbarui batas tayang ke tanggal mendatang sebelum mengaktifkan kembali.</p>
                         @endif
+                    @else
+                        <p class="mt-2 text-sm text-slate-600">Aktivasi lowongan Employer dilakukan oleh Employer dengan hak akses subscription aktif.</p>
                     @endif
                 </section>
                 @if ($job->status !== 'active' && $applicants->total() === 0)
                     <x-admin.confirm-dialog title="Hapus lowongan?" message="Lowongan yang dihapus tidak dapat dipulihkan. Pastikan tidak ada riwayat pelamar." :endpoint="url('/api/admin/job-posts/'.$job->id)" :success-url="route('admin.job-posts.index')" button-label="Hapus lowongan" />
                 @endif
             @else
-                <x-admin.notice type="info" message="Lowongan ini tersedia untuk pemantauan. Hanya admin pembuat pada perusahaan miliknya yang dapat mengubah atau menghapusnya." />
+                <x-admin.notice type="info" message="Lowongan admin lain tersedia untuk pemantauan saja." />
             @endif
         </div>
     </div>

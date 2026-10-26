@@ -47,7 +47,20 @@
                         <button type="submit" class="admin-button-secondary">Nonaktifkan lowongan</button>
                     </form>
                 @else
-                    <p class="text-sm leading-relaxed text-slate-600">Lowongan tersimpan sebagai draft. Aktivasi memerlukan subscription aktif dan kuota; alur subscription dan pembayaran saat ini ditunda.</p>
+                    @if ($subscription === null)
+                        <p class="text-sm leading-relaxed text-slate-600">Lowongan belum diterbitkan. Hak publikasi belum aktif atau masa trial telah berakhir. Draft dan riwayat lowongan tetap tersimpan.</p>
+                    @elseif (! $hasValidExpiry)
+                        <p class="text-sm leading-relaxed text-slate-600">Batas tayang harus di masa depan dan tidak melewati akhir akses pada {{ \Illuminate\Support\Carbon::parse($subscription->expires_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i') }} WIB.</p>
+                        <a href="{{ route('employer.job-posts.edit', $job->id) }}" class="admin-link mt-3 inline-block text-sm">Atur batas tayang</a>
+                    @elseif (! $hasQuota)
+                        <p class="text-sm leading-relaxed text-slate-600">Kuota lowongan aktif sudah penuh. Nonaktifkan lowongan lain sebelum menerbitkan draft ini.</p>
+                    @else
+                        <p class="mb-4 text-sm leading-relaxed text-slate-600">Akses publikasi aktif. Lowongan ini masih berupa draft dan belum terlihat oleh pencari kerja.</p>
+                        <form data-employer-form data-method="PUT" data-success-url="{{ route('employer.job-posts.show', $job->id) }}" data-success-message="Lowongan berhasil diterbitkan." action="{{ url('/api/employer/job-posts/'.$job->id.'/status') }}">
+                            @csrf<input type="hidden" name="status" value="active">
+                            <button type="submit" class="admin-button-primary">Terbitkan lowongan</button>
+                        </form>
+                    @endif
                 @endif
             </section>
             @if ($job->status !== 'active' && $applicationCount === 0)

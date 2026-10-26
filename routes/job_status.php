@@ -48,11 +48,25 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
 
         return DB::transaction(function () use ($request, $id, $input) {
             $job = DB::table('job_posts')
-                ->where('id', $id)
-                ->where('posted_by', $request->user()->id)
-                ->whereIn('company_id', DB::table('companies')->where('owner_user_id', $request->user()->id)->select('id'))
+                ->join('companies', 'job_posts.company_id', '=', 'companies.id')
+                ->join('users as posters', 'job_posts.posted_by', '=', 'posters.id')
+                ->where('job_posts.id', $id)
+                ->where(function ($query) use ($request): void {
+                    $query->where(function ($owned) use ($request): void {
+                        $owned->where('job_posts.posted_by', $request->user()->id)
+                            ->where('companies.owner_user_id', $request->user()->id);
+                    })->orWhere(function ($employer): void {
+                        $employer->where('posters.role', 'employer')
+                            ->whereColumn('companies.owner_user_id', 'job_posts.posted_by');
+                    });
+                })
+                ->select('job_posts.*', 'posters.role as poster_role')
                 ->lockForUpdate()->first();
-            abort_if($job === null, 404, 'Lowongan buatan admin tidak ditemukan');
+            abort_if($job === null, 404, 'Lowongan tidak ditemukan');
+
+            if ($input['status'] === 'active') {
+                abort_unless($job->posted_by === $request->user()->id, 403, 'Aktivasi lowongan Employer dilakukan oleh Employer');
+            }
 
             if ($input['status'] === 'active') {
                 abort_if(
@@ -69,6 +83,11 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
                     ? $input['inactive_reason'] : null,
                 'updated_at' => now(),
             ]);
+
+            if ($input['status'] === 'inactive' && $job->status === 'active' && $job->subscription_id !== null) {
+                DB::table('company_subscriptions')->where('id', $job->subscription_id)
+                    ->where('quota_used', '>', 0)->decrement('quota_used');
+            }
 
             return response()->json([
                 'data' => DB::table('job_posts')->where('id', $id)->first(),
@@ -97,40 +116,42 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function (): void 
             'expires_at' => ['nullable', 'date', 'after:now'],
         ]);
 
-        $company = DB::table('companies')
-            ->where('owner_user_id', $request->user()->id)->first();
-        abort_if($company === null, 404, 'Perusahaan employer tidak ditemukan');
+        return DB::transaction(function () use ($request, $input) {
+            $company = DB::table('companies')->where('owner_user_id', $request->user()->id)
+                ->lockForUpdate()->first();
+            abort_if($company === null, 404, 'Perusahaan employer tidak ditemukan');
 
-        $id = (string) Str::uuid();
-        DB::table('job_posts')->insert([
-            'id' => $id,
-            'company_id' => $company->id,
-            'posted_by' => $request->user()->id,
-            'subscription_id' => null,
-            'title' => $input['title'],
-            'category' => $input['category'] ?? 'Umum',
-            'location' => $input['location'],
-            'job_type' => $input['job_type'],
-            'work_type' => $input['work_type'],
-            'salary_min' => $input['salary_min'] ?? null,
-            'salary_max' => $input['salary_max'] ?? null,
-            'description' => $input['description'] ?? null,
-            'responsibilities' => $input['responsibilities'] ?? null,
-            'requirements' => $input['requirements'] ?? null,
-            'skills' => $input['skills'] ?? null,
-            'benefits' => $input['benefits'] ?? null,
-            'status' => 'inactive',
-            'inactive_reason' => null,
-            'expires_at' => isset($input['expires_at'])
-                ? Carbon::parse($input['expires_at'])->utc()->format('Y-m-d H:i:s')
-                : null,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+            $id = (string) Str::uuid();
+            DB::table('job_posts')->insert([
+                'id' => $id,
+                'company_id' => $company->id,
+                'posted_by' => $request->user()->id,
+                'subscription_id' => null,
+                'title' => $input['title'],
+                'category' => $input['category'] ?? 'Umum',
+                'location' => $input['location'],
+                'job_type' => $input['job_type'],
+                'work_type' => $input['work_type'],
+                'salary_min' => $input['salary_min'] ?? null,
+                'salary_max' => $input['salary_max'] ?? null,
+                'description' => $input['description'] ?? null,
+                'responsibilities' => $input['responsibilities'] ?? null,
+                'requirements' => $input['requirements'] ?? null,
+                'skills' => $input['skills'] ?? null,
+                'benefits' => $input['benefits'] ?? null,
+                'status' => 'inactive',
+                'inactive_reason' => null,
+                'expires_at' => isset($input['expires_at'])
+                    ? Carbon::parse($input['expires_at'])->utc()->format('Y-m-d H:i:s')
+                    : null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
-        return response()->json([
-            'data' => DB::table('job_posts')->where('id', $id)->first(),
-        ], 201);
+            return response()->json([
+                'data' => DB::table('job_posts')->where('id', $id)->first(),
+            ], 201);
+        });
     });
 
     Route::put('/job-posts/{id}', function (Request $request, string $id) {

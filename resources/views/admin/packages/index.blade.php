@@ -5,7 +5,7 @@
 
 @section('content')
     <x-admin.page-header title="Paket & Promo" description="Katalog paket aktif sebagai acuan operasional perusahaan." />
-    <x-admin.notice type="warning" message="Pemberian trial dan pembayaran masih ditunda. Endpoint grant-trial mengembalikan 501; tidak ada aksi aktivasi pada halaman ini." />
+    <x-admin.notice type="info" message="Trial 30 hari diberikan dari detail perusahaan Employer yang memenuhi syarat. Pembayaran belum tersedia." />
     <section aria-label="Katalog paket" class="admin-panel divide-y divide-slate-100">
         @forelse ($packages as $package)
             <div class="grid gap-3 px-5 py-5 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-8">

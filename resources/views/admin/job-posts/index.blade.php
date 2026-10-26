@@ -4,7 +4,7 @@
 @section('section_label', 'Lowongan Kerja')
 
 @section('content')
-    <x-admin.page-header title="Lowongan kerja" description="Pantau seluruh lowongan. Pengubahan hanya tersedia untuk posting yang dibuat oleh akun admin ini pada perusahaannya sendiri.">
+    <x-admin.page-header title="Lowongan kerja" description="Pantau seluruh lowongan. Kelola posting Employer dan posting milik akun admin ini.">
         <x-slot:actions><a href="{{ route('admin.job-posts.create') }}" class="admin-button-primary">Buat lowongan</a></x-slot:actions>
     </x-admin.page-header>
 

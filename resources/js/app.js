@@ -6,6 +6,23 @@ window.Alpine = Alpine;
 
 Alpine.start();
 
+document.querySelectorAll('[data-auth-login-form]').forEach((form) => {
+    const button = form.querySelector('[type="submit"]');
+    if (!(button instanceof HTMLButtonElement)) return;
+    const label = button.textContent;
+
+    form.addEventListener('submit', () => {
+        button.disabled = true;
+        button.textContent = button.dataset.loadingLabel || label;
+        form.setAttribute('aria-busy', 'true');
+    });
+    window.addEventListener('pageshow', () => {
+        button.disabled = false;
+        button.textContent = label;
+        form.removeAttribute('aria-busy');
+    });
+});
+
 const sessionIdentity = document.querySelector('meta[name="session-user-id"]');
 if (sessionIdentity) {
     let checking = false;

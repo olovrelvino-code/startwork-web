@@ -71,9 +71,8 @@ class StartWorkPrdApiTest extends TestCase
         $this->getJson("/api/admin/applicants?company_id={$companyId}")->assertJsonPath('total', 1);
     }
 
-    public function test_package_catalog_remains_readable_but_trial_is_deferred(): void
+    public function test_package_catalog_remains_readable(): void
     {
         $this->getJson('/api/packages')->assertOk()->assertJsonStructure(['total', 'data']);
-        $this->postJson('/api/admin/companies/test/grant-trial', [])->assertStatus(501);
     }
 }

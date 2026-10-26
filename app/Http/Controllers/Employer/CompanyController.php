@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Employer;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -16,9 +17,13 @@ class CompanyController extends Controller
         return view('employer.company', compact('company'));
     }
 
-    public function setup(Request $request): View
+    public function setup(Request $request): View|RedirectResponse
     {
         $company = DB::table('companies')->where('owner_user_id', $request->user()->id)->first();
+
+        if ($company !== null) {
+            return redirect()->route('employer.dashboard');
+        }
 
         return view('employer.company', ['company' => $company, 'setup' => true]);
     }
