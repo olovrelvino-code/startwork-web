@@ -18,7 +18,7 @@ class AdminInternalPagesTest extends TestCase
 
     public function test_admin_pages_require_login_and_admin_role(): void
     {
-        $this->get('/admin/dashboard')->assertRedirect(route('login'));
+        $this->get('/admin/dashboard')->assertRedirect(route('admin.login'));
 
         $employer = User::factory()->create(['role' => 'employer']);
         $this->actingAs($employer)->get('/admin/dashboard')->assertForbidden();
@@ -34,7 +34,7 @@ class AdminInternalPagesTest extends TestCase
             'password_hash' => Hash::make('example-password'),
         ]);
 
-        $this->post('/login', ['email' => $admin->email, 'password' => 'example-password'])
+        $this->post('/admin/login', ['email' => $admin->email, 'password' => 'example-password'])
             ->assertRedirect(route('admin.dashboard'));
     }
 

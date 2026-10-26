@@ -1,0 +1,44 @@
+<?php
+
+namespace App\Http\Controllers\Employer;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
+
+class DashboardController extends Controller
+{
+    public function __invoke(Request $request): View|RedirectResponse
+    {
+        $company = DB::table('companies')->where('owner_user_id', $request->user()->id)->first();
+        if ($company === null) {
+            return redirect()->route('employer.setup');
+        }
+
+        $ownJobs = DB::table('job_posts')->where('company_id', $company->id)
+            ->where('posted_by', $request->user()->id);
+        $counts = [
+            'jobs' => (clone $ownJobs)->count(),
+            'active_jobs' => (clone $ownJobs)->where('status', 'active')
+                ->where(function ($query): void {
+                    $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
+                })->count(),
+        ];
+        $jobs = (clone $ownJobs)->select('id', 'title', 'status', 'created_at')
+            ->orderByDesc('created_at')->limit(5)->get();
+
+        $ownApplications = DB::table('applications')
+            ->join('job_posts', 'applications.job_posts_id', '=', 'job_posts.id')
+            ->join('jobseeker_profiles', 'applications.profile_id', '=', 'jobseeker_profiles.id')
+            ->where('job_posts.company_id', $company->id)
+            ->where('job_posts.posted_by', $request->user()->id);
+        $counts['applications'] = (clone $ownApplications)->count();
+        $applications = (clone $ownApplications)
+            ->select('applications.id', 'applications.status', 'job_posts.title as job_title', 'jobseeker_profiles.full_name')
+            ->orderByDesc('applications.applied_at')->limit(5)->get();
+
+        return view('employer.dashboard', compact('company', 'counts', 'jobs', 'applications'));
+    }
+}

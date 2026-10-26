@@ -37,3 +37,8 @@
 .admin-shell [x-cloak] { display: none !important; }
 .admin-shell :focus-visible { outline-color: #B85B12; }
 .admin-shell .admin-number { font-variant-numeric: tabular-nums; }
+
+.employer-shell { background: #f8fafc; }
+.employer-shell .admin-label { @apply normal-case font-medium text-slate-700; }
+.employer-shell .admin-table thead { @apply normal-case text-slate-500; }
+.employer-shell .admin-button { @apply min-h-11; }

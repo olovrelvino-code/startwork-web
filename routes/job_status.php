@@ -121,7 +121,9 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function (): void 
             'benefits' => $input['benefits'] ?? null,
             'status' => 'inactive',
             'inactive_reason' => null,
-            'expires_at' => $input['expires_at'] ?? null,
+            'expires_at' => isset($input['expires_at'])
+                ? Carbon::parse($input['expires_at'])->utc()->format('Y-m-d H:i:s')
+                : null,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -182,6 +184,9 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function (): void 
             }
         }
 
+        if (isset($input['expires_at'])) {
+            $input['expires_at'] = Carbon::parse($input['expires_at'])->utc()->format('Y-m-d H:i:s');
+        }
         $input['updated_at'] = now();
         DB::table('job_posts')->where('id', $id)->update($input);
 

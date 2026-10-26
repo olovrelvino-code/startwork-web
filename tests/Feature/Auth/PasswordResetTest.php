@@ -70,4 +70,24 @@ class PasswordResetTest extends TestCase
             return true;
         });
     }
+
+    public function test_employer_and_admin_password_reset_return_to_their_login_pages(): void
+    {
+        foreach (['employer' => 'employer.login', 'admin' => 'admin.login'] as $role => $loginRoute) {
+            Notification::fake();
+            $user = User::factory()->create(['role' => $role]);
+            $this->post('/forgot-password', ['email' => $user->email]);
+
+            Notification::assertSentTo($user, ResetPassword::class, function ($notification) use ($user, $loginRoute) {
+                $this->post('/reset-password', [
+                    'token' => $notification->token,
+                    'email' => $user->email,
+                    'password' => 'new-password',
+                    'password_confirmation' => 'new-password',
+                ])->assertRedirect(route($loginRoute));
+
+                return true;
+            });
+        }
+    }
 }

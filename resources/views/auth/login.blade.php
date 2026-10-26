@@ -1,8 +1,9 @@
 <x-guest-layout>
+    <h1 class="mb-5 text-xl font-semibold text-slate-900">Masuk Jobseeker</h1>
     <!-- Session Status -->
     <x-auth-session-status class="mb-4" :status="session('status')" />
 
-    <form method="POST" action="{{ route('login') }}">
+    <form method="POST" action="{{ route('login.store') }}">
         @csrf
 
         <!-- Email Address -->
@@ -44,4 +45,10 @@
             </x-primary-button>
         </div>
     </form>
+
+    <p class="mt-6 text-center text-sm text-gray-600">
+        Mewakili perusahaan?
+        <a href="{{ route('employer.login') }}" class="font-semibold text-slate-900 underline underline-offset-2">Masuk sebagai Employer</a>
+    </p>
+    <p class="mt-3 text-center text-sm text-gray-600">Belum punya akun Jobseeker? <a href="{{ route('register') }}" class="font-semibold text-slate-900 underline underline-offset-2">Daftar</a></p>
 </x-guest-layout>

@@ -24,13 +24,28 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate();
+        $role = match (true) {
+            $request->routeIs('admin.login.store') => 'admin',
+            $request->routeIs('employer.login.store') => 'employer',
+            default => 'jobseeker',
+        };
+
+        $request->authenticate($role);
 
         $request->session()->regenerate();
 
-        $destination = $request->user()->role === 'admin'
-            ? route('admin.dashboard', absolute: false)
-            : route('dashboard', absolute: false);
+        $authenticatedRole = $request->user()->role;
+        $destination = match ($authenticatedRole) {
+            'admin' => route('admin.dashboard', absolute: false),
+            'employer' => route('employer.dashboard', absolute: false),
+            'jobseeker' => route('dashboard', absolute: false),
+        };
+
+        $intendedPath = parse_url((string) $request->session()->get('url.intended'), PHP_URL_PATH) ?: '';
+        if (($authenticatedRole !== 'admin' && str_starts_with($intendedPath, '/admin/'))
+            || ($authenticatedRole !== 'employer' && str_starts_with($intendedPath, '/employer/'))) {
+            $request->session()->forget('url.intended');
+        }
 
         return redirect()->intended($destination);
     }
@@ -40,12 +55,19 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        $destination = match ($request->input('next')) {
+            'admin' => route('admin.login', absolute: false),
+            'employer' => route('employer.login', absolute: false),
+            'jobseeker' => route('login', absolute: false),
+            default => '/',
+        };
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect($destination);
     }
 }

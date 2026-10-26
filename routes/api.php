@@ -956,8 +956,10 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function () {
     Route::get('/applications', function (Request $request) {
         abort_unless($request->user()->role === 'employer', 403);
 
-        $request->validate([
+        $filters = $request->validate([
             'job_id' => ['sometimes', 'uuid'],
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'limit' => ['sometimes', 'integer', 'min:1', 'max:50'],
         ]);
 
         $query = DB::table('applications')
@@ -979,10 +981,15 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function () {
             $query->where('job_posts.id', $request->query('job_id'));
         }
 
-        $applications = $query->orderByDesc('applications.applied_at')->get();
+        $total = $query->count();
+        $limit = $filters['limit'] ?? 15;
+        $page = $filters['page'] ?? 1;
+        $applications = $query->orderByDesc('applications.applied_at')
+            ->orderByDesc('applications.id')
+            ->skip(($page - 1) * $limit)->take($limit)->get();
 
         return response()->json([
-            'total' => $applications->count(),
+            'total' => $total,
             'data' => $applications,
         ]);
     });
