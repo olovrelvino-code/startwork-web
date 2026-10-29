@@ -22,7 +22,7 @@ class AuthenticationTest extends TestCase
     public function test_each_login_route_accepts_only_its_role(): void
     {
         $routes = [
-            'jobseeker' => ['/login', route('dashboard', absolute: false)],
+            'jobseeker' => ['/login', route('jobs.index', absolute: false)],
             'employer' => ['/employer/login', route('employer.dashboard', absolute: false)],
             'admin' => ['/admin/login', route('admin.dashboard', absolute: false)],
         ];
@@ -52,6 +52,22 @@ class AuthenticationTest extends TestCase
         $this->withSession(['url.intended' => url('/admin/dashboard')])
             ->post('/employer/login', ['email' => $employer->email, 'password' => 'password'])
             ->assertRedirect(route('employer.dashboard'));
+    }
+
+    public function test_jobseeker_login_opens_jobs_even_with_an_intended_page(): void
+    {
+        $jobseeker = User::factory()->create(['role' => 'jobseeker']);
+
+        $this->withSession(['url.intended' => url('/profil')])
+            ->post('/login', ['email' => $jobseeker->email, 'password' => 'password'])
+            ->assertRedirect(route('jobs.index', absolute: false))
+            ->assertSessionMissing('url.intended');
+
+        $this->get('/dashboard')->assertRedirect(route('jobs.index'));
+        $this->get('/loker')->assertOk();
+        $this->get('/profil')->assertOk();
+        $this->get('/profil/lamaran')->assertOk();
+        $this->get('/login')->assertRedirect(route('jobs.index'));
     }
 
     public function test_signed_in_users_must_switch_accounts_before_opening_another_role_login(): void
@@ -115,7 +131,7 @@ class AuthenticationTest extends TestCase
         $employer = User::factory()->create(['role' => 'employer']);
 
         $this->post('/login', ['email' => $jobseeker->email, 'password' => 'password'])
-            ->assertRedirect(route('dashboard', absolute: false));
+            ->assertRedirect(route('jobs.index', absolute: false));
         $this->withCookie(config('session.cookie'), session()->getId());
         $this->get('/admin/login')->assertRedirect(route('account.switch', ['role' => 'admin']));
         $this->post('/logout', ['next' => 'admin'])->assertRedirect(route('admin.login', absolute: false));
@@ -131,9 +147,10 @@ class AuthenticationTest extends TestCase
         $this->withCookie(config('session.cookie'), session()->getId());
 
         $this->post('/login', ['email' => $jobseeker->email, 'password' => 'password'])
-            ->assertRedirect(route('dashboard', absolute: false));
+            ->assertRedirect(route('jobs.index', absolute: false));
         $this->withCookie(config('session.cookie'), session()->getId());
-        $this->get('/dashboard')->assertOk()->assertSee('data-role="jobseeker"', false);
+        $this->get('/dashboard')->assertRedirect(route('jobs.index'));
+        $this->get('/loker')->assertOk()->assertSee('data-role="jobseeker"', false);
         $this->getJson('/api/me')->assertJsonPath('data.id', $jobseeker->id);
         $this->get('/employer/login')->assertRedirect(route('account.switch', ['role' => 'employer']));
         $this->post('/logout', ['next' => 'employer'])->assertRedirect(route('employer.login', absolute: false));
@@ -147,7 +164,7 @@ class AuthenticationTest extends TestCase
         $this->post('/logout', ['next' => 'jobseeker'])->assertRedirect(route('login', absolute: false));
         $this->withCookie(config('session.cookie'), session()->getId());
         $this->post('/login', ['email' => $jobseeker->email, 'password' => 'password'])
-            ->assertRedirect(route('dashboard', absolute: false));
+            ->assertRedirect(route('jobs.index', absolute: false));
         $this->withCookie(config('session.cookie'), session()->getId());
         $this->getJson('/api/me')->assertJsonPath('data.id', $jobseeker->id);
     }
@@ -263,7 +280,7 @@ class AuthenticationTest extends TestCase
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertRedirect(route('jobs.index', absolute: false));
     }
 
     public function test_users_can_not_authenticate_with_invalid_password(): void

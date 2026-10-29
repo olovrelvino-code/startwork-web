@@ -17,8 +17,49 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    $activeJobs = DB::table('job_posts')->where('job_posts.status', 'active')
+        ->where(fn ($query) => $query->whereNull('job_posts.expires_at')->orWhere('job_posts.expires_at', '>', now()));
+    $jobs = (clone $activeJobs)->join('companies', 'job_posts.company_id', '=', 'companies.id')
+        ->select('job_posts.id', 'job_posts.title', 'job_posts.location', 'job_posts.job_type', 'job_posts.work_type', 'companies.name as company_name', 'companies.logo as company_logo', 'companies.id as company_id')
+        ->orderByDesc('job_posts.created_at')->orderBy('job_posts.id')->limit(6)->get();
+    $categories = (clone $activeJobs)->whereNotNull('category')->where('category', '!=', '')
+        ->select('category')->selectRaw('COUNT(*) as jobs_count')->groupBy('category')
+        ->orderByDesc('jobs_count')->orderBy('category')->limit(8)->get();
+    $companyJobs = (clone $activeJobs)->select('company_id')->selectRaw('COUNT(*) as open_jobs')->groupBy('company_id');
+    $companies = DB::table('companies')->joinSub($companyJobs, 'open_jobs', fn ($join) => $join->on('companies.id', '=', 'open_jobs.company_id'))
+        ->select('companies.id', 'companies.name', 'companies.location', 'companies.logo', 'open_jobs.open_jobs')
+        ->orderByDesc('open_jobs.open_jobs')->orderBy('companies.name')->limit(12)->get();
+
+    return view('welcome', [
+        'jobs' => $jobs,
+        'categories' => $categories,
+        'companies' => $companies,
+        'activeJobCount' => (clone $activeJobs)->count(),
+        'companyCount' => DB::table('companies')->count(),
+    ]);
 });
+
+Route::get('/loker', function () {
+    $active = DB::table('job_posts')->where('status', 'active')
+        ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()));
+
+    return view('jobseeker.jobs.index', [
+        'categories' => (clone $active)->whereNotNull('category')->distinct()->orderBy('category')->pluck('category'),
+        'jobTypes' => (clone $active)->whereNotNull('job_type')->distinct()->orderBy('job_type')->pluck('job_type'),
+        'workTypes' => (clone $active)->whereNotNull('work_type')->distinct()->orderBy('work_type')->pluck('work_type'),
+    ]);
+})->name('jobs.index');
+Route::get('/loker/{id}', fn (string $id) => redirect()->route('jobs.show', $id));
+Route::view('/perusahaan', 'jobseeker.companies.index')->name('companies.index');
+Route::get('/perusahaan/{id}', function (string $id) {
+    abort_unless(DB::table('companies')->where('id', $id)->exists(), 404);
+
+    return view('jobseeker.companies.show', compact('id'));
+})->name('companies.show');
+Route::view('/about-us', 'jobseeker.about')->name('about');
+Route::view('/faqs', 'jobseeker.faqs')->name('faqs');
+Route::redirect('/blog', '/articles')->name('blog');
+Route::get('/blog/{slug}', fn (string $slug) => redirect()->route('articles.show', $slug));
 
 Route::get('/articles', [PublicArticleController::class, 'index'])->name('articles.index');
 Route::get('/articles/{slug}/cover', [PublicArticleController::class, 'cover'])->name('articles.cover');
@@ -36,8 +77,26 @@ Route::get('/dashboard', function () {
 
     abort_unless(request()->user()->role === 'jobseeker', 403);
 
-    return view('dashboard');
+    return redirect()->route('jobs.index');
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::middleware('auth')->group(function (): void {
+    Route::get('/profil', function () {
+        abort_unless(request()->user()->role === 'jobseeker', 403);
+
+        return view('jobseeker.profile');
+    })->name('jobseeker.profile');
+    Route::get('/profil/lamaran', function () {
+        abort_unless(request()->user()->role === 'jobseeker', 403);
+
+        return view('jobseeker.applications');
+    })->name('jobseeker.applications');
+    Route::get('/jobs/{id}/apply', function (string $id) {
+        abort_unless(request()->user()->role === 'jobseeker', 403);
+
+        return redirect()->route('jobs.show', $id);
+    })->name('jobs.apply-continue');
+});
 
 Route::middleware('auth')->get('/account/switch/{role}', function (string $role) {
     return view('auth.switch-account', [

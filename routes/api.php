@@ -85,6 +85,20 @@ Route::middleware(['web', 'auth'])->group(function (): void {
 // ==========================================
 
 Route::get('/job-posts', function (Request $request) {
+    $jobTypeIsArray = is_array($request->query('job_type'));
+    $workTypeIsArray = is_array($request->query('work_type'));
+    $request->validate([
+        'category' => ['sometimes', 'string', 'max:255'],
+        'location' => ['sometimes', 'string', 'max:255'],
+        'job_type' => $jobTypeIsArray ? ['sometimes', 'array', 'max:4'] : ['sometimes', 'string', 'max:255'],
+        'job_type.*' => ['string', 'max:255'],
+        'work_type' => $workTypeIsArray ? ['sometimes', 'array', 'max:4'] : ['sometimes', 'string', 'max:255'],
+        'work_type.*' => ['string', 'max:255'],
+        'q' => ['sometimes', 'string', 'max:255'],
+        'sort' => ['sometimes', 'in:latest,oldest,a-z,z-a'],
+        'created_from' => ['sometimes', 'date_format:Y-m-d'],
+        'created_to' => ['sometimes', 'date_format:Y-m-d', 'after_or_equal:created_from'],
+    ]);
     $query = DB::table('job_posts')
         ->leftJoin('companies', 'job_posts.company_id', '=', 'companies.id')
         ->where('job_posts.status', 'active')
@@ -121,12 +135,19 @@ Route::get('/job-posts', function (Request $request) {
 
     // Filter Tipe Pekerjaan (Full-time, Part-time, Contract)
     if ($request->filled('job_type')) {
-        $query->where('job_posts.job_type', $request->query('job_type'));
+        $query->whereIn(DB::raw('LOWER(job_posts.job_type)'), array_map('strtolower', (array) $request->query('job_type')));
     }
 
     // Filter Sistem/Metode Kerja (Remote, On-site, Hybrid)
     if ($request->filled('work_type')) {
-        $query->where('job_posts.work_type', $request->query('work_type'));
+        $query->whereIn(DB::raw('LOWER(job_posts.work_type)'), array_map('strtolower', (array) $request->query('work_type')));
+    }
+
+    if ($request->filled('created_from')) {
+        $query->where('job_posts.created_at', '>=', $request->query('created_from').' 00:00:00');
+    }
+    if ($request->filled('created_to')) {
+        $query->where('job_posts.created_at', '<', Carbon::parse($request->query('created_to'))->addDay()->toDateString().' 00:00:00');
     }
 
     // Pencarian kata kunci judul atau deskripsi
@@ -147,11 +168,17 @@ Route::get('/job-posts', function (Request $request) {
         default => $query->orderBy('job_posts.created_at', 'desc'),
     };
 
-    $limit = min((int) $request->query('limit', 15), 50);
-    $data = $query->limit($limit)->get();
+    $paging = $request->validate([
+        'page' => ['sometimes', 'integer', 'min:1'],
+        'limit' => ['sometimes', 'integer', 'between:1,50'],
+    ]);
+    $limit = (int) ($paging['limit'] ?? 15);
+    $page = (int) ($paging['page'] ?? 1);
+    $total = (clone $query)->count('job_posts.id');
+    $data = $query->orderBy('job_posts.id')->offset(($page - 1) * $limit)->limit($limit)->get();
 
     return response()->json([
-        'total' => $data->count(),
+        'total' => $total,
         'data' => $data,
     ]);
 });
@@ -381,6 +408,13 @@ Route::delete('/job-posts/{id}', function () {
 // ==========================================
 
 Route::get('/companies', function (Request $request) {
+    $input = $request->validate([
+        'q' => ['sometimes', 'string', 'max:255'],
+        'location' => ['sometimes', 'string', 'max:255'],
+        'page' => ['sometimes', 'integer', 'min:1'],
+        'limit' => ['sometimes', 'integer', 'between:1,50'],
+        'sort' => ['sometimes', 'in:latest,oldest,a-z,z-a'],
+    ]);
     $query = DB::table('companies')
         ->select('id', 'name', 'location', 'logo', 'website', 'contact_url', 'description');
 
@@ -392,10 +426,25 @@ Route::get('/companies', function (Request $request) {
         });
     }
 
-    return response()->json([
-        'total' => $query->count(),
-        'data' => $query->get(),
-    ]);
+    if ($request->filled('location')) {
+        $query->where('location', 'like', '%'.$request->query('location').'%');
+    }
+
+    $sort = $input['sort'] ?? 'latest';
+    match ($sort) {
+        'oldest' => $query->orderBy('created_at'),
+        'a-z' => $query->orderBy('name'),
+        'z-a' => $query->orderByDesc('name'),
+        default => $query->orderByDesc('created_at'),
+    };
+    $query->orderBy('id');
+    $total = (clone $query)->count();
+    if (isset($input['page']) || isset($input['limit'])) {
+        $limit = (int) ($input['limit'] ?? 15);
+        $query->offset(((int) ($input['page'] ?? 1) - 1) * $limit)->limit($limit);
+    }
+
+    return response()->json(['total' => $total, 'data' => $query->get()]);
 });
 
 Route::get('/companies/{id}', function (string $id) {

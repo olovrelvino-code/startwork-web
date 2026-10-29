@@ -38,13 +38,19 @@ class AuthenticatedSessionController extends Controller
         $destination = match ($authenticatedRole) {
             'admin' => route('admin.dashboard', absolute: false),
             'employer' => route('employer.dashboard', absolute: false),
-            'jobseeker' => route('dashboard', absolute: false),
+            'jobseeker' => route('jobs.index', absolute: false),
         };
 
         $intendedPath = parse_url((string) $request->session()->get('url.intended'), PHP_URL_PATH) ?: '';
         if (($authenticatedRole !== 'admin' && str_starts_with($intendedPath, '/admin/'))
             || ($authenticatedRole !== 'employer' && str_starts_with($intendedPath, '/employer/'))) {
             $request->session()->forget('url.intended');
+        }
+
+        if ($authenticatedRole === 'jobseeker') {
+            $request->session()->forget('url.intended');
+
+            return redirect($destination);
         }
 
         return redirect()->intended($destination);

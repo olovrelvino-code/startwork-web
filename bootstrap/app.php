@@ -42,7 +42,7 @@ return Application::configure(basePath: dirname(__DIR__))
             return match ($currentRole) {
                 'admin' => route('admin.dashboard'),
                 'employer' => route('employer.dashboard'),
-                'jobseeker' => route('dashboard'),
+                'jobseeker' => route('jobs.index'),
                 default => abort(403),
             };
         });

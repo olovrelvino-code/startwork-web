@@ -114,6 +114,15 @@ Route::middleware(['web', 'auth'])->group(function (): void {
         return response()->json(['filename' => $file->getClientOriginalName(), 'uploaded' => true]);
     });
 
+    Route::get('/jobseeker/profile/cv', function (Request $request) use ($jobseeker) {
+        $userId = $jobseeker($request);
+        $profile = DB::table('jobseeker_profiles')->where('user_id', $userId)->first();
+        $path = $profile?->cv_file;
+        abort_if(! $path || ! preg_match('/\Acvs\/'.preg_quote($userId, '/').'\/[0-9a-f-]{36}\.(?:pdf|jpe?g|png)\z/i', $path) || ! Storage::disk('local')->exists($path), 404);
+
+        return Storage::disk('local')->download($path, $profile->cv_filename ?: 'CV');
+    });
+
     Route::post('/job-posts/{id}/apply', function (Request $request, string $id) use ($jobseeker) {
         $userId = $jobseeker($request);
         $job = DB::table('job_posts')->where('id', $id)->first();

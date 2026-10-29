@@ -1,17 +1,7 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Dashboard') }}
-        </h2>
-    </x-slot>
+@extends('layouts.public')
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900">
-                    {{ __("You're logged in!") }}
-                </div>
-            </div>
-        </div>
-    </div>
-</x-app-layout>
+@section('title', 'Ruang Jobseeker')
+
+@section('content')
+    <div class="mx-auto max-w-5xl px-4 py-14 sm:px-6 lg:px-8"><h1 class="text-3xl font-bold tracking-tight">Halo, {{ auth()->user()->full_name }}</h1><p class="mt-3 max-w-2xl text-slate-600">Siapkan profil dan CV agar Anda dapat mengirim lamaran untuk lowongan internal, atau lanjutkan menjelajahi peluang kerja.</p><div class="mt-8 grid gap-4 sm:grid-cols-3"><a href="{{ route('jobs.index') }}" class="rounded-xl border border-slate-200 bg-white p-6 hover:border-blue-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"><h2 class="font-semibold">Cari lowongan</h2><p class="mt-2 text-sm text-slate-600">Temukan posisi aktif.</p></a><a href="{{ route('jobseeker.profile') }}" class="rounded-xl border border-slate-200 bg-white p-6 hover:border-blue-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"><h2 class="font-semibold">Profil & CV</h2><p class="mt-2 text-sm text-slate-600">Lengkapi data diri dan berkas.</p></a><a href="{{ route('jobseeker.applications') }}" class="rounded-xl border border-slate-200 bg-white p-6 hover:border-blue-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"><h2 class="font-semibold">Lamaran Saya</h2><p class="mt-2 text-sm text-slate-600">Lihat status terkini.</p></a></div></div>
+@endsection
