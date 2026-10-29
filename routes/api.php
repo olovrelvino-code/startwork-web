@@ -1,6 +1,8 @@
 <?php
 
+use App\JobCategory;
 use App\Models\User;
+use App\WebpImage;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -51,6 +53,32 @@ Route::get('/me', function (Request $request) {
         'email_verified_at' => $user->email_verified_at,
     ]]);
 })->middleware(['web', 'auth']);
+
+Route::middleware(['web', 'auth'])->group(function (): void {
+    Route::get('/job-categories', function (Request $request) {
+        abort_unless(in_array($request->user()->role, ['admin', 'employer'], true), 403);
+        $query = $request->validate(['q' => ['nullable', 'string', 'max:255']]);
+        $key = JobCategory::key($query['q'] ?? '');
+
+        return response()->json(['data' => DB::table('job_categories')
+            ->when($key !== '', fn ($items) => $items->where('normalized_name', 'like', '%'.$key.'%'))
+            ->orderBy('normalized_name')->limit(8)->get(['name'])]);
+    });
+
+    Route::post('/job-categories', function (Request $request) {
+        abort_unless(in_array($request->user()->role, ['admin', 'employer'], true), 403);
+        $input = $request->validate(['name' => ['required', 'string', 'max:255']]);
+        $name = JobCategory::normalize($input['name']);
+        abort_if($name === '' || Str::length($name) > 255, 422, 'Nama kategori tidak valid');
+        if ($request->user()->role === 'admin') {
+            $name = JobCategory::forAdmin($name, 'name');
+        }
+
+        $saved = JobCategory::save($name);
+
+        return response()->json(['data' => ['name' => $request->user()->role === 'admin' ? $name : $saved]]);
+    });
+});
 
 // ==========================================
 // 2. LOWONGAN KERJA (JOB POSTS) - PRD 3.1, 3.2, 4.1
@@ -722,19 +750,23 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
         abort_if($company === null, 404, 'Perusahaan tidak ditemukan');
 
         $input = $request->validate([
-            'logo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'extensions:jpg,jpeg,png', 'max:2048'],
+            'logo' => ['required', ...WebpImage::rules()],
         ]);
 
-        $file = $input['logo'];
-        $baseName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: 'logo';
-        $filename = $baseName.'.'.strtolower($file->getClientOriginalExtension());
-        $path = $file->storeAs("company-logos/{$companyId}", $filename, 'public');
-        abort_if($path === false, 500, 'Gagal menyimpan logo perusahaan');
-
-        DB::table('companies')->where('id', $companyId)->update([
-            'logo' => $filename,
-            'updated_at' => now(),
-        ]);
+        $path = WebpImage::store($input['logo'], "company-logos/{$companyId}", 'logo', maxDimension: 512);
+        try {
+            $updated = DB::table('companies')->where('id', $companyId)->update([
+                'logo' => basename($path),
+                'updated_at' => now(),
+            ]);
+            abort_unless($updated === 1, 404);
+        } catch (Throwable $exception) {
+            Storage::disk('public')->delete($path);
+            throw $exception;
+        }
+        if ($company->logo && basename($company->logo) === $company->logo) {
+            Storage::disk('public')->delete("company-logos/{$companyId}/{$company->logo}");
+        }
 
         return response()->json([
             'message' => 'Logo perusahaan tersimpan',
@@ -770,6 +802,8 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
         abort_unless(DB::table('companies')->where('id', $input['company_id'])
             ->where('owner_user_id', $request->user()->id)->exists(), 404);
 
+        $category = isset($input['category']) ? JobCategory::forAdmin($input['category']) : 'Others';
+        JobCategory::save($category);
         $jobId = (string) Str::uuid();
         DB::table('job_posts')->insert([
             'id' => $jobId,
@@ -777,7 +811,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
             'posted_by' => $request->user()->id,
             'subscription_id' => null,
             'title' => $input['title'],
-            'category' => $input['category'] ?? 'Umum',
+            'category' => $category,
             'location' => $input['location'],
             'job_type' => $input['job_type'],
             'work_type' => $input['work_type'],
@@ -859,6 +893,10 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
         }
         if (isset($input['expires_at'])) {
             $input['expires_at'] = Carbon::parse($input['expires_at'])->utc()->format('Y-m-d H:i:s');
+        }
+        if (isset($input['category'])) {
+            $input['category'] = JobCategory::forAdmin($input['category'], 'category', $job->category);
+            JobCategory::save($input['category']);
         }
         $input['updated_at'] = now();
         DB::table('job_posts')->where('id', $id)->update($input);

@@ -1,5 +1,64 @@
 const feedback = document.querySelector('#employer-feedback');
 
+const upgradeDialog = document.querySelector('[data-upgrade-dialog]');
+const upgradeTrigger = document.querySelector('[data-upgrade-open]');
+if (upgradeDialog instanceof HTMLDialogElement && upgradeTrigger instanceof HTMLButtonElement) {
+    const close = upgradeDialog.querySelector('[data-upgrade-close]');
+    const status = upgradeDialog.querySelector('[data-upgrade-status]');
+    const list = upgradeDialog.querySelector('[data-upgrade-packages]');
+    const template = upgradeDialog.querySelector('[data-upgrade-template]');
+    const names = ['Basic', 'Standard', 'Premium'];
+    const rupiah = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
+    let request;
+
+    upgradeTrigger.addEventListener('click', async () => {
+        request?.abort();
+        request = new AbortController();
+        list.replaceChildren();
+        status.textContent = 'Memuat paket…';
+        upgradeDialog.showModal();
+        try {
+            const response = await fetch(upgradeDialog.dataset.packagesUrl, {
+                headers: { Accept: 'application/json' }, credentials: 'same-origin', signal: request.signal,
+            });
+            if (!response.ok) throw new Error('Katalog paket tidak tersedia.');
+            const result = await response.json();
+            const packages = (result.data || []).filter((item) => names.includes(item.name) && item.currency === 'IDR')
+                .sort((a, b) => names.indexOf(a.name) - names.indexOf(b.name));
+            if (!packages.length) {
+                status.textContent = 'Belum ada paket aktif yang tersedia.';
+                return;
+            }
+            packages.forEach((item) => {
+                const card = template.content.firstElementChild.cloneNode(true);
+                card.dataset.featured = String(item.name === 'Standard');
+                card.querySelector('[data-package-name]').textContent = item.name;
+                const price = Number(item.price);
+                card.querySelector('[data-package-price]').textContent = Number.isFinite(price) ? rupiah.format(price) : 'Harga tidak tersedia';
+                card.querySelector('[data-package-quota]').textContent = item.quota === null ? 'Belum ditentukan' : `${item.quota} lowongan`;
+                card.querySelector('[data-package-duration]').textContent = item.duration_days === null ? 'Belum ditentukan' : `${item.duration_days} hari`;
+                card.querySelector('[data-select-package]').addEventListener('click', () => {
+                    list.querySelectorAll('article').forEach((option) => {
+                        option.dataset.selected = String(option === card);
+                        const button = option.querySelector('[data-select-package]');
+                        button.dataset.selected = String(option === card);
+                        button.setAttribute('aria-pressed', String(option === card));
+                        button.textContent = option === card ? 'Dipilih' : 'Pilih paket';
+                    });
+                    status.textContent = `Paket ${item.name} dipilih. Pembelian belum tersedia; akses akun tidak berubah.`;
+                });
+                list.append(card);
+            });
+            status.textContent = 'Pilih paket untuk membandingkan opsi. Pembelian belum tersedia.';
+        } catch (error) {
+            if (error.name !== 'AbortError') status.textContent = 'Katalog paket gagal dimuat. Tutup dan buka kembali untuk mencoba lagi.';
+        }
+    });
+    close.addEventListener('click', () => upgradeDialog.close());
+    upgradeDialog.addEventListener('click', (event) => { if (event.target === upgradeDialog) upgradeDialog.close(); });
+    upgradeDialog.addEventListener('close', () => { request?.abort(); upgradeTrigger.focus(); });
+}
+
 function showFeedback(message) {
     if (!feedback) return;
     feedback.className = 'mb-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900';

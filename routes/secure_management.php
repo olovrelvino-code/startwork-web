@@ -1,10 +1,10 @@
 <?php
 
+use App\WebpImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
     $manageableCompany = static function (Request $request, string $id, bool $lock = false): object {
@@ -138,13 +138,19 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function (): void 
     Route::post('/company/logo', function (Request $request) use ($ownCompany) {
         $company = $ownCompany($request);
         $input = $request->validate([
-            'logo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'extensions:jpg,jpeg,png', 'max:2048'],
+            'logo' => ['required', ...WebpImage::rules()],
         ]);
-        $file = $input['logo'];
-        $filename = Str::uuid().'.'.strtolower($file->getClientOriginalExtension());
-        $path = $file->storeAs("company-logos/{$company->id}", $filename, 'public');
-        abort_if($path === false, 500, 'Gagal menyimpan logo');
-        DB::table('companies')->where('id', $company->id)->update(['logo' => $filename, 'updated_at' => now()]);
+        $path = WebpImage::store($input['logo'], "company-logos/{$company->id}", 'logo', maxDimension: 512);
+        try {
+            $updated = DB::table('companies')->where('id', $company->id)->update(['logo' => basename($path), 'updated_at' => now()]);
+            abort_unless($updated === 1, 404);
+        } catch (Throwable $exception) {
+            Storage::disk('public')->delete($path);
+            throw $exception;
+        }
+        if ($company->logo && basename($company->logo) === $company->logo) {
+            Storage::disk('public')->delete("company-logos/{$company->id}/{$company->logo}");
+        }
 
         return response()->json(['data' => DB::table('companies')->where('id', $company->id)->first()]);
     });

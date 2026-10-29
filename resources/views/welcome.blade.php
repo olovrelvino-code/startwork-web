@@ -21,6 +21,7 @@
         <header class="w-full lg:max-w-4xl max-w-[335px] text-sm mb-6 not-has-[nav]:hidden">
             @if (Route::has('login'))
                 <nav class="flex items-center justify-end gap-4">
+                    <a href="{{ route('articles.index') }}" class="text-sm font-medium text-[#1b1b18] underline-offset-4 hover:underline dark:text-[#EDEDEC]">Artikel / News</a>
                     @auth
                         <a
                             href="{{ url('/dashboard') }}"

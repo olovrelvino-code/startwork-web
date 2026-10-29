@@ -1,3 +1,5 @@
+import './admin-article-editor.js';
+
 const feedback = document.querySelector('#admin-feedback');
 
 function showFeedback(message, type = 'error') {
@@ -73,10 +75,16 @@ function showFieldErrors(form, errors) {
         error.className = 'mt-1 text-sm text-rose-700';
         error.textContent = messages.join(' ');
         error.id = `${field.id || name}-error`;
-        field.setAttribute('aria-invalid', 'true');
-        field.setAttribute('aria-describedby', error.id);
-        field.insertAdjacentElement('afterend', error);
-        firstField ??= field;
+        const target = name === 'body_json' ? form.querySelector('[data-article-editor]')
+            : name === 'category' ? form.querySelector('[data-category-search]') : field;
+        (target || field).setAttribute('aria-invalid', 'true');
+        (target || field).setAttribute('aria-describedby', error.id);
+        if (name === 'body_json' && target) {
+            target.prepend(error);
+        } else {
+            (target || field).insertAdjacentElement('afterend', error);
+        }
+        firstField ??= target || field;
     }
 
     firstField?.focus();

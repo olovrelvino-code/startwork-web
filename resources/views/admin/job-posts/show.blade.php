@@ -29,14 +29,14 @@
             </section>
             <section aria-labelledby="job-applicants-title">
                 <div class="mb-3 flex items-baseline justify-between gap-3"><h2 id="job-applicants-title" class="text-lg font-semibold text-slate-900">Pelamar lowongan</h2><span class="text-sm text-slate-500">{{ $applicants->total() }} lamaran</span></div>
-                <div class="admin-panel divide-y divide-slate-100">
+                <div class="admin-panel admin-data-surface divide-y divide-slate-100">
                     @forelse ($applicants as $application)
-                        <div class="flex items-center justify-between gap-3 px-5 py-4"><span class="font-medium text-slate-900">{{ $application->full_name }}</span><x-admin.status-badge :status="$application->status" /></div>
+                        <div class="flex items-center justify-between gap-3 px-5 py-4"><span class="admin-number w-7 shrink-0 text-sm text-slate-500">{{ $applicants->firstItem() + $loop->index }}.</span><span class="min-w-0 flex-1 font-medium text-slate-900">{{ $application->full_name }}</span><x-admin.status-badge :status="$application->status" /></div>
                     @empty
                         <x-admin.empty-state title="Belum ada pelamar" description="Lamaran internal yang masuk akan tampil di sini." />
                     @endforelse
                 </div>
-                <x-admin.pagination :paginator="$applicants" />
+                <x-admin.pagination :paginator="$applicants" :round="true" />
             </section>
         </div>
 

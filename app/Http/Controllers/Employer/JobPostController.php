@@ -13,14 +13,20 @@ class JobPostController extends Controller
 {
     public function index(Request $request): View
     {
+        $filters = $request->validate(['q' => ['nullable', 'string', 'max:255']]);
+        $search = trim($filters['q'] ?? '');
         $company = DB::table('companies')->where('owner_user_id', $request->user()->id)->first();
         $jobs = DB::table('job_posts')->join('companies', 'job_posts.company_id', '=', 'companies.id')
             ->where('companies.owner_user_id', $request->user()->id)
             ->where('job_posts.posted_by', $request->user()->id)
+            ->when($search !== '', fn ($query) => $query->where(function ($match) use ($search): void {
+                $match->whereRaw('LOWER(job_posts.title) LIKE LOWER(?)', ['%'.$search.'%'])
+                    ->orWhereRaw('LOWER(job_posts.location) LIKE LOWER(?)', ['%'.$search.'%']);
+            }))
             ->select('job_posts.id', 'job_posts.title', 'job_posts.location', 'job_posts.status', 'job_posts.expires_at', 'job_posts.created_at')
-            ->orderByDesc('job_posts.created_at')->paginate(15);
+            ->orderByDesc('job_posts.created_at')->paginate(15)->withQueryString();
 
-        return view('employer.job-posts.index', compact('company', 'jobs'));
+        return view('employer.job-posts.index', compact('company', 'jobs', 'search'));
     }
 
     public function create(Request $request): View|RedirectResponse

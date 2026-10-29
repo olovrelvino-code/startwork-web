@@ -36,7 +36,7 @@ class CompanyController extends Controller
                 };
             })
             ->orderByDesc('companies.created_at')->orderByDesc('companies.id')
-            ->paginate(15)->withQueryString();
+            ->paginate(10)->withQueryString();
 
         return view('admin.companies.index', compact('companies'));
     }
@@ -49,7 +49,7 @@ class CompanyController extends Controller
 
         $jobs = DB::table('job_posts')->where('company_id', $id)
             ->select('id', 'title', 'status', 'posted_by', 'created_at', 'expires_at')
-            ->orderByDesc('created_at')->paginate(10);
+            ->orderByDesc('created_at')->orderByDesc('id')->paginate(15);
         $canManage = $company->owner_user_id === $request->user()->id || $company->owner_role === 'employer';
         $trial = DB::table('company_subscriptions')->where('company_id', $id)
             ->where('source', 'admin_trial')->orderByDesc('starts_at')->first();

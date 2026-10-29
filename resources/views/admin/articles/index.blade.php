@@ -19,15 +19,15 @@
         <x-admin.data-table>
             <x-slot:mobile>
                 @foreach ($articles as $article)
-                    <a href="{{ route('admin.articles.edit', $article->id) }}" class="block px-4 py-4"><span class="block font-semibold text-slate-900">{{ $article->title }}</span><span class="mt-1 flex items-center gap-2 text-xs text-slate-500"><x-admin.status-badge :status="$article->status" /> {{ \Illuminate\Support\Carbon::parse($article->created_at)->format('d M Y') }}</span></a>
+                    <div class="flex items-center justify-between gap-2 px-4 py-4"><a href="{{ route('admin.articles.edit', $article->id) }}" class="min-w-0 flex-1"><span class="admin-number mb-1 block text-xs text-slate-500">{{ $articles->firstItem() + $loop->index }}.</span><span class="block font-semibold text-slate-900">{{ $article->title }}</span><span class="mt-1 flex items-center gap-2 text-xs text-slate-500"><x-admin.status-badge :status="$article->status" /> {{ \Illuminate\Support\Carbon::parse($article->created_at)->format('d M Y') }}</span></a>@include('admin.articles.partials.actions', ['article' => $article])</div>
                 @endforeach
             </x-slot:mobile>
-            <table class="admin-table"><thead><tr><th>Judul</th><th>Status</th><th>Dibuat</th><th class="text-right">Aksi</th></tr></thead><tbody>
+            <table class="admin-table"><thead><tr><th>No.</th><th>Judul</th><th>Status</th><th>Dibuat</th><th class="text-right">Aksi</th></tr></thead><tbody>
                 @foreach ($articles as $article)
-                    <tr><td class="max-w-lg font-semibold text-slate-900">{{ $article->title }}</td><td><x-admin.status-badge :status="$article->status" /></td><td class="admin-number whitespace-nowrap">{{ \Illuminate\Support\Carbon::parse($article->created_at)->format('d M Y') }}</td><td class="whitespace-nowrap text-right"><a href="{{ route('admin.articles.edit', $article->id) }}" class="admin-link">Ubah</a><x-admin.confirm-dialog title="Hapus artikel?" :message="'Artikel “'.$article->title.'” akan dihapus permanen.'" :endpoint="url('/api/admin/articles/'.$article->id)" :success-url="route('admin.articles.index')" /></td></tr>
+                    <tr><td class="admin-number text-slate-500">{{ $articles->firstItem() + $loop->index }}</td><td class="max-w-lg font-semibold text-slate-900">{{ $article->title }}</td><td><x-admin.status-badge :status="$article->status" /></td><td class="admin-number whitespace-nowrap">{{ \Illuminate\Support\Carbon::parse($article->created_at)->format('d M Y') }}</td><td class="whitespace-nowrap text-right">@include('admin.articles.partials.actions', ['article' => $article])</td></tr>
                 @endforeach
             </tbody></table>
         </x-admin.data-table>
-        <x-admin.pagination :paginator="$articles" />
     @endif
+    <x-admin.pagination :paginator="$articles" :always="true" :english="true" :round="true" />
 @endsection

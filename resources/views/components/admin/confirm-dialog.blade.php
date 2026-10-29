@@ -1,6 +1,6 @@
 @props(['title', 'message', 'endpoint', 'successUrl', 'buttonLabel' => 'Hapus', 'confirmLabel' => 'Ya, hapus'])
 <div x-data="{ open: false }" class="inline-flex">
-    <button type="button" class="admin-button-quiet text-rose-700" @click="open = true">{{ $buttonLabel }}</button>
+    <button type="button" @class(['admin-button-quiet text-rose-700', 'w-11' => isset($trigger)]) @click="open = true" aria-label="{{ $buttonLabel }}" title="{{ $buttonLabel }}">@isset($trigger){{ $trigger }}@else{{ $buttonLabel }}@endisset</button>
     <div x-cloak x-show="open" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4" @keydown.escape.window="open = false" role="presentation">
         <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-xl" role="dialog" aria-modal="true" aria-label="{{ $title }}" @click.outside="open = false">
             <h2 class="text-lg font-semibold text-slate-900">{{ $title }}</h2>

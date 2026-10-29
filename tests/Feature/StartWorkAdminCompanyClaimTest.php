@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -44,7 +45,10 @@ class StartWorkAdminCompanyClaimTest extends TestCase
         ])->assertCreated()->json('data.id');
         $this->post('/api/admin/companies/'.$adminCompany.'/logo', [
             'logo' => UploadedFile::fake()->image('fmlx.png'),
-        ], ['Accept' => 'application/json'])->assertOk()->assertJsonPath('data.logo', 'fmlx.png');
+        ], ['Accept' => 'application/json'])->assertOk();
+        $logo = DB::table('companies')->where('id', $adminCompany)->value('logo');
+        $this->assertStringEndsWith('.webp', $logo);
+        Storage::disk('public')->assertExists("company-logos/{$adminCompany}/{$logo}");
         $this->get("/api/companies/{$adminCompany}/logo")->assertOk();
 
         $employer = User::factory()->create(['role' => 'employer']);

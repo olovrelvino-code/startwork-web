@@ -6,7 +6,7 @@
         <span class="truncate text-sm font-medium text-slate-600">Start Work <span class="mx-2 text-slate-400">/</span> @yield('section_label', 'Admin Internal')</span>
     </div>
     <div class="flex shrink-0 items-center gap-3">
-        <span class="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 sm:inline">Sesi Admin</span>
+        <span class="hidden text-xs font-medium text-slate-500 sm:inline">Sesi Admin</span>
         <form method="POST" action="{{ route('logout') }}">
             @csrf
             <button type="submit" class="admin-button-quiet">Keluar</button>

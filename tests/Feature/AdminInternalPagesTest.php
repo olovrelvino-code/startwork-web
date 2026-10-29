@@ -95,6 +95,7 @@ class AdminInternalPagesTest extends TestCase
             'logo' => UploadedFile::fake()->image('logo.png'),
         ], ['Accept' => 'application/json'])->assertOk();
         $logo = DB::table('companies')->where('id', $companyId)->value('logo');
+        $this->assertStringEndsWith('.webp', $logo);
         Storage::disk('public')->assertExists("company-logos/{$companyId}/{$logo}");
         $this->actingAs($employer)->getJson('/api/employer/company')->assertOk()
             ->assertJsonPath('data.name', 'PT Baru')->assertJsonPath('data.location', 'Bandung');
@@ -246,6 +247,7 @@ class AdminInternalPagesTest extends TestCase
     public function test_article_cover_upload_is_stored_and_rejects_wrong_file_type(): void
     {
         Storage::fake('public');
+        Storage::fake('local');
         $admin = User::factory()->create(['role' => 'admin']);
 
         $response = $this->actingAs($admin)->post('/api/admin/articles', [
@@ -256,7 +258,9 @@ class AdminInternalPagesTest extends TestCase
         ], ['Accept' => 'application/json'])->assertCreated();
 
         $coverPath = $response->json('data.cover_image');
-        Storage::disk('public')->assertExists($coverPath);
+        $this->assertStringEndsWith('.webp', $coverPath);
+        Storage::disk('local')->assertExists($coverPath);
+        Storage::disk('public')->assertMissing($coverPath);
         $this->assertDatabaseHas('articles', ['title' => 'Persiapan wawancara', 'cover_image' => $coverPath]);
 
         $articleId = $response->json('data.id');
@@ -264,8 +268,8 @@ class AdminInternalPagesTest extends TestCase
             '_method' => 'PUT',
             'cover_file' => UploadedFile::fake()->image('new-cover.png'),
         ], ['Accept' => 'application/json'])->assertOk();
-        Storage::disk('public')->assertExists($updated->json('data.cover_image'));
-        Storage::disk('public')->assertMissing($coverPath);
+        Storage::disk('local')->assertExists($updated->json('data.cover_image'));
+        Storage::disk('local')->assertMissing($coverPath);
 
         $this->post('/api/admin/articles', [
             'title' => 'Artikel kedua',
@@ -355,8 +359,9 @@ class AdminInternalPagesTest extends TestCase
         ])->assertCreated()->json('data.id');
 
         $disk = \Mockery::mock(FilesystemAdapter::class);
-        $disk->shouldReceive('putFileAs')->once()->andReturn(false);
-        Storage::shouldReceive('disk')->with('public')->once()->andReturn($disk);
+        $disk->shouldReceive('put')->once()->andReturn(false);
+        $disk->shouldReceive('delete')->once()->andReturn(true);
+        Storage::shouldReceive('disk')->with('local')->twice()->andReturn($disk);
 
         $this->post('/api/admin/articles/'.$articleId, [
             '_method' => 'PUT',
@@ -371,6 +376,7 @@ class AdminInternalPagesTest extends TestCase
     public function test_shared_cover_is_deleted_only_after_last_article_stops_using_it(): void
     {
         Storage::fake('public');
+        Storage::fake('local');
         $coverPath = 'article-covers/shared.jpg';
         Storage::disk('public')->put($coverPath, 'image');
         $admin = User::factory()->create(['role' => 'admin']);

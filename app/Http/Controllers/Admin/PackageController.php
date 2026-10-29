@@ -12,7 +12,7 @@ class PackageController extends Controller
     {
         $packages = DB::table('packages')->where('is_active', true)
             ->select('id', 'name', 'quota', 'duration_days', 'price', 'currency')
-            ->orderBy('price')->get();
+            ->orderBy('price')->orderBy('id')->paginate(10);
 
         return view('admin.packages.index', compact('packages'));
     }

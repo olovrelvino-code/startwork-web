@@ -1,6 +1,7 @@
 
 
 import Alpine from 'alpinejs';
+import './job-form-search.js';
 
 window.Alpine = Alpine;
 

@@ -1,5 +1,6 @@
 <?php
 
+use App\JobCategory;
 use App\JobPostLifecycle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -128,7 +129,7 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function (): void 
                 'posted_by' => $request->user()->id,
                 'subscription_id' => null,
                 'title' => $input['title'],
-                'category' => $input['category'] ?? 'Umum',
+                'category' => JobCategory::save($input['category'] ?? 'Umum'),
                 'location' => $input['location'],
                 'job_type' => $input['job_type'],
                 'work_type' => $input['work_type'],
@@ -207,6 +208,9 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function (): void 
 
         if (isset($input['expires_at'])) {
             $input['expires_at'] = Carbon::parse($input['expires_at'])->utc()->format('Y-m-d H:i:s');
+        }
+        if (isset($input['category'])) {
+            $input['category'] = JobCategory::save($input['category']);
         }
         $input['updated_at'] = now();
         DB::table('job_posts')->where('id', $id)->update($input);

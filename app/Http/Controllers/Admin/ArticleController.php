@@ -15,7 +15,7 @@ class ArticleController extends Controller
         $articles = DB::table('articles')
             ->select('id', 'title', 'status', 'created_at', 'published_at', 'author_id')
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
-            ->orderByDesc('created_at')->paginate(15)->withQueryString();
+            ->orderByDesc('created_at')->orderByDesc('id')->paginate(10)->withQueryString();
 
         return view('admin.articles.index', compact('articles'));
     }

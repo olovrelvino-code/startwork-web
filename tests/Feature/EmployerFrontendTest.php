@@ -14,6 +14,96 @@ class EmployerFrontendTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_dashboard_search_filters_matching_tables_independently_and_keeps_statistics(): void
+    {
+        $employer = User::factory()->create(['role' => 'employer', 'full_name' => 'Nina Employer']);
+        $other = User::factory()->create(['role' => 'employer']);
+        $companyId = (string) Str::uuid();
+        $otherCompanyId = (string) Str::uuid();
+        DB::table('companies')->insert([
+            ['id' => $companyId, 'owner_user_id' => $employer->id, 'name' => 'Studio Kerja', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => $otherCompanyId, 'owner_user_id' => $other->id, 'name' => 'Studio Asing', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        foreach ([['Rina Pelamar', 'Analis Pelamar', $companyId, $employer->id], ['Sari Pelamar', 'Desainer Produk', $companyId, $employer->id], ['Rahasia Pelamar', 'Lowongan Rahasia', $otherCompanyId, $other->id]] as [$name, $title, $ownerCompanyId, $posterId]) {
+            $seeker = User::factory()->create(['role' => 'jobseeker']);
+            $jobId = (string) Str::uuid();
+            $profileId = (string) Str::uuid();
+            DB::table('job_posts')->insert(['id' => $jobId, 'company_id' => $ownerCompanyId, 'posted_by' => $posterId, 'title' => $title, 'status' => 'inactive', 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('jobseeker_profiles')->insert(['id' => $profileId, 'user_id' => $seeker->id, 'full_name' => $name, 'created_at' => now(), 'updated_at' => now()]);
+            DB::table('applications')->insert(['id' => (string) Str::uuid(), 'job_posts_id' => $jobId, 'profile_id' => $profileId, 'status' => 'submitted', 'applied_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        }
+
+        $byApplicant = $this->actingAs($employer)->get('/employer/dashboard?q=rInA');
+        $byApplicant->assertOk()->assertSee('Rina Pelamar')->assertDontSee('Sari Pelamar')->assertDontSee('Rahasia Pelamar')
+            ->assertSee('data-upgrade-dialog', false)->assertSee('Sesi Employer')->assertSee('data-upgrade-template', false)
+            ->assertSee('Cari nama pelamar atau judul lowongan...');
+        $this->assertSame(1, $byApplicant->viewData('applications')->total());
+        $this->assertSame(2, $byApplicant->viewData('jobs')->total());
+        $this->assertSame(2, $byApplicant->viewData('counts')['applications']);
+        $byJob = $this->get('/employer/dashboard?q=dEsAiNeR')->assertOk();
+        $this->assertSame(2, $byJob->viewData('applications')->total());
+        $this->assertSame(1, $byJob->viewData('jobs')->total());
+        $both = $this->get('/employer/dashboard?q=Pelamar')->assertOk();
+        $this->assertSame(2, $both->viewData('applications')->total());
+        $this->assertSame(1, $both->viewData('jobs')->total());
+        $missing = $this->get('/employer/dashboard?q=Rahasia')->assertOk();
+        $missing->assertSee('Lamaran tidak ditemukan')->assertSee('Lowongan tidak ditemukan')->assertDontSee('Rahasia Pelamar');
+        $this->getJson('/employer/dashboard?q='.str_repeat('x', 256))->assertUnprocessable()->assertJsonValidationErrors('q');
+    }
+
+    public function test_job_search_matches_title_or_location_and_preserves_pagination_scope(): void
+    {
+        $employer = User::factory()->create(['role' => 'employer']);
+        $other = User::factory()->create(['role' => 'employer']);
+        $companyId = (string) Str::uuid();
+        $otherCompanyId = (string) Str::uuid();
+        DB::table('companies')->insert([
+            ['id' => $companyId, 'owner_user_id' => $employer->id, 'name' => 'Studio Kerja', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => $otherCompanyId, 'owner_user_id' => $other->id, 'name' => 'Studio Asing', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        foreach (range(1, 17) as $number) {
+            DB::table('job_posts')->insert(['id' => (string) Str::uuid(), 'company_id' => $companyId, 'posted_by' => $employer->id, 'title' => sprintf('Analis %02d', $number), 'location' => $number === 17 ? 'Bandung' : 'Jakarta', 'status' => 'inactive', 'created_at' => now()->subSeconds($number), 'updated_at' => now()]);
+        }
+        DB::table('job_posts')->insert(['id' => (string) Str::uuid(), 'company_id' => $otherCompanyId, 'posted_by' => $other->id, 'title' => 'Analis Asing', 'location' => 'Bandung', 'status' => 'inactive', 'created_at' => now(), 'updated_at' => now()]);
+
+        $first = $this->actingAs($employer)->get('/employer/job-posts?q=ANALIS');
+        $first->assertOk()->assertSee('Cari lowongan')->assertDontSee('Analis Asing');
+        $this->assertSame(17, $first->viewData('jobs')->total());
+        $this->assertCount(15, $first->viewData('jobs'));
+        $this->assertStringContainsString('q=ANALIS', $first->viewData('jobs')->nextPageUrl());
+        $second = $this->get('/employer/job-posts?q=ANALIS&page=2')->assertOk();
+        $this->assertCount(2, $second->viewData('jobs'));
+        $this->assertSame(16, $second->viewData('jobs')->firstItem());
+        $this->get('/employer/job-posts?q=BANDUNG')->assertOk()->assertSee('Analis 17')->assertDontSee('Analis Asing');
+        $this->get('/employer/job-posts?q=TidakAda')->assertOk()->assertSee('Lowongan tidak ditemukan');
+        $this->getJson('/employer/job-posts?q='.str_repeat('x', 256))->assertUnprocessable()->assertJsonValidationErrors('q');
+    }
+
+    public function test_employer_numbered_pagination_keeps_large_lists_compact_and_resets_on_search(): void
+    {
+        $employer = User::factory()->create(['role' => 'employer']);
+        $companyId = (string) Str::uuid();
+        DB::table('companies')->insert(['id' => $companyId, 'owner_user_id' => $employer->id,
+            'name' => 'Studio Halaman', 'created_at' => now(), 'updated_at' => now()]);
+        foreach (range(1, 61) as $number) {
+            DB::table('job_posts')->insert(['id' => (string) Str::uuid(), 'company_id' => $companyId,
+                'posted_by' => $employer->id, 'title' => sprintf('Posisi %02d', $number),
+                'status' => 'draft', 'created_at' => now()->subSeconds($number), 'updated_at' => now()]);
+        }
+
+        $middle = $this->actingAs($employer)->get('/employer/dashboard?jobs_page=4');
+        $middle->assertOk()->assertSee('Halaman 4 dari 7')
+            ->assertSee('aria-label="Halaman 1"', false)
+            ->assertSee('aria-label="Halaman 3"', false)
+            ->assertSee('aria-current="page" aria-label="Halaman 4"', false)
+            ->assertSee('aria-label="Halaman 5"', false)
+            ->assertSee('aria-label="Halaman 7"', false);
+        $this->assertSame(31, $middle->viewData('jobs')->firstItem());
+        $searched = $this->get('/employer/dashboard?q=Posisi%2061')->assertOk()
+            ->assertSee('Halaman 1 dari 1')->assertSee('Posisi 61');
+        $this->assertSame(1, $searched->viewData('jobs')->firstItem());
+    }
+
     public function test_employer_pages_and_login_are_role_scoped(): void
     {
         $this->get('/')->assertOk()->assertSee('Untuk Perusahaan');

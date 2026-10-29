@@ -12,12 +12,18 @@ use App\Http\Controllers\Employer\CompanyController as EmployerCompanyController
 use App\Http\Controllers\Employer\DashboardController as EmployerDashboardController;
 use App\Http\Controllers\Employer\JobPostController as EmployerJobPostController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicArticleController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/articles', [PublicArticleController::class, 'index'])->name('articles.index');
+Route::get('/articles/{slug}/cover', [PublicArticleController::class, 'cover'])->name('articles.cover');
+Route::get('/articles/{slug}/images/{image}', [PublicArticleController::class, 'image'])->name('articles.image');
+Route::get('/articles/{slug}', [PublicArticleController::class, 'show'])->name('articles.show');
 
 Route::get('/dashboard', function () {
     if (request()->user()->role === 'admin') {
@@ -78,6 +84,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
 
     Route::get('/job-posts', [AdminJobPostController::class, 'index'])->name('job-posts.index');
     Route::get('/job-posts/create', [AdminJobPostController::class, 'create'])->name('job-posts.create');
+    Route::get('/job-posts/company-options', [AdminJobPostController::class, 'companyOptions'])->name('job-posts.company-options');
     Route::get('/job-posts/{id}', [AdminJobPostController::class, 'show'])->name('job-posts.show');
     Route::get('/job-posts/{id}/edit', [AdminJobPostController::class, 'edit'])->name('job-posts.edit');
 
