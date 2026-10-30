@@ -13,7 +13,7 @@
                     @if ($body)<section class="mt-8"><h2 class="text-xl font-semibold">{{ $title }}</h2><p class="mt-3 whitespace-pre-line break-words text-sm leading-7 text-slate-700">{{ $body }}</p></section>@endif
                 @endforeach
             </article>
-            <aside class="rounded-xl border border-slate-200 bg-white p-6 lg:sticky lg:top-5">
+            <aside class="rounded-xl border border-slate-200 bg-white p-6 lg:sticky lg:top-20">
                 @if ($job->apply_url)
                     <a href="{{ url('/api/job-posts/'.$job->id.'/apply-now') }}" rel="nofollow" class="block rounded-lg bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">Apply Sekarang di situs perusahaan ↗</a>
                     <p class="mt-3 text-xs leading-5 text-slate-500">Pendaftaran dilanjutkan di luar StartWork.</p>

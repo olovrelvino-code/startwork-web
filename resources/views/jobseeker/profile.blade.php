@@ -1,12 +1,35 @@
 @extends('layouts.public')
 
-@section('title', 'Profil & CV')
+@section('title', 'Profil Saya')
 
 @section('content')
     <div class="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8" data-jobseeker-profile>
-        <header class="mb-8 flex flex-wrap items-end justify-between gap-4"><div><h1 class="text-3xl font-bold tracking-tight">Profil & CV</h1><p class="mt-2 text-slate-600">Lengkapi data diri, keahlian, dan CV sebelum melamar lowongan internal.</p></div><a href="{{ route('jobseeker.applications') }}" class="text-sm font-semibold text-blue-700 hover:underline">Lamaran Saya →</a></header>
+        <header class="mb-8 flex flex-wrap items-end justify-between gap-4"><div><h1 class="text-3xl font-bold tracking-tight">Profil Saya</h1><p class="mt-2 text-slate-600">Lengkapi data diri, keahlian, dan CV sebelum melamar lowongan internal.</p></div><a href="{{ route('jobseeker.applications') }}" class="text-sm font-semibold text-blue-700 hover:underline">Lamaran Saya →</a></header>
         <p data-profile-loading role="status" class="mb-6 text-sm text-slate-600">Memuat profil…</p>
         <div data-profile-content class="hidden space-y-7">
+            <section class="rounded-xl border border-slate-200 bg-white p-5 sm:p-7" aria-labelledby="readiness-title">
+                <h2 id="readiness-title" class="text-xl font-semibold">Kesiapan melamar</h2>
+                <p class="mt-2 text-sm text-slate-600">Lamaran internal memerlukan data diri, minimal satu skill, dan CV. Pemeriksaan akhir dilakukan saat mengirim lamaran.</p>
+                <ul class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+                    <li class="flex items-center gap-3 rounded-lg bg-slate-50 p-3"><svg data-ready-icon="profile" aria-hidden="true" class="h-5 w-5 shrink-0 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 9a2.5 2.5 0 1 1 4.3 1.7L12 12.5v1.5M12 18h.01"/></svg><span>Data diri <strong data-ready-profile class="block">Memeriksa…</strong></span></li>
+                    <li class="flex items-center gap-3 rounded-lg bg-slate-50 p-3"><svg data-ready-icon="skills" aria-hidden="true" class="h-5 w-5 shrink-0 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 9a2.5 2.5 0 1 1 4.3 1.7L12 12.5v1.5M12 18h.01"/></svg><span>Skill <strong data-ready-skills class="block">Memeriksa…</strong></span></li>
+                    <li class="flex items-center gap-3 rounded-lg bg-slate-50 p-3"><svg data-ready-icon="cv" aria-hidden="true" class="h-5 w-5 shrink-0 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 9a2.5 2.5 0 1 1 4.3 1.7L12 12.5v1.5M12 18h.01"/></svg><span>CV <strong data-ready-cv class="block">Memeriksa…</strong></span></li>
+                </ul>
+            </section>
+            <form data-upload="photo" class="rounded-xl border border-slate-200 bg-white p-5 sm:p-7">
+                <div class="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
+                    <div class="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                        <span data-profile-photo-fallback class="grid h-full w-full place-items-center text-sm font-medium text-slate-600">Foto</span>
+                        <img data-profile-photo class="absolute inset-0 hidden h-full w-full object-cover" alt="Foto profil saya">
+                    </div>
+                    <div class="min-w-0 w-full flex-1">
+                        <h2 class="text-lg font-semibold">Foto profil (opsional)</h2>
+                        <label class="mt-3 block text-sm font-medium">Pilih JPG, JPEG, atau PNG, maks. 2 MB<input type="file" name="photo" accept=".jpg,.jpeg,.png,image/jpeg,image/png" class="mt-2 block w-full min-w-0 text-sm" required></label>
+                        <p data-upload-feedback role="status" class="mt-3 text-sm text-slate-600"></p>
+                        <button type="submit" class="mt-4 rounded-lg border border-blue-600 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-60">Unggah foto</button>
+                    </div>
+                </div>
+            </form>
             <section class="rounded-xl border border-slate-200 bg-white p-5 sm:p-7" aria-labelledby="identity-title">
                 <h2 id="identity-title" class="text-xl font-semibold">Data diri</h2>
                 <form data-profile-main class="mt-6 grid gap-5 sm:grid-cols-2">
@@ -22,6 +45,7 @@
 
             <section class="rounded-xl border border-slate-200 bg-white p-5 sm:p-7" aria-labelledby="details-title">
                 <h2 id="details-title" class="text-xl font-semibold">Keahlian & riwayat</h2><p class="mt-2 text-sm text-slate-600">Minimal satu skill wajib diisi. Saat disimpan, seluruh entri di bawah dikirim kembali agar riwayat lama tetap ada.</p>
+                <button type="button" data-details-retry class="mt-4 hidden rounded-lg border border-blue-600 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50">Coba muat lagi</button>
                 <form data-profile-details class="mt-7 space-y-8">
                     @foreach ([
                         'skills' => 'Skills',
@@ -36,10 +60,7 @@
                 </form>
             </section>
 
-            <section class="grid gap-6 sm:grid-cols-2" aria-label="Berkas profil">
-                <form data-upload="photo" class="rounded-xl border border-slate-200 bg-white p-5 sm:p-7"><h2 class="text-lg font-semibold">Foto profil (opsional)</h2><img data-profile-photo class="mt-4 hidden h-20 w-20 rounded-lg object-cover" alt="Foto profil saya"><label class="mt-4 block text-sm font-medium">Pilih JPG, JPEG, atau PNG, maks. 2 MB<input type="file" name="photo" accept=".jpg,.jpeg,.png,image/jpeg,image/png" class="mt-2 block w-full text-sm" required></label><p data-upload-feedback role="status" class="mt-3 text-sm text-slate-600"></p><button type="submit" class="mt-4 rounded-lg border border-blue-600 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-60">Unggah foto</button></form>
-                <form data-upload="cv" class="rounded-xl border border-slate-200 bg-white p-5 sm:p-7"><h2 class="text-lg font-semibold">CV</h2><p data-cv-status class="mt-2 text-sm text-slate-600">Belum ada CV.</p><a data-cv-link href="{{ url('/api/jobseeker/profile/cv') }}" class="mt-2 hidden text-sm font-semibold text-blue-700 hover:underline">Unduh CV saya</a><label class="mt-4 block text-sm font-medium">Pilih PDF, JPG, JPEG, atau PNG, maks. 5 MB<input type="file" name="cv" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" class="mt-2 block w-full text-sm" required></label><p data-upload-feedback role="status" class="mt-3 text-sm text-slate-600"></p><button type="submit" class="mt-4 rounded-lg border border-blue-600 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-60">Unggah CV</button></form>
-            </section>
+            <form data-upload="cv" class="rounded-xl border border-slate-200 bg-white p-5 sm:p-7"><h2 class="text-lg font-semibold">CV</h2><p data-cv-status class="mt-2 text-sm text-slate-600">Belum ada CV.</p><a data-cv-link href="{{ url('/api/jobseeker/profile/cv') }}" class="mt-2 hidden text-sm font-semibold text-blue-700 hover:underline">Unduh CV saya</a><label class="mt-4 block text-sm font-medium">Pilih PDF, JPG, JPEG, atau PNG, maks. 5 MB<input type="file" name="cv" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" class="mt-2 block w-full text-sm" required></label><p data-upload-feedback role="status" class="mt-3 text-sm text-slate-600"></p><button type="submit" class="mt-4 rounded-lg border border-blue-600 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-60">Unggah CV</button></form>
         </div>
     </div>
 

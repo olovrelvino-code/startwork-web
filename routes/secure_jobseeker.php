@@ -1,5 +1,6 @@
 <?php
 
+use App\WebpImage;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -67,17 +68,20 @@ Route::middleware(['web', 'auth'])->group(function (): void {
         $userId = $jobseeker($request);
         $profile = DB::table('jobseeker_profiles')->where('user_id', $userId)->first();
         abort_if($profile === null, 404, 'Buat profil terlebih dahulu');
-        $input = $request->validate([
-            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png', 'extensions:jpg,jpeg,png', 'max:2048'],
-        ]);
-        $file = $input['photo'];
-        $filename = Str::uuid().'.'.strtolower($file->getClientOriginalExtension());
-        $path = $file->storeAs("profile-photos/{$userId}", $filename, 'local');
-        abort_if($path === false, 500, 'Gagal menyimpan foto');
-
-        DB::table('jobseeker_profiles')->where('id', $profile->id)->update([
-            'profile_photo' => $filename, 'updated_at' => now(),
-        ]);
+        $input = $request->validate(['photo' => ['required', ...WebpImage::rules()]]);
+        $path = WebpImage::store($input['photo'], "profile-photos/{$userId}", 'photo', disk: 'local', maxDimension: 1024);
+        $filename = basename($path);
+        try {
+            DB::table('jobseeker_profiles')->where('id', $profile->id)->update([
+                'profile_photo' => $filename, 'updated_at' => now(),
+            ]);
+        } catch (Throwable $exception) {
+            Storage::disk('local')->delete($path);
+            throw $exception;
+        }
+        if ($profile->profile_photo && preg_match('/\A[0-9a-f-]{36}\.(?:jpe?g|png|webp)\z/i', $profile->profile_photo)) {
+            Storage::disk('local')->delete("profile-photos/{$userId}/{$profile->profile_photo}");
+        }
 
         return response()->json(['filename' => $filename]);
     });
@@ -155,16 +159,27 @@ Route::middleware(['web', 'auth'])->group(function (): void {
 
     Route::get('/jobseeker/my-applications', function (Request $request) use ($jobseeker) {
         $userId = $jobseeker($request);
+        $filters = $request->validate([
+            'job_id' => ['sometimes', 'uuid'],
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'limit' => ['sometimes', 'integer', 'between:1,50'],
+        ]);
         $profileId = DB::table('jobseeker_profiles')->where('user_id', $userId)->value('id');
         abort_if($profileId === null, 404, 'Profil belum dibuat');
-        $applications = DB::table('applications')
+        $query = DB::table('applications')
             ->join('job_posts', 'applications.job_posts_id', '=', 'job_posts.id')
             ->join('companies', 'job_posts.company_id', '=', 'companies.id')
             ->where('applications.profile_id', $profileId)
             ->select('applications.id as application_id', 'applications.status', 'applications.applied_at', 'job_posts.id as job_id', 'job_posts.title', 'companies.name as company_name')
-            ->orderByDesc('applications.applied_at')->get();
+            ->when(isset($filters['job_id']), fn ($items) => $items->where('applications.job_posts_id', $filters['job_id']));
+        $total = (clone $query)->count();
+        if (isset($filters['page']) || isset($filters['limit'])) {
+            $limit = (int) ($filters['limit'] ?? 12);
+            $query->offset(((int) ($filters['page'] ?? 1) - 1) * $limit)->limit($limit);
+        }
+        $applications = $query->orderByDesc('applications.applied_at')->orderByDesc('applications.id')->get();
 
-        return response()->json(['total' => $applications->count(), 'data' => $applications]);
+        return response()->json(['total' => $total, 'data' => $applications]);
     });
 
     Route::get('/jobseeker/my-applications/{userId}', function (Request $request, string $userId) use ($jobseeker) {

@@ -50,6 +50,10 @@ class AuthenticatedSessionController extends Controller
         if ($authenticatedRole === 'jobseeker') {
             $request->session()->forget('url.intended');
 
+            if (preg_match('#\A/jobs/([0-9a-f-]{36})/apply\z#i', $intendedPath, $matches)) {
+                return redirect()->route('jobs.show', $matches[1]);
+            }
+
             return redirect($destination);
         }
 

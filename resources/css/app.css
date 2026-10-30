@@ -4,7 +4,7 @@
 
 @layer components {
     .jobseeker-shell { font-family: Inter, system-ui, -apple-system, sans-serif; }
-    .jobseeker-home-hero { background: #020617 url('/images/auth/employer-workplace.webp') center 48% / cover no-repeat; }
+    .jobseeker-home-hero { background: #020617 url('/images/auth/employer-workplace.webp') center 62% / cover no-repeat; }
     .jobseeker-home-hero::before { content: ''; position: absolute; inset: 0; background: rgb(2 6 23 / 80%); }
     .admin-shell {
         --admin-brand: #B85B12;
@@ -174,13 +174,25 @@
 .jobseeker-shell .jobseeker-home-search-button { background-color: var(--jobseeker-accent); color: #0B2533; }
 .jobseeker-shell .jobseeker-home-search-button:hover { background-color: #B85B12; color: #fff; }
 .jobseeker-shell .jobseeker-home-search-button:focus-visible { outline-color: var(--jobseeker-accent); }
+.jobseeker-shell .jobseeker-home-hero input:focus { outline: none; box-shadow: inset 0 -2px 0 var(--jobseeker-primary); }
 .jobseeker-shell .jobseeker-home-hero { background-color: var(--jobseeker-primary-dark); }
 .jobseeker-shell .jobseeker-home-hero::before { background: rgb(23 57 75 / 82%); }
+.jobseeker-shell .jobseeker-hero-count { display: inline-block; min-width: 6ch; text-align: right; font-variant-numeric: tabular-nums; }
+@keyframes jobseeker-count-glow { 50% { text-shadow: 0 0 14px rgb(222 124 35 / 35%); } }
+@keyframes jobseeker-count-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@keyframes jobseeker-banner-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes jobseeker-banner-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.jobseeker-shell .jobseeker-partners-window { overflow: hidden; }
+.jobseeker-shell .jobseeker-partners-track { display: flex; width: max-content; animation: jobseeker-partners-scroll 32s linear infinite; }
+.jobseeker-shell .jobseeker-partners-window:hover .jobseeker-partners-track { animation-play-state: paused; }
+.jobseeker-shell .jobseeker-partners-group { display: flex; gap: 1rem; padding-right: 1rem; }
+@keyframes jobseeker-partners-scroll { to { transform: translateX(-50%); } }
 .jobseeker-shell .jobseeker-header { position: sticky; top: 0; z-index: 40; background-color: #17394B; border-color: #294B5B; color: #fff; }
 .jobseeker-shell .jobseeker-header.is-scrolled { box-shadow: 0 8px 18px rgb(0 0 0 / 14%); }
 .jobseeker-shell .jobseeker-header .jobseeker-wordmark-start { color: #fff; }
 .jobseeker-shell .jobseeker-header .jobseeker-wordmark-work { color: #F0A35C; }
 .jobseeker-shell .jobseeker-header a:hover { color: #F0A35C; }
+.jobseeker-shell .jobseeker-header a[aria-current="page"] { color: #F0A35C; text-decoration: underline; text-underline-offset: .35em; }
 .jobseeker-shell .jobseeker-header nav { background-color: #17394B; border-color: #294B5B; }
 .jobseeker-shell .jobseeker-footer { background-color: #17394B; border-color: #294B5B; color: #E5EDF0; }
 .jobseeker-shell .jobseeker-footer a:hover { color: #F0A35C; }
@@ -192,6 +204,19 @@
 .jobseeker-shell .jobseeker-faq[open] .jobseeker-faq-indicator { transform: rotate(45deg); }
 
 @media (prefers-reduced-motion: no-preference) {
+    .jobseeker-shell .jobseeker-home-hero.is-animating #home-title { animation: jobseeker-banner-rise 520ms cubic-bezier(.22, 1, .36, 1) both; }
+    .jobseeker-shell .jobseeker-home-hero.is-animating .jobseeker-hero-description { animation: jobseeker-banner-rise 520ms 130ms cubic-bezier(.22, 1, .36, 1) both; }
+    .jobseeker-shell .jobseeker-home-hero.is-animating .jobseeker-hero-count {
+        background: linear-gradient(100deg, var(--jobseeker-accent) 43%, #FFD9AA 50%, var(--jobseeker-accent) 57%) no-repeat;
+        background-size: 250% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: jobseeker-count-glow 1200ms ease-out 1, jobseeker-count-shimmer 950ms 150ms ease-out both;
+    }
+    .jobseeker-shell .jobseeker-jobs-banner.is-animating { animation: jobseeker-banner-fade 520ms ease-out both; }
+    .jobseeker-shell .jobseeker-jobs-banner.is-animating h1 { animation: jobseeker-banner-rise 480ms cubic-bezier(.22, 1, .36, 1) both; }
+    .jobseeker-shell .jobseeker-jobs-banner.is-animating p { animation: jobseeker-banner-rise 480ms 130ms cubic-bezier(.22, 1, .36, 1) both; }
     .jobseeker-shell .jobseeker-header { transition: box-shadow 180ms ease; }
     .jobseeker-shell .jobseeker-faq-indicator { transition: transform 180ms ease; }
     .jobseeker-shell a,
@@ -201,4 +226,6 @@
 }
 @media (prefers-reduced-motion: reduce) {
     .jobseeker-shell .jobseeker-faq::details-content { transition: none; }
+    .jobseeker-shell .jobseeker-partners-window { overflow-x: auto; }
+    .jobseeker-shell .jobseeker-partners-track { animation: none; }
 }

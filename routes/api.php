@@ -107,6 +107,8 @@ Route::get('/job-posts', function (Request $request) {
         })
         ->select(
             'companies.name as company_name',
+            'companies.id as company_id',
+            'companies.logo as company_logo',
             'job_posts.id',
             'job_posts.title',
             'job_posts.category',
@@ -150,13 +152,10 @@ Route::get('/job-posts', function (Request $request) {
         $query->where('job_posts.created_at', '<', Carbon::parse($request->query('created_to'))->addDay()->toDateString().' 00:00:00');
     }
 
-    // Pencarian kata kunci judul atau deskripsi
+    // Pencarian berdasarkan judul lowongan.
     if ($request->filled('q')) {
         $searchTerm = '%'.$request->query('q').'%';
-        $query->where(function ($sub) use ($searchTerm) {
-            $sub->where('job_posts.title', 'like', $searchTerm)
-                ->orWhere('job_posts.description', 'like', $searchTerm);
-        });
+        $query->where('job_posts.title', 'like', $searchTerm);
     }
 
     // Sorting (Latest, Oldest, A-Z, Z-A)

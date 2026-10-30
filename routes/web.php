@@ -20,22 +20,15 @@ Route::get('/', function () {
     $activeJobs = DB::table('job_posts')->where('job_posts.status', 'active')
         ->where(fn ($query) => $query->whereNull('job_posts.expires_at')->orWhere('job_posts.expires_at', '>', now()));
     $jobs = (clone $activeJobs)->join('companies', 'job_posts.company_id', '=', 'companies.id')
-        ->select('job_posts.id', 'job_posts.title', 'job_posts.location', 'job_posts.job_type', 'job_posts.work_type', 'companies.name as company_name', 'companies.logo as company_logo', 'companies.id as company_id')
+        ->select('job_posts.id', 'job_posts.title', 'job_posts.location', 'job_posts.category', 'job_posts.job_type', 'job_posts.work_type', 'companies.name as company_name', 'companies.logo as company_logo', 'companies.id as company_id')
         ->orderByDesc('job_posts.created_at')->orderBy('job_posts.id')->limit(6)->get();
-    $categories = (clone $activeJobs)->whereNotNull('category')->where('category', '!=', '')
-        ->select('category')->selectRaw('COUNT(*) as jobs_count')->groupBy('category')
-        ->orderByDesc('jobs_count')->orderBy('category')->limit(8)->get();
-    $companyJobs = (clone $activeJobs)->select('company_id')->selectRaw('COUNT(*) as open_jobs')->groupBy('company_id');
-    $companies = DB::table('companies')->joinSub($companyJobs, 'open_jobs', fn ($join) => $join->on('companies.id', '=', 'open_jobs.company_id'))
-        ->select('companies.id', 'companies.name', 'companies.location', 'companies.logo', 'open_jobs.open_jobs')
-        ->orderByDesc('open_jobs.open_jobs')->orderBy('companies.name')->limit(12)->get();
+    $articles = DB::table('articles')->where('status', 'published')->whereNotNull('slug')
+        ->select('slug', 'title', 'excerpt', 'cover_image', 'published_at')
+        ->orderByDesc('published_at')->orderByDesc('id')->limit(3)->get();
 
     return view('welcome', [
         'jobs' => $jobs,
-        'categories' => $categories,
-        'companies' => $companies,
-        'activeJobCount' => (clone $activeJobs)->count(),
-        'companyCount' => DB::table('companies')->count(),
+        'articles' => $articles,
     ]);
 });
 

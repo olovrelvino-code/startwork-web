@@ -48,6 +48,11 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
+        $intendedPath = parse_url((string) $request->session()->pull('url.intended'), PHP_URL_PATH) ?: '';
+        if (preg_match('#\A/jobs/([0-9a-f-]{36})/apply\z#i', $intendedPath, $matches)) {
+            return redirect()->route('jobs.show', $matches[1]);
+        }
+
         return redirect(route('jobs.index', absolute: false));
     }
 }

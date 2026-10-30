@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
@@ -68,6 +69,25 @@ class AuthenticationTest extends TestCase
         $this->get('/profil')->assertOk();
         $this->get('/profil/lamaran')->assertOk();
         $this->get('/login')->assertRedirect(route('jobs.index'));
+    }
+
+    public function test_jobseeker_login_and_registration_resume_only_a_job_apply_intent(): void
+    {
+        $jobId = (string) Str::uuid();
+        $jobseeker = User::factory()->create(['role' => 'jobseeker']);
+        $this->withSession(['url.intended' => url("/jobs/{$jobId}/apply")])
+            ->post('/login', ['email' => $jobseeker->email, 'password' => 'password'])
+            ->assertRedirect(route('jobs.show', $jobId))
+            ->assertSessionMissing('url.intended');
+
+        $this->post('/logout')->assertRedirect('/');
+        $this->withSession(['url.intended' => url("/jobs/{$jobId}/apply")])
+            ->post('/register', [
+                'name' => 'Pelamar Baru', 'email' => 'pelamar-baru@example.test',
+                'password' => 'password123', 'password_confirmation' => 'password123',
+            ])
+            ->assertRedirect(route('jobs.show', $jobId))
+            ->assertSessionMissing('url.intended');
     }
 
     public function test_signed_in_users_must_switch_accounts_before_opening_another_role_login(): void
