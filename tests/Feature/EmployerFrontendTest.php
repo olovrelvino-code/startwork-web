@@ -107,7 +107,7 @@ class EmployerFrontendTest extends TestCase
     public function test_employer_pages_and_login_are_role_scoped(): void
     {
         $this->get('/')->assertOk()->assertSee('Untuk Perusahaan');
-        $this->get('/employer/login')->assertOk()->assertSee('Masuk sebagai Employer')->assertSee('Daftar di sini');
+        $this->get('/employer/login')->assertOk()->assertSee('Masuk sebagai Employer')->assertSee('Daftar di sini')->assertSee('data-employer-auth-content', false);
         $this->get('/employer/register')->assertOk()->assertSee('Buat akun dan lanjutkan')
             ->assertSee('Langkah 1 dari 2')->assertSee('Profil perusahaan')
             ->assertSee('registration-progress--dark', false);

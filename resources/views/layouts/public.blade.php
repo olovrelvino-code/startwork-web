@@ -36,6 +36,7 @@
                             <div id="jobseeker-account-menu" x-show="profileOpen" style="display:none" @keydown.escape.stop="profileOpen = false; $refs.profileButton.focus()" class="absolute right-0 top-full z-50 mt-2 w-52 rounded-lg border border-white/15 bg-[var(--jobseeker-primary-dark)] p-1.5 text-white shadow-lg">
                                 <a href="{{ route('jobseeker.profile') }}" class="block rounded-md px-3 py-2.5 hover:bg-white/10 focus-visible:outline focus-visible:outline-2" @if(request()->routeIs('jobseeker.profile')) aria-current="page" @endif>Profil Saya</a>
                                 <a href="{{ route('jobseeker.applications') }}" class="block rounded-md px-3 py-2.5 hover:bg-white/10 focus-visible:outline focus-visible:outline-2" @if(request()->routeIs('jobseeker.applications')) aria-current="page" @endif>Lamaran Saya</a>
+                                <a href="{{ route('jobseeker.saved-jobs') }}" class="block rounded-md px-3 py-2.5 hover:bg-white/10 focus-visible:outline focus-visible:outline-2" @if(request()->routeIs('jobseeker.saved-jobs')) aria-current="page" @endif>Simpan Lamaran</a>
                                 <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="w-full rounded-md px-3 py-2.5 text-left font-medium hover:bg-white/10 focus-visible:outline focus-visible:outline-2">Log Out</button></form>
                             </div>
                         </div>
@@ -64,6 +65,7 @@
                             @if (auth()->user()->role === 'jobseeker')
                                 <li><a href="{{ route('jobseeker.profile') }}">Profil Saya</a></li>
                                 <li><a href="{{ route('jobseeker.applications') }}">Lamaran Saya</a></li>
+                                <li><a href="{{ route('jobseeker.saved-jobs') }}">Lowongan Tersimpan</a></li>
                             @endif
                         @else
                             <li><a href="{{ route('register') }}">Daftar pencari kerja</a></li>
@@ -82,21 +84,33 @@
                         @endif
                     </ul>
                 </nav>
-                <nav aria-label="Footer tentang kami">
-                    <h2 class="text-sm font-bold text-white">Tentang Kami</h2>
+                <nav aria-label="Footer tentang StartWork">
+                    <h2 class="text-sm font-bold text-white">Tentang StartWork</h2>
                     <ul class="mt-4 space-y-3 text-sm">
                         <li><a href="{{ route('about') }}">Tentang StartWork</a></li>
                         <li><a href="{{ route('faqs') }}">FAQs</a></li>
-                        <li><a href="{{ route('articles.index') }}">Artikel & berita</a></li>
+                        <li><a href="{{ route('articles.index') }}">Blog</a></li>
                     </ul>
                 </nav>
                 <div>
-                    <h2 class="text-sm font-bold text-white">Kontak</h2>
+                    <h2 class="text-sm font-bold text-white">Kontak StartWork</h2>
                     <p class="mt-4 max-w-xs text-sm leading-6">Informasi kontak resmi belum tersedia. Untuk jawaban umum, kunjungi <a href="{{ route('faqs') }}" class="font-semibold underline">FAQs</a>.</p>
+                    <div class="mt-5 flex items-center gap-3" aria-label="Media sosial StartWork">
+                        <span role="img" aria-label="Instagram" title="Instagram" class="jobseeker-social-icon grid h-10 w-10 place-items-center rounded-full border border-white/20"><svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="18" cy="6" r="1" fill="currentColor" stroke="none"/></svg></span>
+                        <span role="img" aria-label="Facebook" title="Facebook" class="jobseeker-social-icon grid h-10 w-10 place-items-center rounded-full border border-white/20"><svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M14.2 22v-8.6H17l.5-3.5h-3.3V7.7c0-1 .3-1.7 1.8-1.7h1.7V2.9c-.3 0-1.5-.2-2.8-.2-2.8 0-4.7 1.7-4.7 4.8v2.4H7.4v3.5h2.8V22h4Z"/></svg></span>
+                        <span role="img" aria-label="Threads" title="Threads" class="jobseeker-social-icon grid h-10 w-10 place-items-center rounded-full border border-white/20"><svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19.5 8.5C18.4 4.8 15.7 3 12 3 6.8 3 3.5 6.8 3.5 12s3.2 9 8.5 9c4.8 0 8-2.8 8-6.2 0-3.1-2.4-5.2-6.3-5.2-2.7 0-4.3 1.1-4.3 3.1 0 1.7 1.2 2.7 3.1 2.7 2.1 0 3.6-1.4 3.6-3.6 0-3.3-1.7-5.3-5.6-5.8"/></svg></span>
+                    </div>
                 </div>
             </div>
             <p class="mt-12 border-t border-white/10 pt-6 text-sm">© {{ date('Y') }} StartWork</p>
         </div>
     </footer>
+    <dialog id="jobseeker-share-dialog" aria-labelledby="jobseeker-share-title" class="w-[min(26rem,calc(100%-2rem))] rounded-xl border border-slate-200 bg-white p-6 text-slate-900 shadow-xl backdrop:bg-slate-950/60">
+        <div class="flex items-start justify-between gap-4"><h2 id="jobseeker-share-title" class="text-xl font-bold">Bagikan lowongan</h2><button type="button" data-share-close aria-label="Tutup" class="rounded-lg px-2 py-1 text-lg focus-visible:outline focus-visible:outline-2">×</button></div>
+        <p class="mt-2 text-sm text-slate-600">Bagikan tautan detail lowongan.</p>
+        <div class="mt-6 flex flex-wrap gap-3"><a data-share-whatsapp target="_blank" rel="noopener noreferrer" class="rounded-lg border border-slate-200 px-4 py-2 font-semibold hover:bg-slate-100">WhatsApp</a><button type="button" data-share-copy class="rounded-lg border border-slate-200 px-4 py-2 font-semibold hover:bg-slate-100">Salin link</button><button type="button" data-share-native class="hidden rounded-lg border border-slate-200 px-4 py-2 font-semibold hover:bg-slate-100">Bagikan</button></div>
+        <p data-share-feedback role="status" class="mt-3 text-sm text-slate-600" aria-live="polite"></p>
+    </dialog>
+    <p data-save-status role="status" aria-live="polite" class="pointer-events-none fixed bottom-4 right-4 z-50 hidden max-w-sm rounded-lg bg-[var(--jobseeker-primary-dark)] px-4 py-3 text-sm text-white shadow-lg"></p>
 </body>
 </html>

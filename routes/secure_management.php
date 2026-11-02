@@ -1,5 +1,6 @@
 <?php
 
+use App\JobseekerDocument;
 use App\WebpImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -104,9 +105,12 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
         abort_unless($request->user()->role === 'admin', 403);
         $cv = DB::table('applications')->join('jobseeker_profiles', 'applications.profile_id', '=', 'jobseeker_profiles.id')
             ->where('applications.id', $id)->select('applications.cv_file', 'jobseeker_profiles.cv_filename')->first();
-        abort_if($cv === null || empty($cv->cv_file) || ! Storage::disk('local')->exists($cv->cv_file), 404);
+        abort_if($cv === null || empty($cv->cv_file) || ! JobseekerDocument::disk()->exists($cv->cv_file), 404);
 
-        return Storage::disk('local')->download($cv->cv_file, basename($cv->cv_filename ?: $cv->cv_file));
+        $filename = $cv->cv_filename && strtolower(pathinfo($cv->cv_filename, PATHINFO_EXTENSION)) === strtolower(pathinfo($cv->cv_file, PATHINFO_EXTENSION))
+            ? basename($cv->cv_filename) : 'CV.'.pathinfo($cv->cv_file, PATHINFO_EXTENSION);
+
+        return JobseekerDocument::disk()->download($cv->cv_file, $filename);
     });
 });
 
@@ -174,8 +178,11 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function (): void 
             ->where('applications.id', $id)->where('job_posts.company_id', $company->id)
             ->where('job_posts.posted_by', $request->user()->id)
             ->select('applications.cv_file', 'jobseeker_profiles.cv_filename')->first();
-        abort_if($cv === null || empty($cv->cv_file) || ! Storage::disk('local')->exists($cv->cv_file), 404);
+        abort_if($cv === null || empty($cv->cv_file) || ! JobseekerDocument::disk()->exists($cv->cv_file), 404);
 
-        return Storage::disk('local')->download($cv->cv_file, basename($cv->cv_filename ?: $cv->cv_file));
+        $filename = $cv->cv_filename && strtolower(pathinfo($cv->cv_filename, PATHINFO_EXTENSION)) === strtolower(pathinfo($cv->cv_file, PATHINFO_EXTENSION))
+            ? basename($cv->cv_filename) : 'CV.'.pathinfo($cv->cv_file, PATHINFO_EXTENSION);
+
+        return JobseekerDocument::disk()->download($cv->cv_file, $filename);
     });
 });

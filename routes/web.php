@@ -37,9 +37,7 @@ Route::get('/loker', function () {
         ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()));
 
     return view('jobseeker.jobs.index', [
-        'categories' => (clone $active)->whereNotNull('category')->distinct()->orderBy('category')->pluck('category'),
         'jobTypes' => (clone $active)->whereNotNull('job_type')->distinct()->orderBy('job_type')->pluck('job_type'),
-        'workTypes' => (clone $active)->whereNotNull('work_type')->distinct()->orderBy('work_type')->pluck('work_type'),
     ]);
 })->name('jobs.index');
 Route::get('/loker/{id}', fn (string $id) => redirect()->route('jobs.show', $id));
@@ -84,6 +82,17 @@ Route::middleware('auth')->group(function (): void {
 
         return view('jobseeker.applications');
     })->name('jobseeker.applications');
+    Route::get('/profil/tersimpan', function () {
+        abort_unless(request()->user()->role === 'jobseeker', 403);
+        $jobs = DB::table('saved_job_posts')->join('job_posts', 'saved_job_posts.job_post_id', '=', 'job_posts.id')
+            ->join('companies', 'job_posts.company_id', '=', 'companies.id')
+            ->where('saved_job_posts.user_id', request()->user()->id)
+            ->select('job_posts.id', 'job_posts.title', 'job_posts.location', 'job_posts.category', 'job_posts.job_type',
+                'job_posts.work_type', 'companies.id as company_id', 'companies.name as company_name', 'companies.logo as company_logo')
+            ->orderByDesc('saved_job_posts.created_at')->paginate(12);
+
+        return view('jobseeker.saved-jobs', compact('jobs'));
+    })->name('jobseeker.saved-jobs');
     Route::get('/jobs/{id}/apply', function (string $id) {
         abort_unless(request()->user()->role === 'jobseeker', 403);
 

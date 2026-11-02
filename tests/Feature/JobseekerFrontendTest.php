@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -52,6 +53,8 @@ class JobseekerFrontendTest extends TestCase
         $this->assertSame(1, substr_count($response->getContent(), url('/api/companies/'.$companyId.'/logo')));
         $this->getJson('/api/job-posts?category='.urlencode('Technology / IT'))
             ->assertOk()->assertJsonPath('total', 1);
+        $this->getJson('/api/job-posts?category[]=Technology%20%2F%20IT&category[]=Others')
+            ->assertOk()->assertJsonPath('total', 1);
         $this->getJson('/api/job-posts?q=Posisi')->assertOk()->assertJsonPath('total', 1);
         $this->getJson('/api/job-posts?q=Kebutuhan')->assertOk()->assertJsonPath('total', 0);
         $this->getJson('/api/job-posts?q=Posisi&location=Bandung')->assertOk()->assertJsonPath('total', 1);
@@ -63,7 +66,16 @@ class JobseekerFrontendTest extends TestCase
         $this->get(route('jobs.index'))->assertOk()
             ->assertSee('Peluangmu Dimulai di Sini.')
             ->assertSee('Temukan pekerjaan yang tepat dan ambil langkah pertama menuju karier impian bersama StartWork.')
-            ->assertSeeInOrder(['Peluangmu Dimulai di Sini.', 'Nama Lowongan', 'Filter lowongan']);
+            ->assertSeeInOrder(['Peluangmu Dimulai di Sini.', 'Nama Lowongan', 'Urutkan', 'Filter lowongan', 'data-list-status']);
+    }
+
+    public function test_login_shows_jobseeker_by_default_and_exposes_employer_switch(): void
+    {
+        $this->get(route('login'))->assertOk()
+            ->assertSee('data-auth-role="jobseeker" aria-pressed="true"', false)
+            ->assertSee('data-auth-role="employer" aria-pressed="false"', false)
+            ->assertSee('data-jobseeker-auth', false)
+            ->assertSee('data-employer-inline-content', false);
     }
 
     public function test_homepage_latest_articles_match_published_blog_and_precede_testimonials(): void
@@ -146,7 +158,9 @@ class JobseekerFrontendTest extends TestCase
             ->assertDontSee('name="created_to"', false)
             ->assertSee('name="sort"', false)
             ->assertSee('name="location"', false)
-            ->assertSee('name="category"', false);
+            ->assertSee('Kategori');
+
+        $this->getJson('/api/job-posts?category[]=Technology%20%2F%20IT')->assertOk();
 
         $seeker = User::factory()->create(['role' => 'jobseeker']);
         $this->actingAs($seeker)->get('/profil')->assertOk()
@@ -154,6 +168,18 @@ class JobseekerFrontendTest extends TestCase
             ->assertSee('data-ready-icon="profile"', false)
             ->assertSee('data-ready-icon="skills"', false)
             ->assertSee('data-ready-icon="cv"', false);
+    }
+
+    public function test_job_categories_show_one_indonesian_technology_option_and_keep_multiple_selections(): void
+    {
+        $response = $this->get('/loker?category[]=Teknologi&category[]=Keuangan%20%26%20Audit');
+
+        $response->assertOk()
+            ->assertSee('value="Teknologi" data-query-values="Technology / IT|technology|teknologi" checked', false)
+            ->assertSee('value="Keuangan &amp; Audit" data-query-values="Finance &amp; Audit" checked', false)
+            ->assertDontSee('Show More');
+        $this->assertSame(13, substr_count($response->getContent(), 'name="category[]"'));
+        $this->assertSame(1, substr_count($response->getContent(), 'value="Teknologi"'));
     }
 
     public function test_jobseeker_nav_uses_own_private_photo_and_profile_name(): void
@@ -410,5 +436,181 @@ class JobseekerFrontendTest extends TestCase
         $this->assertSame([1024, 576], [$dimensions[0], $dimensions[1]]);
         Storage::disk('local')->assertMissing($oldPath);
         $this->get('/api/jobseeker/profile/photo')->assertOk()->assertHeader('Content-Type', 'image/webp');
+    }
+
+    public function test_saved_jobs_are_persistent_idempotent_and_private_to_each_jobseeker(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $first = User::factory()->create(['role' => 'jobseeker']);
+        $second = User::factory()->create(['role' => 'jobseeker']);
+        $companyId = (string) Str::uuid();
+        $jobId = (string) Str::uuid();
+        DB::table('companies')->insert(['id' => $companyId, 'name' => 'Perusahaan Uji', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('job_posts')->insert([
+            'id' => $jobId, 'company_id' => $companyId, 'posted_by' => $admin->id,
+            'title' => 'Posisi Tersimpan', 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->postJson("/api/jobseeker/saved-jobs/{$jobId}")->assertUnauthorized();
+        $this->actingAs($admin)->postJson("/api/jobseeker/saved-jobs/{$jobId}")->assertForbidden();
+        $this->actingAs($first)->postJson("/api/jobseeker/saved-jobs/{$jobId}")->assertOk();
+        $this->postJson("/api/jobseeker/saved-jobs/{$jobId}")->assertOk();
+        $this->assertSame(1, DB::table('saved_job_posts')->count());
+        $this->getJson('/api/jobseeker/saved-jobs')->assertOk()->assertJsonPath('data.0', $jobId);
+        $this->get('/profil/tersimpan')->assertOk()->assertSee('Posisi Tersimpan');
+
+        $this->actingAs($second)->getJson('/api/jobseeker/saved-jobs')->assertOk()->assertJsonCount(0, 'data');
+        $this->get('/profil/tersimpan')->assertOk()->assertDontSee('Posisi Tersimpan');
+        $this->deleteJson("/api/jobseeker/saved-jobs/{$jobId}")->assertOk();
+        $this->assertSame(1, DB::table('saved_job_posts')->count());
+        $this->actingAs($first)->deleteJson("/api/jobseeker/saved-jobs/{$jobId}")->assertOk();
+        $this->assertSame(0, DB::table('saved_job_posts')->count());
+    }
+
+    public function test_profile_education_gender_and_icon_controls_keep_legacy_values_editable(): void
+    {
+        $seeker = User::factory()->create(['role' => 'jobseeker']);
+        $page = $this->actingAs($seeker)->get('/profil')->assertOk()
+            ->assertSee('name="gender" value="Laki-laki"', false)
+            ->assertSee('name="gender" value="Perempuan"', false)
+            ->assertSee('value="D4/Sarjana Terapan"', false)
+            ->assertSee('value="SD/Sederajat"', false)
+            ->assertSee('aria-label="Tambah skills"', false)
+            ->assertSee('aria-label="Hapus riwayat pendidikan"', false)
+            ->assertDontSee('>Hapus entri</button>', false)
+            ->assertDontSee('>Profesi</option>', false);
+        $this->assertSame(1, substr_count($page->getContent(), 'value="SD/Sederajat"'));
+
+        $this->postJson('/api/jobseeker/profile', [
+            'full_name' => 'Rina', 'domicile' => 'Bandung', 'birth_date' => '2000-01-01',
+            'gender' => 'Laki-laki', 'last_education' => 'S1 Teknik Informatika',
+        ])->assertCreated();
+        $this->getJson('/api/jobseeker/profile')->assertOk()
+            ->assertJsonPath('data.gender', 'Laki-laki')
+            ->assertJsonPath('data.last_education', 'S1 Teknik Informatika');
+        $this->postJson('/api/jobseeker/profile', [
+            'full_name' => 'Rina', 'domicile' => 'Bandung', 'birth_date' => '2000-01-01',
+            'gender' => 'Perempuan', 'last_education' => 'D4/Sarjana Terapan',
+        ])->assertOk()->assertJsonPath('data.gender', 'Perempuan')->assertJsonPath('data.last_education', 'D4/Sarjana Terapan');
+        $this->postJson('/api/jobseeker/profile/details', [
+            'skills' => ['SQL'], 'education_histories' => [['level' => 'S1', 'institution' => 'Universitas A']],
+        ])->assertOk();
+        $this->putJson('/api/jobseeker/profile/details', [
+            'skills' => ['SQL'], 'education_histories' => [['level' => 'SMK/Sederajat', 'institution' => 'Sekolah B']],
+        ])->assertOk();
+        $this->getJson('/api/jobseeker/profile/details')->assertOk()
+            ->assertJsonPath('data.education_histories.0.level', 'SMK/Sederajat')
+            ->assertJsonPath('data.education_histories.0.institution', 'Sekolah B');
+    }
+
+    public function test_cv_upload_validates_documents_and_preserves_application_copies(): void
+    {
+        Storage::fake('local');
+        $seeker = User::factory()->create(['role' => 'jobseeker']);
+        $other = User::factory()->create(['role' => 'jobseeker']);
+        $profileId = (string) Str::uuid();
+        DB::table('jobseeker_profiles')->insert(['id' => $profileId, 'user_id' => $seeker->id, 'created_at' => now(), 'updated_at' => now()]);
+        $this->actingAs($seeker);
+
+        foreach (['pdf', 'jpg', 'jpeg', 'png'] as $extension) {
+            $file = $extension === 'pdf'
+                ? UploadedFile::fake()->createWithContent('resume.pdf', "%PDF-1.4\n".str_repeat(' ', 2 * 1024 * 1024)."\n%%EOF\n")
+                : UploadedFile::fake()->image("resume.{$extension}")->size($extension === 'jpg' ? 2048 : 100);
+            $this->post('/api/jobseeker/profile/cv', ['cv' => $file], ['Accept' => 'application/json'])->assertOk();
+            $path = DB::table('jobseeker_profiles')->where('id', $profileId)->value('cv_file');
+            Storage::disk('local')->assertExists($path);
+            $this->get('/api/jobseeker/profile/cv')->assertOk();
+            $preview = $this->get('/api/jobseeker/profile/cv?preview=1')->assertOk();
+            $this->assertStringContainsString('inline', $preview->headers->get('Content-Disposition'));
+        }
+
+        $oldPath = $path;
+        $this->post('/api/jobseeker/profile/cv', ['cv' => UploadedFile::fake()->image('large.png')->size(2049)], ['Accept' => 'application/json'])
+            ->assertUnprocessable()->assertJsonValidationErrors('cv');
+        $this->post('/api/jobseeker/profile/cv', ['cv' => UploadedFile::fake()->createWithContent('fake.pdf', 'invalid')], ['Accept' => 'application/json'])
+            ->assertUnprocessable()->assertJsonValidationErrors('cv');
+        $this->post('/api/jobseeker/profile/cv', ['cv' => UploadedFile::fake()->createWithContent('wrong.txt', "%PDF-1.4\n%%EOF")], ['Accept' => 'application/json'])
+            ->assertUnprocessable()->assertJsonValidationErrors('cv');
+        $this->assertSame($oldPath, DB::table('jobseeker_profiles')->where('id', $profileId)->value('cv_file'));
+        Storage::disk('local')->assertExists($oldPath);
+        $this->actingAs($other)->get('/api/jobseeker/profile/cv')->assertNotFound();
+        $this->delete('/api/jobseeker/profile/cv')->assertNotFound();
+        $this->actingAs($seeker);
+        $employer = User::factory()->create(['role' => 'employer']);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $companyId = (string) Str::uuid();
+        $jobId = (string) Str::uuid();
+        $applicationId = (string) Str::uuid();
+        DB::table('companies')->insert(['id' => $companyId, 'owner_user_id' => $employer->id, 'name' => 'PT Contoh']);
+        DB::table('job_posts')->insert(['id' => $jobId, 'company_id' => $companyId, 'posted_by' => $employer->id, 'title' => 'Analis', 'status' => 'active']);
+        DB::table('applications')->insert(['id' => $applicationId, 'job_posts_id' => $jobId, 'profile_id' => $profileId, 'cv_file' => $oldPath]);
+        $this->post('/api/jobseeker/profile/cv', ['cv' => UploadedFile::fake()->image('replacement.jpg')], ['Accept' => 'application/json'])->assertOk();
+        Storage::disk('local')->assertExists($oldPath);
+        $newPath = DB::table('jobseeker_profiles')->where('id', $profileId)->value('cv_file');
+        $this->delete('/api/jobseeker/profile/cv')->assertNoContent();
+        Storage::disk('local')->assertMissing($newPath);
+        Storage::disk('local')->assertExists($oldPath);
+        $this->get('/api/jobseeker/profile/cv')->assertNotFound();
+        $employerCv = $this->actingAs($employer)->get("/api/employer/applications/{$applicationId}/cv")->assertOk();
+        $this->assertStringContainsString('CV.png', $employerCv->headers->get('Content-Disposition'));
+        $adminCv = $this->actingAs($admin)->get("/api/admin/applicants/{$applicationId}/cv")->assertOk();
+        $this->assertStringContainsString('CV.png', $adminCv->headers->get('Content-Disposition'));
+    }
+
+    public function test_certificate_upload_replacement_deletion_and_legacy_links_are_private(): void
+    {
+        Storage::fake('local');
+        $owner = User::factory()->create(['role' => 'jobseeker']);
+        $other = User::factory()->create(['role' => 'jobseeker']);
+        $profileId = (string) Str::uuid();
+        DB::table('jobseeker_profiles')->insert(['id' => $profileId, 'user_id' => $owner->id, 'created_at' => now(), 'updated_at' => now()]);
+        $legacyId = (string) Str::uuid();
+        DB::table('certificates')->insert(['id' => $legacyId, 'profile_id' => $profileId, 'name' => 'Sertifikat Lama', 'file_url' => 'https://example.test/legacy']);
+        $this->assertTrue(Schema::hasColumn('certificates', 'file_path'));
+        $this->actingAs($owner)->getJson('/api/jobseeker/profile/details')->assertOk()
+            ->assertJsonPath('data.certificates.0.file_url', 'https://example.test/legacy');
+        $this->postJson('/api/jobseeker/profile/details', ['skills' => ['SQL']])->assertOk();
+        $this->assertDatabaseHas('certificates', ['id' => $legacyId, 'file_url' => 'https://example.test/legacy']);
+
+        $pdf = UploadedFile::fake()->createWithContent('certificate.pdf', "%PDF-1.4\n".str_repeat(' ', 2 * 1024 * 1024)."\n%%EOF\n");
+        $this->post('/api/jobseeker/profile/certificates', ['name' => 'Sertifikat Baru', 'file' => $pdf], ['Accept' => 'application/json'])->assertOk();
+        $certificate = DB::table('certificates')->where('name', 'Sertifikat Baru')->first();
+        $this->assertNull($certificate->file_url);
+        Storage::disk('local')->assertExists($certificate->file_path);
+        foreach (['jpg', 'jpeg'] as $extension) {
+            $this->post('/api/jobseeker/profile/certificates', [
+                'name' => "Sertifikat {$extension}", 'file' => UploadedFile::fake()->image("certificate.{$extension}"),
+            ], ['Accept' => 'application/json'])->assertOk();
+            $otherCertificate = DB::table('certificates')->where('name', "Sertifikat {$extension}")->first();
+            Storage::disk('local')->assertExists($otherCertificate->file_path);
+            $this->delete("/api/jobseeker/profile/certificates/{$otherCertificate->id}")->assertNoContent();
+        }
+        $this->get("/api/jobseeker/profile/certificates/{$certificate->id}/file")->assertOk();
+        $preview = $this->get("/api/jobseeker/profile/certificates/{$certificate->id}/file?preview=1")->assertOk();
+        $this->assertStringContainsString('inline', $preview->headers->get('Content-Disposition'));
+        $this->postJson('/api/jobseeker/profile/details', ['skills' => ['SQL'], 'certificates' => [['name' => 'Tertimpa']]])->assertStatus(409);
+        Storage::disk('local')->assertExists($certificate->file_path);
+        $this->actingAs($other)->get("/api/jobseeker/profile/certificates/{$certificate->id}/file")->assertNotFound();
+        $this->delete("/api/jobseeker/profile/certificates/{$certificate->id}")->assertNotFound();
+        $this->actingAs($owner);
+
+        $this->post("/api/jobseeker/profile/certificates/{$certificate->id}", [
+            'name' => 'Sertifikat Baru', 'file' => UploadedFile::fake()->image('large.jpg')->size(2049),
+        ], ['Accept' => 'application/json'])->assertUnprocessable()->assertJsonValidationErrors('file');
+        $this->post("/api/jobseeker/profile/certificates/{$certificate->id}", [
+            'name' => 'Sertifikat Baru', 'file' => UploadedFile::fake()->createWithContent('fake.png', 'invalid'),
+        ], ['Accept' => 'application/json'])->assertUnprocessable()->assertJsonValidationErrors('file');
+        Storage::disk('local')->assertExists($certificate->file_path);
+        $this->post("/api/jobseeker/profile/certificates/{$certificate->id}", [
+            'name' => 'Sertifikat Baru', 'file' => UploadedFile::fake()->image('replacement.png'),
+        ], ['Accept' => 'application/json'])->assertOk();
+        Storage::disk('local')->assertMissing($certificate->file_path);
+        $replacement = DB::table('certificates')->where('id', $certificate->id)->first();
+        Storage::disk('local')->assertExists($replacement->file_path);
+        $this->post("/api/jobseeker/profile/certificates/{$certificate->id}", ['name' => 'Sertifikat Diedit'], ['Accept' => 'application/json'])->assertOk();
+        $this->assertDatabaseHas('certificates', ['id' => $certificate->id, 'name' => 'Sertifikat Diedit', 'file_path' => $replacement->file_path]);
+        $this->delete("/api/jobseeker/profile/certificates/{$certificate->id}")->assertNoContent();
+        Storage::disk('local')->assertMissing($replacement->file_path);
+        $this->assertDatabaseHas('certificates', ['id' => $legacyId, 'file_url' => 'https://example.test/legacy']);
     }
 }

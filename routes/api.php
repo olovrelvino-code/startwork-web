@@ -1,6 +1,7 @@
 <?php
 
 use App\JobCategory;
+use App\JobseekerDocument;
 use App\Models\User;
 use App\WebpImage;
 use Illuminate\Auth\Events\Registered;
@@ -87,8 +88,10 @@ Route::middleware(['web', 'auth'])->group(function (): void {
 Route::get('/job-posts', function (Request $request) {
     $jobTypeIsArray = is_array($request->query('job_type'));
     $workTypeIsArray = is_array($request->query('work_type'));
+    $categoryIsArray = is_array($request->query('category'));
     $request->validate([
-        'category' => ['sometimes', 'string', 'max:255'],
+        'category' => $categoryIsArray ? ['sometimes', 'array', 'max:50'] : ['sometimes', 'string', 'max:255'],
+        'category.*' => ['string', 'max:255'],
         'location' => ['sometimes', 'string', 'max:255'],
         'job_type' => $jobTypeIsArray ? ['sometimes', 'array', 'max:4'] : ['sometimes', 'string', 'max:255'],
         'job_type.*' => ['string', 'max:255'],
@@ -127,7 +130,7 @@ Route::get('/job-posts', function (Request $request) {
 
     // Filter Kategori
     if ($request->filled('category')) {
-        $query->where('job_posts.category', $request->query('category'));
+        $query->whereIn('job_posts.category', (array) $request->query('category'));
     }
 
     // Filter Lokasi
@@ -528,6 +531,10 @@ Route::middleware(['web', 'auth'])->group(function () {
                 ->orderBy('created_at')
                 ->get();
         }
+        $data['certificates']->each(function (object $certificate): void {
+            $certificate->file_size = $certificate->file_path && JobseekerDocument::disk()->exists($certificate->file_path)
+                ? JobseekerDocument::disk()->size($certificate->file_path) : null;
+        });
 
         return response()->json([
             'profile_id' => $profile->id,
@@ -574,8 +581,15 @@ Route::middleware(['web', 'auth'])->group(function () {
             'certificates.*.file_url' => ['nullable', 'string', 'max:255'],
         ]);
 
+        if (array_key_exists('certificates', $input)) {
+            abort_if(DB::table('certificates')->where('profile_id', $profile->id)->whereNotNull('file_path')->exists(), 409, 'Kelola sertifikat terunggah melalui formulir sertifikat');
+        }
+
         DB::transaction(function () use ($profile, $input, $tables): void {
             foreach ($tables as $table => $columns) {
+                if ($table === 'certificates' && ! array_key_exists('certificates', $input)) {
+                    continue;
+                }
                 DB::table($table)->where('profile_id', $profile->id)->delete();
 
                 foreach ($input[$table] ?? [] as $entry) {
@@ -614,7 +628,9 @@ Route::middleware(['web', 'auth'])->group(function () {
         ], true), 404);
 
         $profile = $ownProfile($request);
+        $paths = $section === 'certificates' ? DB::table($section)->where('profile_id', $profile->id)->whereNotNull('file_path')->pluck('file_path') : collect();
         $deleted = DB::table($section)->where('profile_id', $profile->id)->delete();
+        $paths->each(fn (string $path) => JobseekerDocument::ownedPath($path, 'certificates', $profile->user_id) ? JobseekerDocument::disk()->delete($path) : false);
 
         return response()->json(['deleted' => $deleted]);
     });

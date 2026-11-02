@@ -1,3 +1,5 @@
+import './auth-switch.js';
+
 const feedback = document.querySelector('#employer-feedback');
 
 const upgradeDialog = document.querySelector('[data-upgrade-dialog]');
@@ -60,11 +62,12 @@ if (upgradeDialog instanceof HTMLDialogElement && upgradeTrigger instanceof HTML
 }
 
 function showFeedback(message) {
-    if (!feedback) return;
-    feedback.className = 'mb-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900';
-    feedback.setAttribute('role', 'alert');
-    feedback.textContent = message;
-    feedback.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const currentFeedback = document.querySelector('#employer-feedback');
+    if (!currentFeedback) return;
+    currentFeedback.className = 'mb-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900';
+    currentFeedback.setAttribute('role', 'alert');
+    currentFeedback.textContent = message;
+    currentFeedback.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 const savedMessage = sessionStorage.getItem('employer-success-message');
@@ -227,6 +230,7 @@ document.addEventListener('submit', async (event) => {
 
         const destination = form.dataset.successUrl?.replace('{id}', result.data?.id || '');
         if (destination) {
+            if (!form.dispatchEvent(new CustomEvent('employer:before-navigate', { bubbles: true, cancelable: true, detail: { destination } }))) return;
             sessionStorage.setItem('employer-success-message', form.dataset.successMessage || result.message || 'Perubahan berhasil disimpan.');
             window.location.assign(destination);
             navigating = true;

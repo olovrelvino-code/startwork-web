@@ -26,7 +26,7 @@
         <main id="main-content" class="flex min-h-screen items-start px-5 py-8 sm:px-10 lg:items-center lg:px-16">
             <div class="mx-auto w-full @yield('content_width', 'max-w-[460px]')">
                 <div class="mb-10 lg:hidden"><a href="{{ url('/') }}" class="text-xl font-bold tracking-tight text-slate-900">startwork<span class="text-[#B85B12]">.</span></a><p class="mt-1 text-sm text-slate-500">Ruang kerja Employer</p></div>
-                @yield('content')
+                <div data-employer-auth-content>@yield('content')</div>
             </div>
         </main>
     </div>

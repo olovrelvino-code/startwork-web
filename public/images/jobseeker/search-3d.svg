@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none">
+  <defs>
+    <linearGradient id="blue" x1="18" y1="11" x2="68" y2="69" gradientUnits="userSpaceOnUse"><stop stop-color="#4E9AB4"/><stop offset="1" stop-color="#17394B"/></linearGradient>
+    <linearGradient id="glass" x1="26" y1="20" x2="53" y2="61" gradientUnits="userSpaceOnUse"><stop stop-color="#F6FCFE"/><stop offset="1" stop-color="#B8DCE9"/></linearGradient>
+    <linearGradient id="orange" x1="64" y1="62" x2="88" y2="90" gradientUnits="userSpaceOnUse"><stop stop-color="#FFBE72"/><stop offset="1" stop-color="#B85B12"/></linearGradient>
+  </defs>
+  <path d="m61 63 23 23" stroke="#8A430A" stroke-width="15" stroke-linecap="round"/>
+  <path d="m57 59 23 23" stroke="url(#orange)" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="43" cy="45" r="29" fill="#102D3C"/>
+  <circle cx="40" cy="40" r="29" fill="url(#blue)"/>
+  <circle cx="40" cy="40" r="18" fill="url(#glass)"/>
+  <path d="M25 36c1-9 8-16 17-17" stroke="#FFF" stroke-opacity=".7" stroke-width="3" stroke-linecap="round"/>
+  <path d="M28 48c4 7 10 11 18 11" stroke="#21546F" stroke-opacity=".3" stroke-width="3" stroke-linecap="round"/>
+</svg>
