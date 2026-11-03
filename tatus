@@ -1,0 +1,129 @@
+[1mdiff --git a/app/ArticleDocument.php b/app/ArticleDocument.php[m
+[1mindex 66b4209..353f15f 100644[m
+[1m--- a/app/ArticleDocument.php[m
+[1m+++ b/app/ArticleDocument.php[m
+[36m@@ -77,7 +77,7 @@[m [mpublic static function plainText(array $blocks): string[m
+         $lines = [];[m
+         foreach ($blocks as $block) {[m
+             if (isset($block['text'])) {[m
+[31m-                $lines[] = $block['text'];[m
+[32m+[m[32m                $lines[] = preg_replace('/\[([^\]]+)\]\([^)]+\)/', '$1', (string) $block['text']);[m
+             } elseif ($block['type'] === 'table') {[m
+                 $lines[] = implode(' ', $block['headers']);[m
+                 foreach ($block['rows'] as $row) {[m
+[36m@@ -115,10 +115,10 @@[m [mpublic static function render(?string $json, string $slug): HtmlString[m
+                 continue;[m
+             }[m
+             if (($block['type'] ?? null) === 'paragraph') {[m
+[31m-                $html .= '<p>'.nl2br(e((string) ($block['text'] ?? ''))).'</p>';[m
+[32m+[m[32m                $html .= '<p>'.self::renderInlineLinks(nl2br(e((string) ($block['text'] ?? '')))).'</p>';[m
+             } elseif (($block['type'] ?? null) === 'heading' && in_array($block['level'] ?? null, [2, 3], true)) {[m
+                 $level = $block['level'];[m
+[31m-                $html .= "<h{$level}>".e((string) ($block['text'] ?? ''))."</h{$level}>";[m
+[32m+[m[32m                $html .= "<h{$level}>".self::renderInlineLinks(e((string) ($block['text'] ?? '')))."</h{$level}>";[m
+             } elseif (($block['type'] ?? null) === 'table' && is_array($block['headers'] ?? null)[m
+                 && is_array($block['rows'] ?? null)) {[m
+                 $html .= '<div class="article-table-scroll"><table><thead><tr>';[m
+[36m@@ -152,6 +152,18 @@[m [mpublic static function render(?string $json, string $slug): HtmlString[m
+         return new HtmlString($html);[m
+     }[m
+ [m
+[32m+[m[32m    public static function renderInlineLinks(string $escapedHtml): string[m
+[32m+[m[32m    {[m
+[32m+[m[32m        return preg_replace_callback('/\[([^\]]+)\]\(((?:https?:\/\/|\/|mailto:)[^\s\)\"\'<>]+)\)/i', function (array $matches): string {[m
+[32m+[m[32m            $text = $matches[1];[m
+[32m+[m[32m            $url = $matches[2];[m
+[32m+[m[32m            $isExternal = str_starts_with($url, 'http://') || str_starts_with($url, 'https://');[m
+[32m+[m[32m            $target = $isExternal ? ' target="_blank" rel="noopener noreferrer"' : '';[m
+[32m+[m
+[32m+[m[32m            return '<a href="'.e($url).'"'.$target.' class="text-blue-600 underline underline-offset-2 hover:text-blue-800 focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--jobseeker-accent)]">'.$text.'</a>';[m
+[32m+[m[32m        }, $escapedHtml);[m
+[32m+[m[32m    }[m
+[32m+[m
+     private static function invalid(): never[m
+     {[m
+         throw ValidationException::withMessages(['body_json' => 'Isi artikel memiliki blok yang tidak valid. Periksa kembali tabel dan gambar.']);[m
+[1mdiff --git a/app/Http/Controllers/PublicArticleController.php b/app/Http/Controllers/PublicArticleController.php[m
+[1mindex 752a1f6..562bf53 100644[m
+[1m--- a/app/Http/Controllers/PublicArticleController.php[m
+[1m+++ b/app/Http/Controllers/PublicArticleController.php[m
+[36m@@ -3,39 +3,138 @@[m
+ namespace App\Http\Controllers;[m
+ [m
+ use App\ArticleDocument;[m
+[32m+[m[32muse Illuminate\Http\Request;[m
+ use Illuminate\Support\Facades\DB;[m
+ use Illuminate\Support\Facades\Storage;[m
+[32m+[m[32muse Illuminate\Support\Str;[m
+ use Illuminate\View\View;[m
+ use Symfony\Component\HttpFoundation\StreamedResponse;[m
+ [m
+ class PublicArticleController extends Controller[m
+ {[m
+[31m-    public function index(): View[m
+[32m+[m[32m    public function index(Request $request): View[m
+     {[m
+[32m+[m[32m        $search = trim((string) $request->query('q', ''));[m
+[32m+[m
+         $articles = DB::table('articles')[m
+             ->where('status', 'published')->whereNotNull('slug')[m
+[32m+[m[32m            ->when($search !== '', function ($query) use ($search) {[m
+[32m+[m[32m                $query->where(function ($q) use ($search) {[m
+[32m+[m[32m                    $q->where('title', 'like', "%{$search}%")[m
+[32m+[m[32m                        ->orWhere('content', 'like', "%{$search}%");[m
+[32m+[m[32m                });[m
+[32m+[m[32m            })[m
+             ->select('slug', 'title', 'excerpt', 'cover_image', 'published_at')[m
+[31m-            ->orderByDesc('published_at')->orderByDesc('id')->paginate(9);[m
+[32m+[m[32m            ->orderByDesc('published_at')->orderByDesc('id')[m
+[32m+[m[32m            ->paginate(9)[m
+[32m+[m[32m            ->withQueryString();[m
+[32m+[m
+         $articles->getCollection()->transform(function (object $article): object {[m
+             $article->cover_url = $this->coverPath($article->cover_image) ? route('articles.cover', $article->slug) : null;[m
+ [m
+             return $article;[m
+         });[m
+ [m
+[31m-        return view('articles.index', compact('articles'));[m
+[32m+[m[32m        return view('articles.index', compact('articles', 'search'));[m
+     }[m
+ [m
+     public function show(string $slug): View[m
+     {[m
+         $article = DB::table('articles')->join('users', 'articles.author_id', '=', 'users.id')[m
+             ->where('articles.slug', $slug)->where('articles.status', 'published')[m
+[31m-            ->select('articles.id', 'articles.slug', 'articles.title', 'articles.excerpt', 'articles.content', 'articles.body_json', 'articles.cover_image', 'articles.published_at', 'users.full_name as author_name')[m
+[32m+[m[32m            ->select('articles.id', 'articles.slug', 'articles.title', 'articles.excerpt', 'articles.content', 'articles.body_json', 'articles.faq_json', 'articles.cover_image', 'articles.published_at', 'users.full_name as author_name')[m
+             ->first();[m
+         abort_if($article === null, 404);[m
+         $article->cover_url = $this->coverPath($article->cover_image) ? route('articles.cover', $slug) : null;[m
+         $article->rendered_body = $article->body_json ? ArticleDocument::render($article->body_json, $slug) : null;[m
+ [m
+[31m-        return view('articles.show', compact('article'));[m
+[32m+[m[32m        $headings = [];[m
+[32m+[m[32m        if ($article->body_json) {[m
+[32m+[m[32m            $document = json_decode($article->body_json, true);[m
+[32m+[m[32m            if (is_array($document['blocks'] ?? null)) {[m
+[32m+[m[32m                $headingIndex = 1;[m
+[32m+[m[32m                foreach ($document['blocks'] as $block) {[m
+[32m+[m[32m                    if (($block['type'] ?? null) === 'heading' && (int) ($block['level'] ?? 0) === 2) {[m
+[32m+[m[32m                        $text = trim((string) ($block['text'] ?? ''));[m
+[32m+[m[32m                        if ($text !== '') {[m
+[32m+[m[32m                            $slugText = Str::slug($text);[m
+[32m+[m[32m                            $headings[] = [[m
+[32m+[m[32m                                'id' => $slugText !== '' ? "section-{$slugText}" : "section-{$headingIndex}",[m
+[32m+[m[32m                                'text' => $text,[m
+[32m+[m[32m                            ];[m
+[32m+[m[32m                            $headingIndex++;[m
+[32m+[m[32m                        }[m
+[32m+[m[32m                    }[m
+[32m+[m[32m                }[m
+[32m+[m[32m            }[m
+[32m+[m[32m        } elseif ($article->content) {[m
+[32m+[m[32m            if (preg_match_all('/<h2[^>]*>(.*?)<\/h2>/i', $article->content, $matches)) {[m
+[32m+[m[32m                foreach ($matches[1] as $idx => $headingText) {[m
+[32m+[m[32m                    $text = trim(strip_tags($headingText));[m
+[32m+[m[32m                    if ($text !== '') {[m
+[32m+[m[32m                        $slugText = Str::slug($text);[m
+[32m+[m[32m                        $h

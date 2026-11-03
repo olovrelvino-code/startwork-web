@@ -7,6 +7,7 @@
     @auth<meta name="session-user-id" content="{{ auth()->id() }}" data-role="{{ auth()->user()->role }}">@endauth
     <meta name="description" content="{{ html_entity_decode(trim($__env->yieldContent('description', 'Temukan peluang kerja dan informasi karier di StartWork.')), ENT_QUOTES | ENT_HTML5, 'UTF-8') }}">
     <title>{{ html_entity_decode(trim($__env->yieldContent('title', 'StartWork')), ENT_QUOTES | ENT_HTML5, 'UTF-8') }} · StartWork</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/asset/Logo Start Work favicon.png') }}">
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js', 'resources/js/jobseeker.js'])
@@ -15,7 +16,7 @@
     <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-50 focus:bg-white focus:p-3">Lewati navigasi</a>
     <header class="jobseeker-header relative border-b" x-data="{ menuOpen: false, profileOpen: false }" @keyup.escape.window="menuOpen = false; profileOpen = false">
         <div class="mx-auto grid max-w-7xl grid-cols-[auto_1fr] items-center gap-3 px-4 py-3 sm:px-6 md:grid-cols-[1fr_auto_1fr] lg:px-8">
-            <a href="{{ url('/') }}" class="text-lg font-extrabold tracking-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600 sm:text-xl"><span class="jobseeker-wordmark-start">Start</span><span class="jobseeker-wordmark-work">Work</span></a>
+            <a href="{{ url('/') }}" class="text-lg font-extrabold tracking-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600 sm:text-xl"><img src="{{ asset('images/asset/STARTWORK.png') }}" alt="StartWork Logo" class="block h-7 w-auto max-w-[150px] object-contain sm:h-8"></a>
             <nav id="public-navigation" aria-label="Navigasi utama" x-show="menuOpen" style="display:none" @click.outside="menuOpen = false" class="absolute left-0 right-0 top-full z-30 flex flex-col items-start gap-5 border-b px-4 py-5 text-sm font-medium shadow-sm md:static md:col-start-2 md:row-start-1 md:!flex md:flex-row md:items-center md:justify-center md:border-0 md:bg-transparent md:p-0 md:shadow-none">
                 <a href="{{ route('jobs.index') }}" class="focus-visible:underline" @if(request()->routeIs('jobs.*')) aria-current="page" @endif>Lowongan</a>
                 <a href="{{ route('companies.index') }}" class="focus-visible:underline" @if(request()->routeIs('companies.*')) aria-current="page" @endif>Perusahaan</a>
@@ -56,6 +57,10 @@
     <footer class="jobseeker-footer border-t">
         <div class="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
             <div class="grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                    <a href="{{ url('/') }}" aria-label="StartWork, halaman utama" class="inline-block rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"><img src="{{ asset('images/asset/Logo Start Work D putih.png') }}" alt="StartWork" class="block h-auto w-48 max-w-full object-contain sm:w-52"></a>
+                    <p class="mt-4 max-w-xs text-sm leading-6 text-white/80">Peluang kerja dan informasi karier untuk langkah berikutnya.</p>
+                </div>
                 <nav aria-label="Footer pencari kerja">
                     <h2 class="text-sm font-bold text-white">Pencari Kerja</h2>
                     <ul class="mt-4 space-y-3 text-sm">
@@ -70,18 +75,6 @@
                         @else
                             <li><a href="{{ route('register') }}">Daftar pencari kerja</a></li>
                         @endauth
-                    </ul>
-                </nav>
-                <nav aria-label="Footer perusahaan">
-                    <h2 class="text-sm font-bold text-white">Perusahaan</h2>
-                    <ul class="mt-4 space-y-3 text-sm">
-                        @if (auth()->check() && auth()->user()->role === 'jobseeker')
-                            <li><a href="{{ route('account.switch', ['role' => 'employer']) }}">Registrasi Perusahaan</a></li>
-                            <li><a href="{{ route('account.switch', ['role' => 'employer']) }}">Untuk Perusahaan</a></li>
-                        @else
-                            <li><a href="{{ route('employer.register') }}">Registrasi Perusahaan</a></li>
-                            <li><a href="{{ route('employer.login') }}">Untuk Perusahaan</a></li>
-                        @endif
                     </ul>
                 </nav>
                 <nav aria-label="Footer tentang StartWork">

@@ -77,7 +77,7 @@ class ArticleDocument
         $lines = [];
         foreach ($blocks as $block) {
             if (isset($block['text'])) {
-                $lines[] = $block['text'];
+                $lines[] = preg_replace('/\[([^\]]+)\]\([^)]+\)/', '$1', (string) $block['text']);
             } elseif ($block['type'] === 'table') {
                 $lines[] = implode(' ', $block['headers']);
                 foreach ($block['rows'] as $row) {
@@ -115,10 +115,10 @@ class ArticleDocument
                 continue;
             }
             if (($block['type'] ?? null) === 'paragraph') {
-                $html .= '<p>'.nl2br(e((string) ($block['text'] ?? ''))).'</p>';
+                $html .= '<p>'.self::renderInlineLinks(nl2br(e((string) ($block['text'] ?? '')))).'</p>';
             } elseif (($block['type'] ?? null) === 'heading' && in_array($block['level'] ?? null, [2, 3], true)) {
                 $level = $block['level'];
-                $html .= "<h{$level}>".e((string) ($block['text'] ?? ''))."</h{$level}>";
+                $html .= "<h{$level}>".self::renderInlineLinks(e((string) ($block['text'] ?? '')))."</h{$level}>";
             } elseif (($block['type'] ?? null) === 'table' && is_array($block['headers'] ?? null)
                 && is_array($block['rows'] ?? null)) {
                 $html .= '<div class="article-table-scroll"><table><thead><tr>';
@@ -150,6 +150,18 @@ class ArticleDocument
         }
 
         return new HtmlString($html);
+    }
+
+    public static function renderInlineLinks(string $escapedHtml): string
+    {
+        return preg_replace_callback('/\[([^\]]+)\]\(((?:https?:\/\/|\/|mailto:)[^\s\)\"\'<>]+)\)/i', function (array $matches): string {
+            $text = $matches[1];
+            $url = $matches[2];
+            $isExternal = str_starts_with($url, 'http://') || str_starts_with($url, 'https://');
+            $target = $isExternal ? ' target="_blank" rel="noopener noreferrer"' : '';
+
+            return '<a href="'.e($url).'"'.$target.' class="text-blue-600 underline underline-offset-2 hover:text-blue-800 focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--jobseeker-accent)]">'.$text.'</a>';
+        }, $escapedHtml);
     }
 
     private static function invalid(): never

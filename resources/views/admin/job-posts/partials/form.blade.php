@@ -23,7 +23,7 @@
                 <label class="admin-label" for="job-category-search">Kategori</label>
                 <input type="hidden" name="category" value="{{ $job->category ?? '' }}" data-category-value>
                 <div class="relative">
-                    <div class="flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-2 transition-colors focus-within:border-[#2B506B] focus-within:ring-1 focus-within:ring-[#2B506B]">
+                    <div class="flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-2 transition-colors focus-within:border-[#21546F] focus-within:ring-1 focus-within:ring-[#21546F]">
                         <div class="admin-category-chip hidden w-fit max-w-[55%] min-w-0 shrink-0 items-center gap-0.5" data-category-chip data-tone="legacy">
                             <span class="min-w-0 truncate pl-2" data-category-chip-label></span>
                             <button type="button" class="admin-category-chip-remove" data-category-remove aria-label="Hapus kategori {{ $job->category ?? 'terpilih' }}" title="Hapus kategori {{ $job->category ?? 'terpilih' }}">

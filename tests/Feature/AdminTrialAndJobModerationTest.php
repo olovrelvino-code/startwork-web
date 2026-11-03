@@ -213,6 +213,7 @@ class AdminTrialAndJobModerationTest extends TestCase
         $this->postJson('/api/admin/companies', ['name' => 'Internal Office', 'location' => 'Jakarta'])->assertCreated();
 
         $this->get('/admin/companies?filter=new')->assertOk()->assertSee('Fresh No Trial')->assertSee('Fresh With Trial')
+            ->assertSee('aria-current="page"', false)->assertSee('aria-label="Ubah perusahaan Fresh No Trial"', false)
             ->assertDontSee('Old Expired')->assertSee('NEW');
         $this->get('/admin/companies?filter=no_trial')->assertOk()->assertSee('Fresh No Trial')
             ->assertDontSee('Fresh With Trial')->assertDontSee('Old Expired')->assertDontSee('Internal Office');

@@ -9,7 +9,7 @@
     </x-admin.page-header>
     <nav class="mb-6 flex gap-6 overflow-x-auto border-b border-slate-200" aria-label="Filter artikel">
         @foreach (['' => 'Semua', 'draft' => 'Draf', 'published' => 'Terbit'] as $value => $label)
-            <a href="{{ route('admin.articles.index', $value ? ['status' => $value] : []) }}" @class(['shrink-0 border-b-2 pb-3 text-sm font-semibold', 'border-[#EE8A34] text-slate-900' => request('status', '') === $value, 'border-transparent text-slate-500' => request('status', '') !== $value])>{{ $label }}</a>
+            <a href="{{ route('admin.articles.index', $value ? ['status' => $value] : []) }}" @class(['shrink-0 border-b-2 pb-3 text-sm font-semibold', 'border-[#DE7C23] text-slate-900' => request('status', '') === $value, 'border-transparent text-slate-500' => request('status', '') !== $value])>{{ $label }}</a>
         @endforeach
     </nav>
     <p class="mb-3 text-sm text-slate-500">{{ number_format($articles->total(), 0, ',', '.') }} artikel ditemukan</p>

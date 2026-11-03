@@ -32,7 +32,7 @@ class StartWorkSearchAndPaginationTest extends TestCase
         }
 
         $dashboard = $this->actingAs($admin)->get('/admin/dashboard?applicants_q=Rina&jobs_q=Desainer');
-        $dashboard->assertOk()->assertSee('Cari pelamar atau lowongan')->assertSee('Cari lowongan');
+        $dashboard->assertOk()->assertDontSee('dashboard-applicants-search')->assertDontSee('dashboard-jobs-search');
         $this->assertSame(2, $dashboard->viewData('counts')['applications']);
         $this->assertCount(1, $dashboard->viewData('recentApplications'));
         $this->assertCount(1, $dashboard->viewData('recentJobs'));
@@ -198,6 +198,7 @@ class StartWorkSearchAndPaginationTest extends TestCase
         }
         $this->get('/admin/job-posts?company=Studio%2017')->assertOk()
             ->assertSee('Analyst Beta')->assertDontSee('Analyst Alpha')
+            ->assertSee('aria-label="Ubah lowongan Analyst Beta"', false)
             ->assertSee('name="company"', false)->assertDontSee('job-company-filter-options');
         $this->get('/admin/job-posts?company_id='.$ownedCompanyIds[1])->assertOk()
             ->assertSee('Analyst Alpha')->assertDontSee('Analyst Beta');
@@ -219,7 +220,7 @@ class StartWorkSearchAndPaginationTest extends TestCase
 
         $first = $this->actingAs($admin)->get('/admin/companies?q=Company');
         $first->assertOk()->assertSee('No.')->assertSee('Page 1 of 2')
-            ->assertSee('rounded-full border border-[#B85B12] bg-[#B85B12]', false)
+            ->assertSee('rounded-full border border-[var(--admin-brand)] bg-[var(--admin-brand)]', false)
             ->assertSee('aria-current="page" aria-label="Halaman 1"', false)
             ->assertDontSee('>Sebelumnya<', false)->assertDontSee('>Berikutnya<', false);
         $this->assertSame(10, $first->viewData('companies')->count());

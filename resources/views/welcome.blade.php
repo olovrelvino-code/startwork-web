@@ -92,11 +92,11 @@
             @else
                 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     @foreach ($articles as $article)
-                        <a href="{{ route('articles.show', $article->slug) }}" class="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white transition-colors hover:border-blue-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
-                            <div class="relative flex aspect-[12/7] items-center justify-center bg-slate-50 text-sm font-semibold text-slate-500">
+                        <a href="{{ route('articles.show', $article->slug) }}" class="jobseeker-article-card group flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+                            <div class="relative flex aspect-[12/7] items-center justify-center overflow-hidden bg-slate-50 text-sm font-semibold text-slate-500">
                                 <span>Artikel</span>
                                 @if ($article->cover_image)
-                                    <img src="{{ route('articles.cover', $article->slug) }}" alt="" loading="lazy" width="720" height="420" class="absolute inset-0 h-full w-full object-cover" @@error="$el.remove()">
+                                    <img src="{{ route('articles.cover', $article->slug) }}" alt="" loading="lazy" width="720" height="420" class="jobseeker-card-image absolute inset-0 h-full w-full object-cover" @@error="$el.remove()">
                                 @endif
                             </div>
                             <div class="flex flex-1 flex-col p-5">

@@ -1,8 +1,7 @@
-<aside :class="menuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'" class="fixed inset-y-0 left-0 z-50 flex w-[244px] shrink-0 -translate-x-full flex-col bg-slate-900 text-slate-300 transition-transform lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:translate-x-0" aria-label="Navigasi Admin Internal">
+<aside :class="menuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'" class="fixed inset-y-0 left-0 z-50 flex w-[244px] shrink-0 -translate-x-full flex-col bg-[#17394B] text-white/75 transition-transform lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:translate-x-0" aria-label="Navigasi Admin Internal">
     <div class="flex h-20 items-center justify-between px-6">
         <a href="{{ route('admin.dashboard') }}" class="inline-flex items-center gap-3 text-white" aria-label="Start Work Admin, dashboard">
-            <span class="h-7 w-1 rounded-full bg-[#EE8A34]"></span>
-            <span class="text-lg font-bold tracking-tight">startwork<span class="text-[#EE8A34]">.</span></span>
+            <img src="{{ asset('images/asset/STARTWORK.png') }}" alt="StartWork" class="block h-9 w-auto max-w-[180px] object-contain">
         </a>
         <button type="button" class="rounded p-2 text-white lg:hidden" @click="menuOpen = false" aria-label="Tutup menu"><svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5l14 14M19 5L5 19" /></svg></button>
     </div>
@@ -17,14 +16,14 @@
             ['admin.packages.index', 'Paket & Promo', 'M3 5h18v14H3zM3 10h18M7 15h3'],
         ] as [$routeName, $label, $icon])
             <a href="{{ route($routeName) }}" @class([
-                'flex items-center gap-3 rounded-lg border-l-2 px-4 py-2.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#EE8A34]',
-                'border-[#EE8A34] bg-slate-800 font-semibold text-white' => request()->routeIs(str_replace('.index', '.*', $routeName)) || request()->routeIs($routeName),
-                'border-transparent text-slate-300 hover:bg-slate-800/70 hover:text-white' => ! (request()->routeIs(str_replace('.index', '.*', $routeName)) || request()->routeIs($routeName)),
+                'flex items-center gap-3 rounded-lg border-l-2 px-4 py-2.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#DE7C23]',
+                'border-[#DE7C23] bg-[#21546F] font-semibold text-white' => request()->routeIs(str_replace('.index', '.*', $routeName)) || request()->routeIs($routeName),
+                'border-transparent text-white/75 hover:bg-white/10 hover:text-white' => ! (request()->routeIs(str_replace('.index', '.*', $routeName)) || request()->routeIs($routeName)),
             ]) @if (request()->routeIs(str_replace('.index', '.*', $routeName)) || request()->routeIs($routeName)) aria-current="page" @endif><svg aria-hidden="true" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{ $icon }}" /></svg><span>{{ $label }}</span></a>
         @endforeach
     </nav>
-    <div class="flex shrink-0 items-center gap-3 border-t border-slate-800 px-5 py-4">
-        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-semibold text-white" aria-hidden="true">{{ mb_strtoupper(mb_substr(auth()->user()->full_name ?: auth()->user()->email, 0, 1)) }}</span>
-        <div class="min-w-0"><p class="truncate text-sm font-semibold text-white">{{ auth()->user()->full_name ?: auth()->user()->email }}</p><p class="truncate text-xs text-slate-400">Admin Internal</p></div>
+    <div class="flex shrink-0 items-center gap-3 border-t border-white/10 px-5 py-4">
+        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 text-sm font-semibold text-white" aria-hidden="true">{{ mb_strtoupper(mb_substr(auth()->user()->full_name ?: auth()->user()->email, 0, 1)) }}</span>
+        <div class="min-w-0"><p class="truncate text-sm font-semibold text-white">{{ auth()->user()->full_name ?: auth()->user()->email }}</p><p class="truncate text-xs text-white/65">Admin Internal</p></div>
     </div>
 </aside>

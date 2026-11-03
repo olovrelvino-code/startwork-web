@@ -15,9 +15,9 @@
         </section>
     </div>
 
-    <nav class="mb-5 flex flex-wrap gap-2" aria-label="Filter perusahaan">
+    <nav class="mb-6 flex gap-6 overflow-x-auto border-b border-slate-200" aria-label="Filter perusahaan">
         @foreach (['all' => 'Semua', 'new' => 'Company Baru', 'no_trial' => 'Belum Trial', 'trial_active' => 'Trial Aktif', 'trial_expired' => 'Trial Berakhir'] as $value => $label)
-            <a href="{{ route('admin.companies.index', array_filter(['filter' => $value === 'all' ? null : $value, 'q' => request('q')])) }}" @class(['rounded-md border px-3 py-2 text-sm font-medium transition-colors', 'border-slate-900 bg-slate-900 text-white' => request('filter', 'all') === $value, 'border-slate-200 bg-white text-slate-700 hover:border-slate-400' => request('filter', 'all') !== $value]) @if (request('filter', 'all') === $value) aria-current="page" @endif>{{ $label }}</a>
+            <a href="{{ route('admin.companies.index', array_filter(['filter' => $value === 'all' ? null : $value, 'q' => request('q')])) }}" @class(['shrink-0 border-b-2 pb-3 text-sm font-semibold', 'border-[#DE7C23] text-slate-900' => request('filter', 'all') === $value, 'border-transparent text-slate-500' => request('filter', 'all') !== $value]) @if (request('filter', 'all') === $value) aria-current="page" @endif>{{ $label }}</a>
         @endforeach
     </nav>
     <x-admin.filter-bar :action="route('admin.companies.index')">
@@ -53,7 +53,7 @@
                             <td class="whitespace-nowrap">{{ \Illuminate\Support\Carbon::parse($company->created_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i') }} WIB</td>
                             <td>{{ $company->location ?: '—' }}</td>
                             <td><x-admin.ownership-label :owner-id="$company->owner_user_id" :owner-role="$company->owner_role" /></td>
-                            <td class="text-right"><a href="{{ route('admin.companies.show', $company->id) }}" class="admin-link">Lihat detail</a></td>
+                            <td class="text-right"><a href="{{ route('admin.companies.show', $company->id) }}" class="admin-button-quiet w-11 text-slate-700 hover:text-[#21546F]" aria-label="Ubah perusahaan {{ $company->name }}" title="Ubah perusahaan {{ $company->name }}"><svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M4 17.5V20h2.5L18.7 7.8a1.8 1.8 0 0 0-2.5-2.5L4 17.5Z" /></svg></a></td>
                         </tr>
                     @endforeach
                 </tbody>

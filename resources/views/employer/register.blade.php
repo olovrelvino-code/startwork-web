@@ -13,16 +13,16 @@
     </div>
 
     <div id="employer-feedback" class="mt-6 hidden" aria-live="polite"></div>
-    <form data-employer-form data-success-url="{{ route('employer.setup') }}" action="{{ url('/api/employer/register') }}" method="POST" class="mt-6 space-y-4">
+    <form data-employer-form data-success-url="{{ route('employer.setup') }}" action="{{ url('/api/employer/register') }}" method="POST" class="auth-register-form mt-6 space-y-4">
         @csrf
         <div class="grid gap-4 sm:grid-cols-2">
-            <div><label class="mb-2 block text-sm font-medium text-slate-700" for="full_name">Nama Lengkap</label><input class="admin-input min-h-11" id="full_name" name="full_name" required maxlength="255" autocomplete="name"></div>
-            <div><label class="mb-2 block text-sm font-medium text-slate-700" for="phone">Nomor telepon</label><input class="admin-input min-h-11" id="phone" name="phone" type="tel" required maxlength="255" autocomplete="tel"></div>
+            <div><label class="mb-2 block text-sm font-medium text-slate-700" for="full_name">Nama Lengkap</label><input class="admin-input auth-register-input min-h-11" id="full_name" name="full_name" required maxlength="255" autocomplete="name"></div>
+            <div><label class="mb-2 block text-sm font-medium text-slate-700" for="phone">Nomor telepon</label><input class="admin-input auth-register-input min-h-11" id="phone" name="phone" type="tel" required maxlength="255" autocomplete="tel"></div>
         </div>
-        <div><label class="mb-2 block text-sm font-medium text-slate-700" for="email">Email</label><input class="admin-input min-h-11" id="email" name="email" type="email" required maxlength="255" autocomplete="email"></div>
+        <div><label class="mb-2 block text-sm font-medium text-slate-700" for="email">Email</label><input class="admin-input auth-register-input min-h-11" id="email" name="email" type="email" required maxlength="255" autocomplete="email"></div>
         <div class="grid gap-4 sm:grid-cols-2">
-            <div><label class="mb-2 block text-sm font-medium text-slate-700" for="password">Kata sandi</label><input class="admin-input min-h-11" id="password" name="password" type="password" required minlength="8" autocomplete="new-password"></div>
-            <div><label class="mb-2 block text-sm font-medium text-slate-700" for="password_confirmation">Konfirmasi kata sandi</label><input class="admin-input min-h-11" id="password_confirmation" name="password_confirmation" type="password" required minlength="8" autocomplete="new-password"></div>
+            <div><label class="mb-2 block text-sm font-medium text-slate-700" for="password">Kata sandi</label><input class="admin-input auth-register-input min-h-11" id="password" name="password" type="password" required minlength="8" autocomplete="new-password"></div>
+            <div><label class="mb-2 block text-sm font-medium text-slate-700" for="password_confirmation">Konfirmasi kata sandi</label><input class="admin-input auth-register-input min-h-11" id="password_confirmation" name="password_confirmation" type="password" required minlength="8" autocomplete="new-password"></div>
         </div>
         <p class="text-sm text-slate-500">Gunakan kata sandi minimal 8 karakter.</p>
         <button class="admin-button-primary mt-2 w-full" type="submit">Buat akun dan lanjutkan</button>

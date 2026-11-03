@@ -25,6 +25,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
             'title' => ['required', 'string', 'max:255'],
             'content' => ['required_without:body_json', 'nullable', 'string'],
             'body_json' => ['nullable', 'string', 'max:100000'],
+            'faq_json' => ['nullable'],
             'status' => ['required', 'in:draft,published'],
             'slug' => ['nullable', 'string', 'max:255', 'regex:/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/', Rule::unique('articles', 'slug')],
             'excerpt' => ['nullable', 'string', 'max:500'],
@@ -37,6 +38,23 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
         if ($input['status'] === 'published' && trim($content) === '') {
             throw ValidationException::withMessages(['content' => 'Isi artikel wajib diisi sebelum diterbitkan.']);
         }
+        $faqJson = null;
+        if (isset($input['faq_json'])) {
+            $rawFaqs = is_string($input['faq_json']) ? json_decode($input['faq_json'], true) : $input['faq_json'];
+            if (is_array($rawFaqs)) {
+                $cleanFaqs = [];
+                foreach ($rawFaqs as $item) {
+                    if (is_array($item)) {
+                        $q = trim((string) ($item['question'] ?? ''));
+                        $a = trim((string) ($item['answer'] ?? ''));
+                        if ($q !== '' || $a !== '') {
+                            $cleanFaqs[] = ['question' => $q, 'answer' => $a];
+                        }
+                    }
+                }
+                $faqJson = ! empty($cleanFaqs) ? json_encode($cleanFaqs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;
+            }
+        }
         $base = trim(Str::substr(Str::slug($input['title']), 0, 210), '-') ?: 'artikel';
         $coverImage = isset($input['cover_file'])
             ? WebpImage::store($input['cover_file'], 'article-covers', 'cover_file', 'local')
@@ -48,6 +66,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
                 'excerpt' => $input['excerpt'] ?? Str::limit(trim(strip_tags($content)), 180, ''),
                 'content' => $content,
                 'body_json' => $blocks === null ? null : json_encode(['blocks' => $blocks], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                'faq_json' => $faqJson,
                 'status' => $input['status'], 'cover_image' => $coverImage,
                 'published_at' => $input['status'] === 'published' ? now() : null,
                 'created_at' => now(), 'updated_at' => now(),
@@ -71,6 +90,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'content' => $request->filled('body_json') ? ['sometimes', 'nullable', 'string'] : ['sometimes', 'required', 'string'],
             'body_json' => ['sometimes', 'required', 'string', 'max:100000'],
+            'faq_json' => ['sometimes', 'nullable'],
             'status' => ['sometimes', 'required', 'in:draft,published'],
             'slug' => ['sometimes', 'required', 'string', 'max:255', 'regex:/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/', Rule::unique('articles', 'slug')->ignore($id)],
             'excerpt' => ['sometimes', 'nullable', 'string', 'max:500'],
@@ -83,6 +103,24 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
             $input['body_json'] = json_encode(['blocks' => $blocks], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         } elseif (array_key_exists('content', $input)) {
             $input['body_json'] = null;
+        }
+        if (array_key_exists('faq_json', $input)) {
+            $rawFaqs = is_string($input['faq_json']) ? json_decode($input['faq_json'], true) : $input['faq_json'];
+            if (is_array($rawFaqs)) {
+                $cleanFaqs = [];
+                foreach ($rawFaqs as $item) {
+                    if (is_array($item)) {
+                        $q = trim((string) ($item['question'] ?? ''));
+                        $a = trim((string) ($item['answer'] ?? ''));
+                        if ($q !== '' || $a !== '') {
+                            $cleanFaqs[] = ['question' => $q, 'answer' => $a];
+                        }
+                    }
+                }
+                $input['faq_json'] = ! empty($cleanFaqs) ? json_encode($cleanFaqs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null;
+            } else {
+                $input['faq_json'] = null;
+            }
         }
         if (($input['status'] ?? $article->status) === 'published'
             && trim($input['content'] ?? $article->content ?? '') === '') {

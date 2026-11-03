@@ -10,9 +10,11 @@ Alpine.start();
 document.querySelectorAll('[data-auth-login-form]').forEach((form) => {
     const button = form.querySelector('[type="submit"]');
     if (!(button instanceof HTMLButtonElement)) return;
-    const label = button.textContent;
+    const label = button.textContent.trim();
+    button.dataset.idleLabel = label;
 
     form.addEventListener('submit', () => {
+        if (form.dataset.authBound) return;
         button.disabled = true;
         button.textContent = button.dataset.loadingLabel || label;
         form.setAttribute('aria-busy', 'true');

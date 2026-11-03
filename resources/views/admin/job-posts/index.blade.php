@@ -9,8 +9,8 @@
     </x-admin.page-header>
 
     <nav class="mb-6 flex gap-6 overflow-x-auto border-b border-slate-200" aria-label="Cakupan lowongan">
-        <a href="{{ route('admin.job-posts.index', array_filter(['status' => request('status'), 'company' => request('company'), 'company_id' => request('company_id'), 'date_from' => request('date_from'), 'date_to' => request('date_to')])) }}" @class(['shrink-0 border-b-2 pb-3 text-sm font-semibold', 'border-[#EE8A34] text-slate-900' => ! request()->boolean('mine'), 'border-transparent text-slate-500' => request()->boolean('mine')])>Semua lowongan</a>
-        <a href="{{ route('admin.job-posts.index', array_filter(['mine' => 1, 'status' => request('status'), 'company' => request('company'), 'company_id' => request('company_id'), 'date_from' => request('date_from'), 'date_to' => request('date_to')])) }}" @class(['shrink-0 border-b-2 pb-3 text-sm font-semibold', 'border-[#EE8A34] text-slate-900' => request()->boolean('mine'), 'border-transparent text-slate-500' => ! request()->boolean('mine')])>Posting saya</a>
+        <a href="{{ route('admin.job-posts.index', array_filter(['status' => request('status'), 'company' => request('company'), 'company_id' => request('company_id'), 'date_from' => request('date_from'), 'date_to' => request('date_to')])) }}" @class(['shrink-0 border-b-2 pb-3 text-sm font-semibold', 'border-[#DE7C23] text-slate-900' => ! request()->boolean('mine'), 'border-transparent text-slate-500' => request()->boolean('mine')])>Semua lowongan</a>
+        <a href="{{ route('admin.job-posts.index', array_filter(['mine' => 1, 'status' => request('status'), 'company' => request('company'), 'company_id' => request('company_id'), 'date_from' => request('date_from'), 'date_to' => request('date_to')])) }}" @class(['shrink-0 border-b-2 pb-3 text-sm font-semibold', 'border-[#DE7C23] text-slate-900' => request()->boolean('mine'), 'border-transparent text-slate-500' => ! request()->boolean('mine')])>Posting saya</a>
     </nav>
 
     <x-admin.filter-bar :action="route('admin.job-posts.index')" class="flex-wrap">
@@ -47,7 +47,7 @@
                             <td class="text-left">{{ $job->company_name }}</td>
                             <td><x-admin.status-badge :status="$job->status" /></td>
                             <td>{{ $job->apply_url ? 'Eksternal' : 'Internal' }}</td>
-                            <td class="text-right"><a href="{{ route('admin.job-posts.show', $job->id) }}" class="admin-link">Lihat detail</a></td>
+                            <td class="text-right"><a href="{{ route('admin.job-posts.show', $job->id) }}" class="admin-button-quiet w-11 text-slate-700 hover:text-[#21546F]" aria-label="Ubah lowongan {{ $job->title }}" title="Ubah lowongan {{ $job->title }}"><svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M4 17.5V20h2.5L18.7 7.8a1.8 1.8 0 0 0-2.5-2.5L4 17.5Z" /></svg></a></td>
                         </tr>
                     @endforeach
                 </tbody>

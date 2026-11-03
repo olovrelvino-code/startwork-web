@@ -15,8 +15,8 @@
                     $width = $round ? 4 : 3;
                     $start = max(1, min($paginator->currentPage() - 1, $last - $width + 1));
                     $end = min($last, $start + $width - 1);
-                    $pageClass = $round ? 'inline-flex h-11 w-11 items-center justify-center rounded-full border border-slate-300 bg-white font-semibold text-slate-700 transition-colors hover:border-[#B85B12] hover:bg-[#FBF4EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2B506B]' : 'admin-button-secondary';
-                    $activeClass = $round ? 'inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#B85B12] bg-[#B85B12] font-semibold text-white' : 'admin-button-primary';
+                    $pageClass = $round ? 'inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--admin-brand)] bg-white font-semibold text-slate-700 transition-colors hover:border-[var(--admin-brand-hover)] hover:bg-[var(--admin-brand-tint)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--admin-focus)]' : 'admin-button-secondary';
+                    $activeClass = $round ? 'inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--admin-brand)] bg-[var(--admin-brand)] font-semibold text-white' : 'admin-button-primary';
                 @endphp
                 @if ($start > 1)<a class="{{ $pageClass }}" href="{{ $paginator->url(1) }}" aria-label="Halaman 1">1</a>@endif
                 @if ($start > 2)<span class="px-1 text-slate-500" aria-hidden="true">…</span>@endif

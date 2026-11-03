@@ -9,6 +9,7 @@
     .admin-shell {
         --admin-brand: #B85B12;
         --admin-brand-hover: #95420D;
+        --admin-brand-tint: #FBF4EE;
         --admin-primary: #183047;
         --admin-primary-hover: #0F2336;
         --admin-focus: #2B506B;
@@ -27,9 +28,28 @@
 
     .admin-sheet { @apply bg-white lg:rounded-2xl lg:border lg:border-slate-200; }
     .admin-panel { @apply rounded-xl border border-slate-200 bg-white; }
+    .auth-card { @apply rounded-2xl bg-white p-6 sm:rounded-3xl sm:p-8; overflow: hidden; border: 1px solid #D7E3E8; background-clip: padding-box; box-shadow: 0 20px 55px -28px rgb(23 57 75 / 40%); }
+    .auth-role-switch { display: flex; gap: .25rem; position: relative; border: 1px solid #D8E2E7; background: #fff; box-shadow: 0 2px 8px rgb(23 57 75 / 8%); }
+    .auth-role-indicator { position: absolute; top: .25rem; bottom: .25rem; left: .25rem; width: calc(50% - .375rem); border-radius: .5rem; background: #B85B12; box-shadow: 0 1px 3px rgb(23 57 75 / 16%); pointer-events: none; transition: transform 280ms cubic-bezier(.2, .8, .2, 1); }
+    .auth-role-switch[data-role="employer"] .auth-role-indicator { transform: translateX(calc(100% + .25rem)); }
+    .auth-role-switch[data-role="jobseeker"] [data-auth-role="jobseeker"], .auth-role-switch[data-role="employer"] [data-auth-role="employer"] { color: #fff; }
+    .auth-role-button:hover:not([aria-pressed="true"]) { color: #B85B12; }
+    .auth-role-button { @apply relative z-10 flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold; transition: color 180ms ease; }
+    .auth-form .auth-input { min-height: 2.75rem; width: 100%; border: 1px solid #C7D2D9; border-radius: .5rem; background: #fff; padding: .625rem 2.75rem .625rem .75rem; color: #0f172a; font-size: .875rem; transition: border-color 160ms ease, box-shadow 160ms ease; }
+    .auth-form .auth-input:hover:not(:focus) { border-color: #8CA8B6; }
+    .auth-form .auth-input:focus { border-color: #21546F; outline: 0; box-shadow: 0 0 0 2px rgb(33 84 111 / 14%); }
+    .auth-form .auth-input[aria-invalid="true"], .auth-form .auth-input[aria-invalid="true"]:focus { border-color: #BE123C; box-shadow: 0 0 0 2px rgb(190 18 60 / 12%); }
+    .auth-field-warning { position: absolute; top: 50%; right: .75rem; width: 1.125rem; height: 1.125rem; transform: translateY(-50%); color: #BE123C; }
+    .auth-field-error { @apply mt-2 text-sm; color: #9F1239; }
+    .auth-feedback { @apply rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm; color: #9F1239; }
+    .auth-register-form .auth-register-input { border: 1px solid #cbd5e1; box-shadow: none; transition: border-color 160ms ease, box-shadow 160ms ease; }
+    .auth-register-form .auth-register-input:hover:not(:focus) { border-color: #94a3b8; }
+    .auth-register-form .auth-register-input:focus { border-color: #21546f; outline: 0; box-shadow: 0 0 0 1px rgb(33 84 111 / 14%); }
+    .auth-register-form .auth-register-input[aria-invalid="true"] { border-color: #be123c; box-shadow: 0 0 0 1px rgb(190 18 60 / 12%); }
+    @media (prefers-reduced-motion: reduce) { .auth-role-indicator, .auth-role-button { transition: none; } }
     .admin-input { @apply block min-h-11 w-full rounded-lg border-slate-300 bg-white text-sm text-slate-900 shadow-none transition-colors placeholder:text-slate-400 focus:ring-1 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500; }
     .admin-input:focus { border-color: var(--admin-focus); --tw-ring-color: var(--admin-focus); }
-    .admin-label { @apply mb-2 block text-sm font-semibold uppercase tracking-normal text-slate-500; }
+    .admin-label { @apply mb-2 block text-sm font-medium normal-case text-slate-700; }
     .admin-button { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed; }
     .admin-button-primary { @apply admin-button text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2; background-color: var(--admin-primary); }
     .admin-button-primary:hover:not(:disabled) { background-color: var(--admin-primary-hover); }
@@ -71,7 +91,7 @@
     .registration-progress__description { display: block; margin-top: .25rem; font-size: .875rem; line-height: 1.25rem; }
     .admin-data-surface { box-shadow: 0 3px 12px rgb(15 23 42 / 5%); }
     .admin-table { @apply w-full border-collapse text-left text-sm; }
-    .admin-table thead { @apply text-sm font-semibold uppercase tracking-normal text-slate-500; }
+    .admin-table thead { @apply text-sm font-semibold normal-case text-slate-600; }
     .admin-table th { @apply px-4 py-3 font-semibold; }
     .admin-table td { @apply border-t border-slate-100 px-4 py-4 align-middle; }
     .admin-table tbody tr:hover { @apply bg-slate-50; }
@@ -81,7 +101,8 @@
     .admin-data-table .admin-table td { @apply border-t-0 border-b border-slate-100 py-3.5; }
     .admin-data-table .admin-table tbody tr:last-child td { @apply border-b-0; }
     .admin-data-table .admin-table tbody tr { @apply transition-colors; }
-    .admin-data-table .admin-data-table-mobile a:hover { @apply bg-slate-50; }
+    .admin-data-table .admin-table tbody tr:nth-child(even), .admin-data-table .admin-data-table-mobile > :nth-child(even) { @apply bg-slate-50; }
+    .admin-data-table .admin-table tbody tr:hover, .admin-data-table .admin-data-table-mobile a:hover { @apply bg-slate-100; }
     .article-editor-toolbar { @apply sticky top-0 z-20 flex flex-nowrap overflow-x-auto border-b border-slate-200 bg-white py-3 sm:flex-wrap sm:overflow-visible; }
     .article-editor-toolbar > button { @apply shrink-0 gap-2; }
     .article-editor-toolbar > button svg { @apply h-4 w-4 flex-none; }
@@ -112,7 +133,7 @@
     .article-editor-image { @apply mb-4 h-auto max-h-72 max-w-full rounded-lg object-contain; }
     .article-body { @apply break-words text-base leading-8 text-slate-800 sm:text-lg; }
     .article-body p { @apply mb-6 whitespace-pre-line; }
-    .article-body h2 { @apply mb-4 mt-10 text-2xl font-bold leading-tight text-slate-900; }
+    .article-body h2 { @apply mb-4 mt-10 scroll-mt-24 text-2xl font-bold leading-tight text-slate-900; }
     .article-body h3 { @apply mb-3 mt-8 text-xl font-semibold leading-tight text-slate-900; }
     .article-body figure { @apply my-8; }
     .article-body figure img { @apply h-auto max-w-full rounded-lg; }
@@ -124,6 +145,38 @@
 }
 
 .admin-shell [x-cloak] { display: none !important; }
+.admin-internal-shell {
+    --admin-brand: #DE7C23;
+    --admin-brand-hover: #B85B12;
+    --admin-brand-tint: #FFF2E3;
+    --admin-primary: #21546F;
+    --admin-primary-hover: #17394B;
+    --admin-focus: #21546F;
+    --admin-canvas: #F3F7F8;
+    --admin-subtle: #EAF0F2;
+    --admin-border: #D8E2E7;
+    --admin-ink: #17394B;
+    --admin-body: #344B58;
+    --admin-muted: #566975;
+}
+.admin-internal-shell .bg-slate-50 { background-color: var(--admin-canvas); }
+.admin-internal-shell .bg-slate-100 { background-color: var(--admin-subtle); }
+.admin-internal-shell .border-slate-200,
+.admin-internal-shell .border-slate-300 { border-color: var(--admin-border); }
+.admin-internal-shell .text-slate-900,
+.admin-internal-shell .text-slate-800 { color: var(--admin-ink); }
+.admin-internal-shell .text-slate-700 { color: var(--admin-body); }
+.admin-internal-shell .text-slate-600,
+.admin-internal-shell .text-slate-500 { color: var(--admin-muted); }
+.admin-internal-shell .text-blue-700,
+.admin-internal-shell .text-blue-600 { color: var(--admin-primary); }
+.admin-internal-shell .bg-blue-600 { background-color: var(--admin-primary); }
+.admin-internal-shell .hover\:bg-blue-700:hover { background-color: var(--admin-primary-hover); }
+.admin-internal-shell .hover\:text-blue-700:hover { color: var(--admin-primary-hover); }
+.admin-internal-shell .focus\:border-blue-600:focus { border-color: var(--admin-primary); }
+.admin-internal-shell .focus\:ring-blue-600:focus { --tw-ring-color: var(--admin-primary); }
+.admin-internal-shell .admin-panel { box-shadow: 0 3px 12px rgb(23 57 75 / 5%); }
+.admin-internal-shell .admin-data-surface { box-shadow: 0 3px 12px rgb(23 57 75 / 6%); }
 .admin-shell :focus-visible:not(input):not(textarea):not(select) { outline-color: var(--admin-focus); }
 .admin-shell .auth-visual a:focus-visible { outline: 2px solid white; outline-offset: 4px; }
 .admin-shell .admin-number { font-variant-numeric: tabular-nums; }
@@ -142,6 +195,7 @@
     background-color: var(--jobseeker-ground);
     color: var(--jobseeker-primary-dark);
 }
+.jobseeker-shell.auth-login { background-color: #fff; }
 .jobseeker-shell.jobseeker-page { display: flex; flex-direction: column; }
 .jobseeker-shell.jobseeker-page main { flex: 1; min-width: 0; }
 .jobseeker-shell #main-content { scroll-margin-top: 5rem; }
@@ -218,7 +272,51 @@
 .jobseeker-shell .jobseeker-faq[open]::details-content { block-size: auto; }
 .jobseeker-shell .jobseeker-faq[open] .jobseeker-faq-indicator { transform: rotate(45deg); }
 
+@keyframes jobseeker-card-rise {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.jobseeker-shell .jobseeker-article-card {
+    transition: transform 260ms cubic-bezier(.22, 1, .36, 1), box-shadow 260ms ease, border-color 200ms ease;
+    will-change: transform, box-shadow;
+}
+
+.jobseeker-shell .jobseeker-article-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 14px 28px -6px rgb(23 57 75 / 12%), 0 6px 12px -4px rgb(23 57 75 / 6%);
+    border-color: var(--jobseeker-accent);
+}
+
+.jobseeker-shell .jobseeker-article-card .jobseeker-card-image {
+    transition: transform 380ms cubic-bezier(.22, 1, .36, 1);
+    will-change: transform;
+}
+
+.jobseeker-shell .jobseeker-article-card:hover .jobseeker-card-image {
+    transform: scale(1.04);
+}
+
 @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+    .jobseeker-shell .jobseeker-article-card {
+        animation: jobseeker-card-rise 500ms cubic-bezier(.22, 1, .36, 1) both;
+    }
+    .jobseeker-shell .jobseeker-article-card:nth-child(1) { animation-delay: 50ms; }
+    .jobseeker-shell .jobseeker-article-card:nth-child(2) { animation-delay: 100ms; }
+    .jobseeker-shell .jobseeker-article-card:nth-child(3) { animation-delay: 150ms; }
+    .jobseeker-shell .jobseeker-article-card:nth-child(4) { animation-delay: 200ms; }
+    .jobseeker-shell .jobseeker-article-card:nth-child(5) { animation-delay: 250ms; }
+    .jobseeker-shell .jobseeker-article-card:nth-child(6) { animation-delay: 300ms; }
+    .jobseeker-shell .jobseeker-article-card:nth-child(7) { animation-delay: 350ms; }
+    .jobseeker-shell .jobseeker-article-card:nth-child(8) { animation-delay: 400ms; }
+    .jobseeker-shell .jobseeker-article-card:nth-child(9) { animation-delay: 450ms; }
     .jobseeker-shell .jobseeker-home-hero.is-animating #home-title { animation: jobseeker-banner-rise 520ms cubic-bezier(.22, 1, .36, 1) both; }
     .jobseeker-shell .jobseeker-home-hero.is-animating .jobseeker-hero-description { animation: jobseeker-banner-rise 520ms 130ms cubic-bezier(.22, 1, .36, 1) both; }
     .jobseeker-shell .jobseeker-home-hero.is-animating .jobseeker-hero-count {
@@ -243,4 +341,17 @@
     .jobseeker-shell .jobseeker-faq::details-content { transition: none; }
     .jobseeker-shell .jobseeker-partners-window { overflow-x: auto; }
     .jobseeker-shell .jobseeker-partners-track { animation: none; }
+    .jobseeker-shell .jobseeker-article-card {
+        animation: none !important;
+        transform: none !important;
+        transition: none !important;
+    }
+    .jobseeker-shell .jobseeker-article-card:hover {
+        transform: none !important;
+        box-shadow: none !important;
+    }
+    .jobseeker-shell .jobseeker-article-card .jobseeker-card-image {
+        transform: none !important;
+        transition: none !important;
+    }
 }

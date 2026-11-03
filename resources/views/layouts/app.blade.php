@@ -7,6 +7,7 @@
         <meta name="session-user-id" content="{{ auth()->id() }}" data-role="{{ auth()->user()->role }}">
 
         <title>{{ config('app.name', 'Laravel') }}</title>
+        <link rel="icon" type="image/png" href="{{ asset('images/asset/Logo Start Work favicon.png') }}">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

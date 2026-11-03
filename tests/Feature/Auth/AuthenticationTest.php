@@ -15,9 +15,57 @@ class AuthenticationTest extends TestCase
     {
         $response = $this->get('/login');
 
-        $response->assertOk()->assertSee('Masuk Jobseeker');
-        $this->get('/employer/login')->assertOk()->assertSee('Masuk sebagai Employer');
+        $response->assertOk()->assertSee('Masuk Jobseeker')
+            ->assertSee('Logo Start Work B transparan.png')
+            ->assertSee('data-auth-error="password"', false)
+            ->assertSee('Jelajahi Lowongan');
+        $this->get('/employer/login')->assertOk()
+            ->assertSee('Masuk sebagai Employer')
+            ->assertSee('Logo Start Work B transparan.png')
+            ->assertSee('auth-card', false)
+            ->assertSee('data-auth-error="password"', false)
+            ->assertSee('Jelajahi Lowongan');
         $this->get('/admin/login')->assertOk()->assertSee('Admin Internal');
+    }
+
+    public function test_jobseeker_registration_keeps_the_role_switch_and_registration_inputs_are_styled(): void
+    {
+        $this->get('/register')->assertOk()
+            ->assertSee('data-auth-role="jobseeker"', false)
+            ->assertSee('data-auth-role="employer"', false)
+            ->assertSee('data-jobseeker-auth', false)
+            ->assertSee('auth-register-input', false)
+            ->assertSee('data-employer-auth', false);
+
+        $this->get('/employer/register')->assertOk()
+            ->assertSee('data-employer-form', false)
+            ->assertSee('auth-register-input', false);
+    }
+
+    public function test_jobseeker_and_employer_login_validate_required_and_malformed_fields(): void
+    {
+        foreach (['/login', '/employer/login'] as $path) {
+            $this->postJson($path, ['email' => '', 'password' => ''])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['email', 'password']);
+
+            $this->postJson($path, ['email' => 'bukan-email', 'password' => 'password'])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('email');
+        }
+    }
+
+    public function test_jobseeker_and_employer_login_keep_invalid_credentials_generic(): void
+    {
+        foreach (['jobseeker' => '/login', 'employer' => '/employer/login'] as $role => $path) {
+            $user = User::factory()->create(['role' => $role]);
+            $unknownEmail = $this->postJson($path, ['email' => 'missing@example.test', 'password' => 'password']);
+            $wrongPassword = $this->postJson($path, ['email' => $user->email, 'password' => 'wrong-password']);
+
+            $unknownEmail->assertUnprocessable()->assertJsonValidationErrors('email');
+            $wrongPassword->assertUnprocessable()->assertJsonValidationErrors('email');
+            $this->assertSame($unknownEmail->json('errors.email'), $wrongPassword->json('errors.email'));
+        }
     }
 
     public function test_each_login_route_accepts_only_its_role(): void

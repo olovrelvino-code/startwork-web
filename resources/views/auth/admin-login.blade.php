@@ -8,7 +8,7 @@
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="admin-shell min-h-screen bg-white antialiased">
+<body class="admin-shell admin-internal-shell min-h-screen bg-white antialiased">
     <div class="min-h-screen lg:grid lg:grid-cols-2">
         <aside class="auth-visual auth-visual--admin hidden flex-col justify-between px-10 py-10 lg:flex xl:px-16" aria-label="Portal internal Start Work">
             <a href="{{ url('/') }}" class="w-fit text-xl font-bold tracking-tight text-white" aria-label="Start Work, halaman utama">startwork<span class="text-[#E6A16D]">.</span></a>
