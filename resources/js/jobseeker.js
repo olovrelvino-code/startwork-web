@@ -137,11 +137,9 @@ if (list) {
     const query = new URLSearchParams({ page: String(page), limit: '12' });
     allowed.forEach((name) => { if (parameters.get(name)) query.set(name, parameters.get(name)); });
     if (kind === 'jobs') {
+        query.set('summary', '1');
         if (parameters.get('category')) query.append('category[]', parameters.get('category'));
-        parameters.getAll('category[]').forEach((value) => {
-            const option = [...document.querySelectorAll('[name="category[]"][data-query-values]')].find((input) => input.value === value);
-            (option?.dataset.queryValues.split('|') || [value]).forEach((category) => query.append('category[]', category));
-        });
+        parameters.getAll('category[]').forEach((value) => query.append('category[]', value));
         ['job_type', 'work_type'].forEach((name) => {
             if (parameters.get(name)) query.set(name, parameters.get(name));
             parameters.getAll(`${name}[]`).forEach((value) => query.append(`${name}[]`, value));
@@ -258,8 +256,11 @@ document.addEventListener('click', async (event) => {
     const share = event.target.closest('[data-share-job]');
     if (share && shareDialog) {
         sharedLink = new URL(share.dataset.shareUrl || `/jobs/${encodeURIComponent(share.dataset.shareJob)}`, window.location.origin).href;
-        shareDialog.querySelector('[data-share-whatsapp]').href = `https://wa.me/?text=${encodeURIComponent(sharedLink)}`;
-        shareDialog.querySelector('[data-share-native]').classList.toggle('hidden', !navigator.share);
+        const encodedLink = encodeURIComponent(sharedLink);
+        shareDialog.querySelector('[data-share-whatsapp]').href = `https://wa.me/?text=${encodedLink}`;
+        shareDialog.querySelector('[data-share-linkedin]').href = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedLink}`;
+        shareDialog.querySelector('[data-share-facebook]').href = `https://www.facebook.com/sharer/sharer.php?u=${encodedLink}`;
+        shareDialog.querySelector('[data-share-telegram]').href = `https://t.me/share/url?url=${encodedLink}`;
         shareDialog.querySelector('[data-share-feedback]').textContent = '';
         shareDialog.showModal();
     }
@@ -267,9 +268,6 @@ document.addEventListener('click', async (event) => {
 if (shareDialog) {
     shareDialog.querySelector('[data-share-close]').addEventListener('click', () => shareDialog.close());
     shareDialog.addEventListener('click', (event) => { if (event.target === shareDialog) shareDialog.close(); });
-    shareDialog.querySelector('[data-share-whatsapp]').addEventListener('click', () => {
-        shareDialog.querySelector('[data-share-feedback]').textContent = 'WhatsApp dibuka untuk membagikan tautan.';
-    });
     shareDialog.querySelector('[data-share-copy]').addEventListener('click', async () => {
         try {
             if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(sharedLink);
@@ -284,16 +282,8 @@ if (shareDialog) {
                 input.remove();
                 if (!copied) throw new Error('Copy failed');
             }
-            shareDialog.querySelector('[data-share-feedback]').textContent = 'Link berhasil disalin.';
+            shareDialog.querySelector('[data-share-feedback]').textContent = 'Link copied!';
         } catch { shareDialog.querySelector('[data-share-feedback]').textContent = 'Gagal menyalin link. Silakan salin dari alamat halaman.'; }
-    });
-    shareDialog.querySelector('[data-share-native]').addEventListener('click', async () => {
-        try {
-            await navigator.share({ url: sharedLink });
-            shareDialog.querySelector('[data-share-feedback]').textContent = 'Tautan berhasil dibagikan.';
-        } catch (error) {
-            if (error.name !== 'AbortError') shareDialog.querySelector('[data-share-feedback]').textContent = 'Gagal membagikan tautan. Coba salin link.';
-        }
     });
 }
 
@@ -525,19 +515,21 @@ if (profile) {
     }
 
     retryDetails.addEventListener('click', loadDetails);
-    let profileReady = false;
     api('/api/jobseeker/profile').then(async ({ data }) => {
         fillProfile(data);
         await loadDetails();
-        profileReady = true;
     }).catch((error) => {
-        if (error.status === 404) { fillDetails(); ready('profile', false, 'Belum lengkap'); ready('cv', false, 'Belum diunggah'); setDetailsLoaded(true); profileReady = true; }
-        else loading.textContent = errorMessage(error);
-    }).finally(() => {
-        if (profileReady) {
-            loading.classList.add('hidden');
-            content.classList.remove('hidden');
+        if (error.status === 404) {
+            fillDetails();
+            ready('profile', false, 'Belum lengkap');
+            ready('cv', false, 'Belum diunggah');
+            setDetailsLoaded(true);
+        } else {
+            mainFeedback.textContent = `Profil gagal dimuat: ${errorMessage(error)}`;
         }
+    }).finally(() => {
+        loading.classList.add('hidden');
+        content.classList.remove('hidden');
     });
 
     details.querySelectorAll('[data-add]').forEach((button) => button.addEventListener('click', () => addEntry(button.dataset.add).querySelector('[data-field]')?.focus()));

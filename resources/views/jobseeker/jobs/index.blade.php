@@ -17,21 +17,6 @@
             $selectedJobTypes = (array) request()->query('job_type', []);
             $selectedWorkTypes = (array) request()->query('work_type', []);
             $selectedCategories = (array) request()->query('category', []);
-            $categoryOptions = [
-                ['label' => 'Teknologi', 'values' => ['Technology / IT', 'technology', 'teknologi']],
-                ['label' => 'Administrasi & Dukungan', 'values' => ['Administration & Support']],
-                ['label' => 'Penjualan & Pemasaran', 'values' => ['Sales & Marketing']],
-                ['label' => 'Perhotelan & Kuliner', 'values' => ['Hospitality & F&B']],
-                ['label' => 'Logistik & Operasional', 'values' => ['Logistics & Operations']],
-                ['label' => 'Kreatif & Media', 'values' => ['Creative & Media']],
-                ['label' => 'Operasional Ritel', 'values' => ['Retail Operations']],
-                ['label' => 'SDM', 'values' => ['HR & People']],
-                ['label' => 'Keuangan & Audit', 'values' => ['Finance & Audit']],
-                ['label' => 'Keamanan', 'values' => ['Security']],
-                ['label' => 'Layanan', 'values' => ['Service']],
-                ['label' => 'Kesehatan & Kecantikan', 'values' => ['Health & Beauty']],
-                ['label' => 'Lainnya', 'values' => ['Others']],
-            ];
         @endphp
         <form action="{{ route('jobs.index') }}" method="GET" role="search" data-job-search class="grid items-start gap-y-5 lg:grid-cols-[260px_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:gap-x-8">
             <div class="grid min-w-0 gap-4 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-end lg:col-start-2 lg:row-start-1">
@@ -41,8 +26,8 @@
                 <aside class="grid gap-5 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:grid-cols-1" aria-label="Filter lowongan">
                     <div><label for="jobs-location" class="mb-2 block text-sm font-semibold">Lokasi</label><input id="jobs-location" name="location" type="search" maxlength="255" value="{{ request('location') }}" placeholder="Kota atau wilayah" class="w-full rounded-lg border-slate-300 text-sm focus:border-blue-600 focus:ring-1 focus:ring-blue-600"></div>
                     <fieldset class="space-y-2"><legend class="mb-2 text-sm font-semibold">Kategori</legend>
-                        @foreach ($categoryOptions as $category)
-                            <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="category[]" value="{{ $category['label'] }}" data-query-values="{{ implode('|', $category['values']) }}" @checked(in_array($category['label'], $selectedCategories, true) || count(array_intersect($category['values'], $selectedCategories))) class="mt-0.5 rounded border-slate-300 text-blue-600">{{ $category['label'] }}</label>
+                        @foreach (\App\JobCategory::PREDEFINED as $category)
+                            <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="category[]" value="{{ $category }}" @checked(in_array($category, $selectedCategories, true)) class="mt-0.5 rounded border-slate-300 text-blue-600">{{ $category }}</label>
                         @endforeach
                     </fieldset>
                     <fieldset data-job-types class="space-y-2"><legend class="mb-2 text-sm font-semibold">Tipe pekerjaan</legend>

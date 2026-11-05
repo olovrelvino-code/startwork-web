@@ -1,5 +1,6 @@
 <?php
 
+use App\GoogleRegistration;
 use App\JobCategory;
 use App\JobseekerDocument;
 use App\Models\User;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 /*
@@ -61,9 +63,9 @@ Route::middleware(['web', 'auth'])->group(function (): void {
         $query = $request->validate(['q' => ['nullable', 'string', 'max:255']]);
         $key = JobCategory::key($query['q'] ?? '');
 
-        return response()->json(['data' => DB::table('job_categories')
-            ->when($key !== '', fn ($items) => $items->where('normalized_name', 'like', '%'.$key.'%'))
-            ->orderBy('normalized_name')->limit(8)->get(['name'])]);
+        return response()->json(['data' => collect(JobCategory::PREDEFINED)
+            ->filter(fn (string $name): bool => $key === '' || str_contains(JobCategory::key($name), $key))
+            ->map(fn (string $name): array => ['name' => $name])->values()]);
     });
 
     Route::post('/job-categories', function (Request $request) {
@@ -71,13 +73,11 @@ Route::middleware(['web', 'auth'])->group(function (): void {
         $input = $request->validate(['name' => ['required', 'string', 'max:255']]);
         $name = JobCategory::normalize($input['name']);
         abort_if($name === '' || Str::length($name) > 255, 422, 'Nama kategori tidak valid');
-        if ($request->user()->role === 'admin') {
-            $name = JobCategory::forAdmin($name, 'name');
-        }
+        $name = JobCategory::forAdmin($name, 'name');
 
         $saved = JobCategory::save($name);
 
-        return response()->json(['data' => ['name' => $request->user()->role === 'admin' ? $name : $saved]]);
+        return response()->json(['data' => ['name' => $saved]]);
     });
 });
 
@@ -101,6 +101,7 @@ Route::get('/job-posts', function (Request $request) {
         'sort' => ['sometimes', 'in:latest,oldest,a-z,z-a'],
         'created_from' => ['sometimes', 'date_format:Y-m-d'],
         'created_to' => ['sometimes', 'date_format:Y-m-d', 'after_or_equal:created_from'],
+        'summary' => ['sometimes', 'in:1'],
     ]);
     $query = DB::table('job_posts')
         ->leftJoin('companies', 'job_posts.company_id', '=', 'companies.id')
@@ -117,7 +118,11 @@ Route::get('/job-posts', function (Request $request) {
             'job_posts.category',
             'job_posts.location',
             'job_posts.job_type',
-            'job_posts.work_type',
+            'job_posts.work_type'
+        );
+
+    if ($request->query('summary') !== '1') {
+        $query->addSelect(
             'job_posts.salary_min',
             'job_posts.salary_max',
             'job_posts.description',
@@ -127,10 +132,11 @@ Route::get('/job-posts', function (Request $request) {
             'job_posts.benefits',
             'job_posts.apply_url'
         );
+    }
 
     // Filter Kategori
     if ($request->filled('category')) {
-        $query->whereIn('job_posts.category', (array) $request->query('category'));
+        $query->whereIn('job_posts.category', JobCategory::filterValues((array) $request->query('category')));
     }
 
     // Filter Lokasi
@@ -192,6 +198,7 @@ Route::get('/job-posts/form', function () {
 
     $csrf = e(csrf_token() ?? '');
     $employerEmail = e(request()->user()->email);
+    $categoryOptions = implode('', array_map(static fn (string $category): string => '<option value="'.e($category).'">'.e($category).'</option>', JobCategory::PREDEFINED));
 
     return response(<<<HTML
 <!DOCTYPE html>
@@ -250,7 +257,7 @@ Route::get('/job-posts/form', function () {
         .form-group { margin-bottom: 1.25rem; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.35rem; color: var(--text-sub); }
-        input, textarea {
+        input, textarea, select {
             width: 100%;
             padding: 0.75rem;
             background: var(--input-bg);
@@ -260,7 +267,7 @@ Route::get('/job-posts/form', function () {
             font-size: 0.875rem;
             outline: none;
         }
-        input:focus, textarea:focus { border-color: var(--primary); }
+        input:focus, textarea:focus, select:focus { border-color: var(--primary); }
         textarea { resize: vertical; min-height: 80px; }
         button {
             width: 100%;
@@ -299,7 +306,7 @@ Route::get('/job-posts/form', function () {
                 </div>
                 <div class="form-group">
                     <label for="category">Kategori</label>
-                    <input id="category" name="category" placeholder="Teknologi, Pemasaran, Desain">
+                    <select id="category" name="category"><option value="">Pilih kategori</option>{$categoryOptions}</select>
                 </div>
             </div>
             <div class="form-row">
@@ -842,11 +849,11 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
         abort(410, 'Company admin dan employer memiliki alur terpisah');
     });
 
-    Route::post('/job-posts', function (Request $request) use ($applyUrlRule) {
+    $createJobPost = function (Request $request, ?string $companyId = null) use ($applyUrlRule) {
         abort_unless($request->user()->role === 'admin', 403);
 
         $input = $request->validate([
-            'company_id' => ['required', 'uuid'],
+            'company_id' => $companyId === null ? ['required', 'uuid'] : ['missing'],
             'title' => ['required', 'string', 'max:255'],
             'location' => ['required', 'string', 'max:255'],
             'job_type' => ['required', 'string', 'max:255'],
@@ -863,7 +870,8 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
             'apply_url' => ['nullable', 'string', 'max:2048', $applyUrlRule],
         ]);
 
-        abort_unless(DB::table('companies')->where('id', $input['company_id'])
+        $selectedCompanyId = $companyId ?? $input['company_id'];
+        abort_unless(DB::table('companies')->where('id', $selectedCompanyId)
             ->where('owner_user_id', $request->user()->id)->exists(), 404);
 
         $category = isset($input['category']) ? JobCategory::forAdmin($input['category']) : 'Others';
@@ -871,7 +879,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
         $jobId = (string) Str::uuid();
         DB::table('job_posts')->insert([
             'id' => $jobId,
-            'company_id' => $input['company_id'],
+            'company_id' => $selectedCompanyId,
             'posted_by' => $request->user()->id,
             'subscription_id' => null,
             'title' => $input['title'],
@@ -899,7 +907,10 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
             'message' => 'Lowongan berhasil dibuat oleh admin',
             'data' => DB::table('job_posts')->where('id', $jobId)->first(),
         ], 201);
-    });
+    };
+
+    Route::post('/job-posts', $createJobPost);
+    Route::post('/companies/{companyId}/job-posts', $createJobPost);
 
     Route::put('/job-posts/{id}', function (Request $request, string $id) use ($applyUrlRule) {
         abort_unless($request->user()->role === 'admin', 403);
@@ -1020,21 +1031,40 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($app
 
 // Registrasi employer: akun dibuat pada tabel users yang sudah digunakan aplikasi.
 Route::post('/employer/register', function (Request $request) {
+    $googleRegistration = $request->input('registration_method') === 'google';
+    $pendingGoogle = $googleRegistration ? GoogleRegistration::pending($request, 'employer') : null;
+    abort_if($googleRegistration && $pendingGoogle === null, 422, 'Sesi Google berakhir. Masuk dengan Google lagi.');
+
     $input = $request->validate([
         'full_name' => ['required', 'string', 'max:255'],
         'phone' => ['required', 'string', 'max:255'],
-        'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-        'password' => ['required', 'confirmed', Password::min(8)],
+        'email' => ['required', 'email', 'max:255', ...($googleRegistration ? [Rule::in([$pendingGoogle['email']])] : []), 'unique:users,email'],
+        'password' => $googleRegistration ? ['missing'] : ['required', 'confirmed', Password::min(8)],
     ]);
 
-    $user = User::create([
-        'full_name' => $input['full_name'],
-        'phone' => $input['phone'],
-        'email' => $input['email'],
-        'password_hash' => Hash::make($input['password']),
-        'role' => 'employer',
-    ]);
+    $user = DB::transaction(function () use ($input, $googleRegistration, $pendingGoogle): User {
+        abort_if($googleRegistration && (User::where('google_id', $pendingGoogle['id'])->exists()
+            || User::whereRaw('LOWER(email) = ?', [$pendingGoogle['email']])->exists()),
+            409, 'Akun sudah terdaftar. Masuk dahulu untuk menghubungkan Google.');
 
+        $user = User::create([
+            'full_name' => $input['full_name'],
+            'phone' => $input['phone'],
+            'email' => $input['email'],
+            'password_hash' => $googleRegistration ? null : Hash::make($input['password']),
+            'role' => 'employer',
+        ]);
+
+        if ($googleRegistration) {
+            $user->google_id = $pendingGoogle['id'];
+            $user->email_verified_at = now();
+            $user->save();
+        }
+
+        return $user;
+    });
+
+    $request->session()->forget('google_oauth_registration');
     event(new Registered($user));
     Auth::login($user);
     $request->session()->regenerate();

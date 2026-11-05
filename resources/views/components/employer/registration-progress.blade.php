@@ -1,7 +1,7 @@
 @props(['step', 'variant' => 'light'])
 
 <ol {{ $attributes->class(['registration-progress', 'registration-progress--dark' => $variant === 'dark']) }} aria-label="Progres registrasi Employer">
-    @foreach ([1 => ['Buat akun', 'Buat kredensial Employer'], 2 => ['Profil perusahaan', 'Lengkapi informasi perusahaan']] as $number => [$label, $description])
+    @foreach ([1 => ['Buat akun', 'Simpan data akun Employer'], 2 => ['Profil perusahaan', 'Lengkapi informasi perusahaan']] as $number => [$label, $description])
         @php($state = $number < $step ? 'complete' : ($number === $step ? 'active' : 'upcoming'))
         <li class="registration-progress__item" data-state="{{ $state }}" @if ($state === 'active') aria-current="step" @endif>
             <span class="registration-progress__marker" aria-hidden="true">{{ $state === 'complete' ? '✓' : $number }}</span>

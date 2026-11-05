@@ -15,6 +15,7 @@ class PublicArticleController extends Controller
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('q', ''));
+        $sort = $request->query('sort') === 'oldest' ? 'oldest' : 'latest';
 
         $articles = DB::table('articles')
             ->where('status', 'published')->whereNotNull('slug')
@@ -25,7 +26,8 @@ class PublicArticleController extends Controller
                 });
             })
             ->select('slug', 'title', 'excerpt', 'cover_image', 'published_at')
-            ->orderByDesc('published_at')->orderByDesc('id')
+            ->orderBy('published_at', $sort === 'oldest' ? 'asc' : 'desc')
+            ->orderBy('id', $sort === 'oldest' ? 'asc' : 'desc')
             ->paginate(9)
             ->withQueryString();
 
@@ -35,7 +37,7 @@ class PublicArticleController extends Controller
             return $article;
         });
 
-        return view('articles.index', compact('articles', 'search'));
+        return view('articles.index', compact('articles', 'search', 'sort'));
     }
 
     public function show(string $slug): View

@@ -66,15 +66,26 @@
     <section class="bg-white py-14 sm:py-16" aria-labelledby="partners-title">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <h2 id="partners-title" class="text-2xl font-bold tracking-tight">Mitra Perusahaan</h2>
-            <p class="mt-2 text-sm text-slate-600">Pratinjau tata letak. Logo dan daftar mitra resmi belum tersedia.</p>
-            <div class="jobseeker-partners-window mt-8" aria-label="Contoh tempat untuk logo mitra perusahaan">
+            @php
+                $partnerLogos = [
+                    'Alanadiva Dental Care' => 'Alanadiva Dental Care.png',
+                    'Kimaya Spa & Beauty Experience' => 'Kimaya Spa & Beauty Experience.png',
+                    'Kotty Kosmetik' => 'Kotty Kosmetik.png',
+                    'Trimurti' => 'Logo Trimurti.png',
+                    'Start Friday Asia' => 'Logo_Start_Friday_Asia_Brand_&_Business_Strategy_Consulting_Logogram.png',
+                    'Mayang' => 'MAYANG - Logo Vertikal.png',
+                    'Oodside' => 'OODSIDE - Logo Vertikal Transparent.png',
+                    'Rakken' => 'Rakken_Logo Horizontal (2) A4.png',
+                    'Surabaya European School' => 'SES LOGO HITAM.png',
+                ];
+            @endphp
+            <div class="jobseeker-partners-window mt-8" aria-label="Logo mitra perusahaan">
                 <div class="jobseeker-partners-track">
                     @foreach ([false, true] as $duplicate)
                         <div class="jobseeker-partners-group" @if ($duplicate) aria-hidden="true" @endif>
-                            @foreach (range(1, 6) as $number)
-                                <div class="flex w-40 shrink-0 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:w-48">
-                                    <span aria-hidden="true" class="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-white font-bold text-blue-700">M{{ $number }}</span>
-                                    <span class="text-sm font-medium text-slate-600">Contoh logo {{ $number }}</span>
+                            @foreach ($partnerLogos as $name => $file)
+                                <div class="flex h-24 w-44 shrink-0 items-center justify-center rounded-xl bg-white p-3 sm:h-28 sm:w-52">
+                                    <img src="{{ asset('images/logo/'.$file) }}" alt="{{ $duplicate ? '' : $name }}" width="208" height="96" loading="lazy" decoding="async" class="h-full w-full object-contain">
                                 </div>
                             @endforeach
                         </div>

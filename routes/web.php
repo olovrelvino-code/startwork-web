@@ -1,5 +1,6 @@
 <?php
 
+use App\GoogleRegistration;
 use App\Http\Controllers\Admin\ApplicantController as AdminApplicantController;
 use App\Http\Controllers\Admin\ArticleController as AdminArticleController;
 use App\Http\Controllers\Admin\CompanyController as AdminCompanyController;
@@ -108,10 +109,14 @@ Route::middleware('auth')->get('/account/switch/{role}', function (string $role)
 })->where('role', 'admin|employer|jobseeker')->name('account.switch');
 
 Route::middleware('guest')->get('/employer/register', function () {
-    return view('employer.register');
+    return view('employer.register', ['pendingGoogle' => GoogleRegistration::pending(request(), 'employer')]);
 })->name('employer.register');
 
 Route::middleware('guest')->get('/employer/login', function () {
+    if (request()->query('mode') === 'register') {
+        return view('employer.register', ['pendingGoogle' => GoogleRegistration::pending(request(), 'employer')]);
+    }
+
     return view('employer.login');
 })->name('employer.login');
 
@@ -127,6 +132,7 @@ Route::middleware(['auth', 'employer'])->prefix('employer')->name('employer.')->
     Route::redirect('/', '/employer/dashboard')->name('home');
     Route::get('/dashboard', EmployerDashboardController::class)->name('dashboard');
     Route::get('/setup', [EmployerCompanyController::class, 'setup'])->name('setup');
+    Route::patch('/setup/account', [EmployerCompanyController::class, 'completeAccount'])->name('setup.account');
     Route::get('/company', EmployerCompanyController::class)->name('company');
     Route::get('/job-posts', [EmployerJobPostController::class, 'index'])->name('job-posts.index');
     Route::get('/job-posts/create', [EmployerJobPostController::class, 'create'])->name('job-posts.create');
@@ -141,6 +147,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
 
     Route::get('/companies', [AdminCompanyController::class, 'index'])->name('companies.index');
+    Route::get('/companies/{companyId}/job-posts/create', [AdminJobPostController::class, 'create'])->name('companies.job-posts.create');
     Route::get('/companies/{id}', [AdminCompanyController::class, 'show'])->name('companies.show');
 
     Route::get('/job-posts', [AdminJobPostController::class, 'index'])->name('job-posts.index');
@@ -150,6 +157,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/job-posts/{id}/edit', [AdminJobPostController::class, 'edit'])->name('job-posts.edit');
 
     Route::get('/applicants', [AdminApplicantController::class, 'index'])->name('applicants.index');
+    Route::get('/applicants/{id}', [AdminApplicantController::class, 'show'])->name('applicants.show');
 
     Route::get('/articles', [AdminArticleController::class, 'index'])->name('articles.index');
     Route::get('/articles/create', [AdminArticleController::class, 'create'])->name('articles.create');
@@ -174,6 +182,7 @@ Route::get('/jobs/{id}', function (string $id) {
 })->name('jobs.show');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/account/photo', [ProfileController::class, 'photo'])->name('account.photo');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

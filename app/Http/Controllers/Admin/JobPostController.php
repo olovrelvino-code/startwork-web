@@ -41,12 +41,15 @@ class JobPostController extends Controller
         return view('admin.job-posts.index', compact('jobs', 'selectedCompany'));
     }
 
-    public function create(Request $request): View
+    public function create(Request $request, ?string $companyId = null): View
     {
-        $companies = DB::table('companies')->where('owner_user_id', $request->user()->id)
-            ->select('id', 'name')->orderBy('name')->limit(10)->get();
+        $selectedCompany = $companyId === null ? null : DB::table('companies')->where('id', $companyId)
+            ->where('owner_user_id', $request->user()->id)->first(['id', 'name']);
+        abort_if($companyId !== null && $selectedCompany === null, 404);
+        $companies = $selectedCompany ? collect([$selectedCompany]) : DB::table('companies')
+            ->where('owner_user_id', $request->user()->id)->select('id', 'name')->orderBy('name')->limit(10)->get();
 
-        return view('admin.job-posts.create', compact('companies'));
+        return view('admin.job-posts.create', compact('companies', 'selectedCompany'));
     }
 
     public function companyOptions(Request $request): JsonResponse

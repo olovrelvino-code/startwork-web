@@ -121,6 +121,24 @@ class StartWorkArticlePublicAndWebpTest extends TestCase
         $this->getJson('/api/admin/articles')->assertUnauthorized();
     }
 
+    public function test_public_articles_can_be_sorted_by_publication_date(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $olderArticle = $this->actingAs($admin)->postJson('/api/admin/articles', [
+            'title' => 'Artikel lebih lama', 'content' => 'Isi lama', 'status' => 'published',
+        ])->assertCreated()->json('data');
+        $newerArticle = $this->postJson('/api/admin/articles', [
+            'title' => 'Artikel lebih baru', 'content' => 'Isi baru', 'status' => 'published',
+        ])->assertCreated()->json('data');
+        DB::table('articles')->where('id', $olderArticle['id'])->update(['published_at' => '2026-01-01 00:00:00']);
+        DB::table('articles')->where('id', $newerArticle['id'])->update(['published_at' => '2026-02-01 00:00:00']);
+        $this->post('/logout');
+
+        $this->get('/articles?sort=oldest')->assertOk()->assertSeeInOrder(['Artikel lebih lama', 'Artikel lebih baru']);
+        $this->get('/articles?sort=latest')->assertOk()->assertSeeInOrder(['Artikel lebih baru', 'Artikel lebih lama']);
+        $this->get('/articles?sort=invalid')->assertOk()->assertSeeInOrder(['Artikel lebih baru', 'Artikel lebih lama']);
+    }
+
     public function test_slug_is_unique_and_published_can_return_to_draft(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

@@ -77,93 +77,155 @@ class StartWorkSearchAndPaginationTest extends TestCase
 
         $this->actingAs($admin)->get('/admin/applicants')->assertOk()->assertSee('aria-label="Unduh CV Rina CV"', false);
         $this->get('/api/admin/applicants/'.$applicationId.'/cv')->assertDownload('resume.pdf');
+        $this->get('/api/admin/applicants/'.$applicationId.'/cv?preview=1')->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')->assertHeader('X-Content-Type-Options', 'nosniff');
         $this->actingAs($employer)->get('/api/admin/applicants/'.$applicationId.'/cv')->assertForbidden();
     }
 
-    public function test_categories_are_suggested_saved_once_and_restricted_by_role(): void
+    public function test_applicant_detail_and_certificate_files_are_scoped_to_admin_and_own_employer(): void
     {
+        Storage::fake('local');
+        $admin = User::factory()->create(['role' => 'admin']);
+        $employer = User::factory()->create(['role' => 'employer']);
+        $otherEmployer = User::factory()->create(['role' => 'employer']);
+        $seeker = User::factory()->create(['role' => 'jobseeker']);
+        $companyId = (string) Str::uuid();
+        $jobId = (string) Str::uuid();
+        $profileId = (string) Str::uuid();
+        $applicationId = (string) Str::uuid();
+        $certificateId = (string) Str::uuid();
+        $certificatePath = 'certificates/'.$seeker->id.'/'.Str::uuid().'.pdf';
+        DB::table('companies')->insert(['id' => $companyId, 'owner_user_id' => $employer->id, 'name' => 'Studio Sertifikat', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('job_posts')->insert(['id' => $jobId, 'company_id' => $companyId, 'posted_by' => $employer->id, 'title' => 'Editor', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('jobseeker_profiles')->insert(['id' => $profileId, 'user_id' => $seeker->id, 'full_name' => 'Rina Sertifikat', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('applications')->insert(['id' => $applicationId, 'job_posts_id' => $jobId, 'profile_id' => $profileId, 'status' => 'submitted', 'applied_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('certificates')->insert(['id' => $certificateId, 'profile_id' => $profileId, 'name' => 'Sertifikat SQL', 'file_path' => $certificatePath]);
+        Storage::disk('local')->put($certificatePath, '%PDF-1.4 certificate');
+        $fileUrl = '/api/applications/'.$applicationId.'/certificates/'.$certificateId.'/file';
+
+        $this->actingAs($admin)->get('/admin/applicants')->assertOk()
+            ->assertSee(route('admin.applicants.show', $applicationId), false);
+        $this->get('/admin/applicants/'.$applicationId)->assertOk()
+            ->assertSee('Rina Sertifikat')->assertSee('Sertifikat SQL')->assertSee($fileUrl, false)
+            ->assertDontSee('data-employer-form', false);
+        $this->get($fileUrl.'?preview=1')->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
+        $this->get($fileUrl)->assertDownload('Sertifikat SQL.pdf');
+
+        $this->actingAs($employer)->get('/employer/applications/'.$applicationId)->assertOk()
+            ->assertSee('Sertifikat SQL')->assertSee($fileUrl, false);
+        $this->get($fileUrl)->assertDownload('Sertifikat SQL.pdf');
+        $this->actingAs($otherEmployer)->get('/employer/applications/'.$applicationId)->assertNotFound();
+        $this->get($fileUrl)->assertNotFound();
+        $this->get('/admin/applicants/'.$applicationId)->assertForbidden();
+        $this->actingAs($seeker)->get($fileUrl)->assertForbidden();
+        $this->actingAs($admin)->get('/admin/applicants/'.Str::uuid())->assertNotFound();
+        $this->get('/admin/applicants/'.$applicationId)->assertOk()
+            ->assertDontSee($certificatePath, false);
+        $this->get('/api/applications/'.$applicationId.'/certificates/'.Str::uuid().'/file')->assertNotFound();
+        Storage::disk('local')->delete($certificatePath);
+        $this->get($fileUrl)->assertNotFound();
+        $wrongOwnerPath = 'certificates/'.$otherEmployer->id.'/'.Str::uuid().'.pdf';
+        DB::table('certificates')->where('id', $certificateId)->update(['file_path' => $wrongOwnerPath]);
+        Storage::disk('local')->put($wrongOwnerPath, '%PDF-1.4 certificate');
+        $this->get($fileUrl)->assertNotFound();
+    }
+
+    public function test_categories_are_shared_and_legacy_jobs_remain_filterable(): void
+    {
+        $this->assertSame([
+            'Hospitality & F&B', 'Administration & Support', 'Sales & Marketing',
+            'Logistics & Operations', 'Creative & Media', 'Retail Operations',
+            'HR & People', 'Finance & Audit', 'Security', 'Service',
+            'Technology/IT', 'Healthy & Beauty', 'Others',
+        ], JobCategory::PREDEFINED);
+
         $admin = User::factory()->create(['role' => 'admin']);
         $employer = User::factory()->create(['role' => 'employer']);
         $seeker = User::factory()->create(['role' => 'jobseeker']);
 
-        $this->assertCount(13, JobCategory::PREDEFINED);
-        $this->assertCount(13, array_unique(array_map(JobCategory::key(...), JobCategory::PREDEFINED)));
-
         $this->getJson('/api/job-categories')->assertUnauthorized();
         $this->actingAs($seeker)->getJson('/api/job-categories')->assertForbidden();
-        $this->postJson('/api/job-categories', ['name' => 'Data'])->assertForbidden();
-
-        $this->actingAs($employer)->postJson('/api/job-categories', ['name' => '  Data   Science  '])
-            ->assertOk()->assertJsonPath('data.name', 'Data Science');
-        $this->actingAs($admin)->postJson('/api/job-categories', ['name' => 'data science'])
-            ->assertUnprocessable()->assertJsonValidationErrors('name');
-        $this->assertSame(1, DB::table('job_categories')->count());
-        $this->getJson('/api/job-categories?q=da')->assertOk()
-            ->assertJsonCount(1, 'data')->assertJsonPath('data.0.name', 'Data Science');
-        $this->postJson('/api/job-categories', ['name' => '  '])->assertUnprocessable();
-        $this->postJson('/api/job-categories', ['name' => str_repeat('x', 256)])
+        $this->actingAs($employer)->getJson('/api/job-categories')->assertOk()
+            ->assertJsonCount(13, 'data')->assertJsonPath('data.10.name', 'Technology/IT');
+        $this->get('/api/job-posts/form')->assertOk()->assertSee('<select id="category" name="category">', false)
+            ->assertSee('Technology/IT')->assertSee('Healthy &amp; Beauty', false);
+        $this->postJson('/api/job-categories', ['name' => 'Data Science'])
             ->assertUnprocessable()->assertJsonValidationErrors('name');
 
-        $this->actingAs($employer)->postJson('/api/employer/company', [
-            'name' => 'Studio Kategori', 'location' => 'Jakarta',
-        ])->assertCreated();
+        $this->postJson('/api/employer/company', ['name' => 'Studio Kategori', 'location' => 'Jakarta'])->assertCreated();
         $jobId = $this->postJson('/api/employer/job-posts', [
             'title' => 'Analis', 'location' => 'Jakarta', 'job_type' => 'Full-time',
-            'work_type' => 'Hybrid', 'category' => '  DATA  SCIENCE ',
+            'work_type' => 'Hybrid', 'category' => 'Technology/IT',
         ])->assertCreated()->json('data.id');
-        $this->assertDatabaseHas('job_posts', ['id' => $jobId, 'category' => 'Data Science']);
-        $this->putJson('/api/employer/job-posts/'.$jobId, ['category' => 'Operations'])
-            ->assertOk()->assertJsonPath('data.category', 'Operations');
-        DB::table('job_posts')->where('id', $jobId)->update(['status' => 'active']);
-        $this->getJson('/api/job-posts?category=Operations')->assertOk()
-            ->assertJsonPath('data.0.id', $jobId);
-        $this->assertSame(2, DB::table('job_categories')->count());
+        $this->assertDatabaseHas('job_posts', ['id' => $jobId, 'category' => 'Technology/IT']);
+        $this->postJson('/api/employer/job-posts', [
+            'title' => 'Kategori bebas', 'location' => 'Jakarta', 'job_type' => 'Full-time',
+            'work_type' => 'Hybrid', 'category' => 'Data Science',
+        ])->assertUnprocessable()->assertJsonValidationErrors('category');
 
-        $adminCompanyId = (string) Str::uuid();
-        DB::table('companies')->insert(['id' => $adminCompanyId, 'owner_user_id' => $admin->id,
-            'name' => 'Studio Admin', 'created_at' => now(), 'updated_at' => now()]);
-        $this->actingAs($admin)->get('/admin/job-posts/create')->assertOk()
-            ->assertSee('data-category-presets', false)
-            ->assertSee('Administration &amp; Support', false)
-            ->assertSee('data-category-chip', false);
-        $adminJobId = $this->actingAs($admin)->postJson('/api/admin/job-posts', [
-            'company_id' => $adminCompanyId, 'title' => 'Admin Analyst', 'location' => 'Jakarta',
-            'job_type' => 'Full-time', 'work_type' => 'Hybrid', 'category' => ' technology / it ',
+        DB::table('job_posts')->where('id', $jobId)->update(['category' => 'Technology / IT', 'status' => 'active']);
+        $this->get('/employer/job-posts/'.$jobId.'/edit')->assertOk()->assertSee('Technology / IT (kategori tersimpan)');
+        $this->putJson('/api/employer/job-posts/'.$jobId, ['title' => 'Analis Senior'])->assertOk();
+        $this->assertDatabaseHas('job_posts', ['id' => $jobId, 'category' => 'Technology / IT']);
+        $this->getJson('/api/job-posts?category='.urlencode('Technology/IT'))
+            ->assertOk()->assertJsonPath('data.0.id', $jobId);
+        $this->putJson('/api/employer/job-posts/'.$jobId, ['category' => 'Healthy & Beauty'])
+            ->assertOk()->assertJsonPath('data.category', 'Healthy & Beauty');
+
+        $companyId = $this->actingAs($admin)->postJson('/api/admin/companies', ['name' => 'Studio Admin', 'location' => 'Jakarta'])
+            ->assertCreated()->json('data.id');
+        $this->get('/admin/job-posts/create')->assertOk()
+            ->assertSee('value="Technology/IT"', false)
+            ->assertSee('value="Healthy &amp; Beauty"', false);
+        $adminJobId = $this->postJson('/api/admin/job-posts', [
+            'company_id' => $companyId, 'title' => 'Admin Analyst', 'location' => 'Jakarta',
+            'job_type' => 'Full-time', 'work_type' => 'Hybrid', 'category' => 'Technology/IT',
         ])->assertCreated()->json('data.id');
-        $this->assertDatabaseHas('job_posts', ['id' => $adminJobId, 'category' => 'Technology / IT']);
-        $this->get('/admin/job-posts/'.$adminJobId.'/edit')->assertOk()
-            ->assertSee('name="category" value="Technology / IT"', false)
-            ->assertSee('Hapus kategori Technology / IT', false);
-        $this->assertSame(3, DB::table('job_categories')->count());
-        $this->postJson('/api/job-categories', ['name' => 'Kategori Buatan Admin'])
-            ->assertUnprocessable()->assertJsonValidationErrors('name');
-        $this->postJson('/api/admin/job-posts', [
-            'company_id' => $adminCompanyId, 'title' => 'Kategori tidak valid', 'location' => 'Jakarta',
-            'job_type' => 'Full-time', 'work_type' => 'Hybrid', 'category' => 'Kategori Buatan Admin',
-        ])->assertUnprocessable()->assertJsonValidationErrors('category');
-        $this->postJson('/api/admin/job-posts', [
-            'company_id' => $adminCompanyId, 'title' => 'Kategori lama', 'location' => 'Jakarta',
-            'job_type' => 'Full-time', 'work_type' => 'Hybrid', 'category' => 'Data Science',
-        ])->assertUnprocessable()->assertJsonValidationErrors('category');
-        $this->putJson('/api/admin/job-posts/'.$adminJobId, ['category' => 'Kategori Buatan Admin'])
+        $this->assertDatabaseHas('job_posts', ['id' => $adminJobId, 'category' => 'Technology/IT']);
+        $this->putJson('/api/admin/job-posts/'.$adminJobId, ['category' => 'Data Science'])
             ->assertUnprocessable()->assertJsonValidationErrors('category');
-        $this->assertDatabaseHas('job_posts', ['id' => $adminJobId, 'category' => 'Technology / IT']);
-        $this->putJson('/api/admin/job-posts/'.$jobId, ['category' => 'Operations'])
-            ->assertOk()->assertJsonPath('data.category', 'Operations');
-        $this->actingAs($employer)->postJson('/api/job-categories', ['name' => 'sales & marketing'])
-            ->assertOk()->assertJsonPath('data.name', 'sales & marketing');
-        $this->actingAs($admin)->postJson('/api/job-categories', ['name' => ' sales & marketing '])
-            ->assertOk()->assertJsonPath('data.name', 'Sales & Marketing');
-        $this->assertSame(4, DB::table('job_categories')->count());
-        $defaultJobId = $this->postJson('/api/admin/job-posts', [
-            'company_id' => $adminCompanyId, 'title' => 'Lowongan umum', 'location' => 'Jakarta',
-            'job_type' => 'Full-time', 'work_type' => 'Hybrid',
+        $this->actingAs($seeker)->postJson('/api/job-categories', ['name' => 'Others'])->assertForbidden();
+    }
+
+    public function test_admin_creates_a_job_from_company_detail_without_editable_company_id(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $otherAdmin = User::factory()->create(['role' => 'admin']);
+        $companyId = $this->actingAs($admin)->postJson('/api/admin/companies', [
+            'name' => 'Perusahaan Utama', 'location' => 'Jakarta',
         ])->assertCreated()->json('data.id');
-        $this->assertDatabaseHas('job_posts', ['id' => $defaultJobId, 'category' => 'Others']);
-        foreach (range(1, 10) as $number) {
-            $this->actingAs($employer)->postJson('/api/job-categories', ['name' => 'Category '.$number])->assertOk();
-        }
-        $this->actingAs($admin)->getJson('/api/job-categories?q=Category')->assertOk()->assertJsonCount(8, 'data');
+        $otherCompanyId = $this->postJson('/api/admin/companies', [
+            'name' => 'Perusahaan Kedua', 'location' => 'Bandung',
+        ])->assertCreated()->json('data.id');
+        $foreignCompanyId = $this->actingAs($otherAdmin)->postJson('/api/admin/companies', [
+            'name' => 'Perusahaan Lain', 'location' => 'Surabaya',
+        ])->assertCreated()->json('data.id');
+
+        $createUrl = route('admin.companies.job-posts.create', $companyId);
+        $postUrl = '/api/admin/companies/'.$companyId.'/job-posts';
+        $this->actingAs($admin)->get(route('admin.companies.show', $companyId))->assertOk()
+            ->assertSee('Belum ada lowongan')->assertSee($createUrl)->assertSee('Buat Lowongan');
+        $this->get($createUrl)->assertOk()->assertSee('Perusahaan Utama')
+            ->assertSee('action="'.url($postUrl).'"', false)
+            ->assertSee('data-success-url="'.route('admin.companies.show', $companyId).'"', false)
+            ->assertDontSee('name="company_id"', false);
+
+        $input = [
+            'title' => 'Lowongan dari detail', 'location' => 'Jakarta',
+            'job_type' => 'Full-time', 'work_type' => 'Hybrid', 'category' => 'Others',
+        ];
+        $jobId = $this->postJson($postUrl, $input)->assertCreated()->json('data.id');
+        $this->assertDatabaseHas('job_posts', [
+            'id' => $jobId, 'company_id' => $companyId, 'posted_by' => $admin->id,
+        ]);
+        $this->get(route('admin.companies.show', $companyId))->assertOk()
+            ->assertSee('Lowongan dari detail')->assertSee($createUrl)->assertSee('Buat Lowongan');
+
+        $this->postJson($postUrl, $input + ['company_id' => $otherCompanyId])
+            ->assertUnprocessable()->assertJsonValidationErrors('company_id');
+        $this->get(route('admin.companies.job-posts.create', $foreignCompanyId))->assertNotFound();
+        $this->postJson('/api/admin/companies/'.$foreignCompanyId.'/job-posts', $input)->assertNotFound();
+        $this->actingAs(User::factory()->create(['role' => 'employer']))->postJson($postUrl, $input)->assertForbidden();
     }
 
     public function test_company_search_limits_results_to_admin_owned_companies(): void

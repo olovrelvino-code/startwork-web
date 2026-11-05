@@ -1,10 +1,10 @@
-@extends('layouts.employer')
+@extends(auth()->user()->role === 'admin' ? 'layouts.admin' : 'layouts.employer')
 
 @section('title', $application->full_name)
 @section('section_label', 'Pelamar & CV')
 
 @section('content')
-    <x-admin.page-header :title="$application->full_name" :back="route('employer.applications.index')" :description="$application->job_title">
+    <x-admin.page-header :title="$application->full_name" :back="auth()->user()->role === 'admin' ? route('admin.applicants.index') : route('employer.applications.index')" :description="$application->job_title">
         <x-slot:actions><x-admin.status-badge :status="$application->status" /></x-slot:actions>
     </x-admin.page-header>
 
@@ -19,7 +19,11 @@
                 <div class="border-b border-slate-100 py-3"><dt class="text-slate-500">Portfolio</dt><dd class="mt-1">@if ($application->portfolio_link && preg_match('/^https?:\/\//i', $application->portfolio_link))<a class="admin-link break-all" href="{{ $application->portfolio_link }}" target="_blank" rel="noopener noreferrer">Buka portfolio</a>@else — @endif</dd></div>
             </dl>
             @if ($application->has_cv)
-                <a class="admin-button-secondary mt-6" data-employer-download href="{{ url('/api/employer/applications/'.$application->id.'/cv') }}">Unduh CV</a>
+                @php($cvUrl = url('/api/'.(auth()->user()->role === 'admin' ? 'admin/applicants' : 'employer/applications').'/'.$application->id.'/cv'))
+                <div class="mt-6 flex flex-wrap gap-2">
+                    <a class="admin-button-secondary" href="{{ $cvUrl.'?preview=1' }}" target="_blank" rel="noopener noreferrer">Lihat CV</a>
+                    <a class="admin-button-secondary" @if (auth()->user()->role === 'employer') data-employer-download @endif href="{{ $cvUrl }}">Unduh CV</a>
+                </div>
             @else
                 <p class="mt-6 text-sm text-slate-500">CV tidak tersedia.</p>
             @endif
@@ -64,10 +68,23 @@
                 @if ($certificates->isEmpty())
                     <p class="mt-3 text-sm text-slate-500">Sertifikat belum diisi.</p>
                 @else
-                    <ul class="mt-3 list-inside list-disc space-y-2 text-sm text-slate-700">@foreach ($certificates as $certificate)<li>{{ $certificate->name ?: 'Nama sertifikat tidak diisi' }}</li>@endforeach</ul>
+                    <ul class="mt-3 space-y-3 text-sm text-slate-700">
+                        @foreach ($certificates as $certificate)
+                            <li class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <span>{{ $certificate->name ?: 'Nama sertifikat tidak diisi' }}</span>
+                                @if ($certificate->file_path)
+                                    <a class="admin-link" href="{{ url('/api/applications/'.$application->id.'/certificates/'.$certificate->id.'/file?preview=1') }}" target="_blank" rel="noopener noreferrer" aria-label="Lihat sertifikat {{ $certificate->name }}">Lihat</a>
+                                    <a class="admin-link" href="{{ url('/api/applications/'.$application->id.'/certificates/'.$certificate->id.'/file') }}" aria-label="Unduh sertifikat {{ $certificate->name }}">Unduh</a>
+                                @elseif ($certificate->file_url && preg_match('/^https?:\/\//i', $certificate->file_url))
+                                    <a class="admin-link" href="{{ $certificate->file_url }}" target="_blank" rel="noopener noreferrer" aria-label="Lihat sertifikat {{ $certificate->name }}">Lihat</a>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
                 @endif
             </section>
         </div>
+        @if (auth()->user()->role === 'employer')
         <section class="border-t border-slate-200 pt-5" aria-labelledby="application-status-title">
             <h2 id="application-status-title" class="mb-4 text-base font-semibold text-slate-900">Status lamaran</h2>
             @php($nextStatuses = match ($application->status) { 'submitted' => ['in_process' => 'Proses', 'accepted' => 'Terima', 'rejected' => 'Tolak'], 'in_process' => ['accepted' => 'Terima', 'rejected' => 'Tolak'], default => [] })
@@ -84,5 +101,6 @@
                 <p class="text-sm text-slate-600">Status akhir sudah tersimpan.</p>
             @endif
         </section>
+        @endif
     </div>
 @endsection

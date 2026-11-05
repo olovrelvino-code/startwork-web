@@ -118,10 +118,34 @@ async function submitLogin(event, form) {
 }
 
 function bindLoginForms(root = document) {
+    root.querySelectorAll('[data-google-login]').forEach((link) => {
+        if (link.dataset.googleBound) return;
+        link.dataset.googleBound = 'true';
+        link.addEventListener('click', (event) => {
+            if (link.dataset.loading) {
+                event.preventDefault();
+                return;
+            }
+            link.dataset.loading = 'true';
+            link.setAttribute('aria-busy', 'true');
+            link.querySelector('[data-google-label]').textContent = 'Menghubungkan Google…';
+        });
+    });
     root.querySelectorAll('[data-auth-login-form]').forEach((form) => {
         if (form.dataset.authBound) return;
         form.dataset.authBound = 'true';
         form.noValidate = true;
+        const password = form.querySelector('input[name="password"]');
+        const passwordToggle = form.querySelector('[data-password-toggle]');
+        passwordToggle?.addEventListener('click', () => {
+            const isVisible = password.type === 'password';
+            password.type = isVisible ? 'text' : 'password';
+            passwordToggle.setAttribute('aria-pressed', String(isVisible));
+            passwordToggle.setAttribute('aria-label', `${isVisible ? 'Sembunyikan' : 'Tampilkan'} kata sandi`);
+            passwordToggle.title = `${isVisible ? 'Sembunyikan' : 'Tampilkan'} kata sandi`;
+            passwordToggle.querySelector('[data-password-show]').classList.toggle('hidden', isVisible);
+            passwordToggle.querySelector('[data-password-hide]').classList.toggle('hidden', !isVisible);
+        });
         form.addEventListener('input', (event) => {
             if (event.target instanceof HTMLInputElement) clearLoginErrors(form);
         });
@@ -130,6 +154,14 @@ function bindLoginForms(root = document) {
 }
 
 bindLoginForms();
+
+window.addEventListener('pageshow', () => {
+    document.querySelectorAll('[data-google-login][data-loading]').forEach((link) => {
+        delete link.dataset.loading;
+        link.removeAttribute('aria-busy');
+        link.querySelector('[data-google-label]').textContent = 'Masuk dengan Google';
+    });
+});
 
 if (employerPanel && jobseekerPanel && roleButtons.length === 2) {
     const content = employerPanel.querySelector('[data-employer-inline-content]');
@@ -202,7 +234,7 @@ if (employerPanel && jobseekerPanel && roleButtons.length === 2) {
             button.classList.toggle('text-slate-600', !selected);
         });
         document.querySelector('[data-role-switch]')?.setAttribute('data-role', role);
-        if (isEmployer && !content.hasChildNodes()) showEmployerPage(loginUrl);
+        if (isEmployer && !content.hasChildNodes()) showEmployerPage(employerPanel.dataset.initialUrl || loginUrl);
     }
 
     roleButtons.forEach((button) => button.addEventListener('click', () => selectRole(button.dataset.authRole)));

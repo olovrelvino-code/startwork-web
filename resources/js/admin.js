@@ -75,8 +75,7 @@ function showFieldErrors(form, errors) {
         error.className = 'mt-1 text-sm text-rose-700';
         error.textContent = messages.join(' ');
         error.id = `${field.id || name}-error`;
-        const target = name === 'body_json' ? form.querySelector('[data-article-editor]')
-            : name === 'category' ? form.querySelector('[data-category-search]') : field;
+        const target = name === 'body_json' ? form.querySelector('[data-article-editor]') : field;
         (target || field).setAttribute('aria-invalid', 'true');
         (target || field).setAttribute('aria-describedby', error.id);
         if (name === 'body_json' && target) {

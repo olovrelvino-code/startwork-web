@@ -170,16 +170,17 @@ class JobseekerFrontendTest extends TestCase
             ->assertSee('data-ready-icon="cv"', false);
     }
 
-    public function test_job_categories_show_one_indonesian_technology_option_and_keep_multiple_selections(): void
+    public function test_job_categories_show_the_shared_options_and_keep_multiple_selections(): void
     {
-        $response = $this->get('/loker?category[]=Teknologi&category[]=Keuangan%20%26%20Audit');
+        $response = $this->get('/loker?category[]=Technology%2FIT&category[]=Finance%20%26%20Audit');
 
         $response->assertOk()
-            ->assertSee('value="Teknologi" data-query-values="Technology / IT|technology|teknologi" checked', false)
-            ->assertSee('value="Keuangan &amp; Audit" data-query-values="Finance &amp; Audit" checked', false)
+            ->assertSee('value="Technology/IT" checked', false)
+            ->assertSee('value="Finance &amp; Audit" checked', false)
+            ->assertSee('Healthy &amp; Beauty', false)
             ->assertDontSee('Show More');
         $this->assertSame(13, substr_count($response->getContent(), 'name="category[]"'));
-        $this->assertSame(1, substr_count($response->getContent(), 'value="Teknologi"'));
+        $this->assertSame(1, substr_count($response->getContent(), 'value="Technology/IT"'));
     }
 
     public function test_jobseeker_nav_uses_own_private_photo_and_profile_name(): void

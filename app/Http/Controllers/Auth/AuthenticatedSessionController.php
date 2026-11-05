@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\GoogleRegistration;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,8 +16,12 @@ class AuthenticatedSessionController extends Controller
     /**
      * Display the login view.
      */
-    public function create(): View
+    public function create(Request $request): View
     {
+        if ($request->query('mode') === 'register') {
+            return view('auth.register', ['pendingGoogle' => GoogleRegistration::pending($request, 'jobseeker')]);
+        }
+
         return view('auth.login');
     }
 
@@ -32,7 +38,21 @@ class AuthenticatedSessionController extends Controller
 
         $request->authenticate($role);
 
+        $pendingGoogle = $request->session()->pull('google_oauth_pending');
+        $user = $request->user();
+        if (is_array($pendingGoogle)
+            && ($pendingGoogle['role'] ?? null) === $role
+            && ($pendingGoogle['expires_at'] ?? 0) >= now()->timestamp
+            && is_string($pendingGoogle['id'] ?? null)
+            && strcasecmp($user->email, $pendingGoogle['email'] ?? '') === 0
+            && $user->google_id === null
+            && ! User::where('google_id', $pendingGoogle['id'])->exists()) {
+            $user->google_id = $pendingGoogle['id'];
+            $user->save();
+        }
+
         $request->session()->regenerate();
+        $request->session()->forget('google_oauth_registration');
 
         $authenticatedRole = $request->user()->role;
         $destination = match ($authenticatedRole) {

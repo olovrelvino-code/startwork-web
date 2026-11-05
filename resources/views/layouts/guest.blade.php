@@ -17,12 +17,34 @@
                 <a href="{{ url('/') }}" class="rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600" aria-label="StartWork, halaman utama"><img src="{{ asset('images/asset/Logo Start Work B transparan.png') }}" alt="StartWork" class="block h-9 w-auto max-w-[180px] object-contain sm:h-11 sm:max-w-[220px]"></a>
                 <a href="{{ route('jobs.index') }}" class="text-sm font-semibold text-slate-700 hover:text-blue-700">Jelajahi Lowongan</a>
             </header>
-            <main id="main-content" class="grid flex-1 items-start gap-7 py-7 sm:gap-10 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)] lg:items-center lg:gap-12">
-                <section class="hidden max-w-xl lg:block" aria-label="Peluang kerja Jobseeker">
-                    <div data-role-visual="jobseeker"><img src="{{ asset('images/jobseeker/search-3d.svg') }}" alt="" class="mb-8 w-52 drop-shadow-lg"><p class="text-sm font-semibold text-blue-700">Ruang Jobseeker</p><h1 class="mt-4 text-4xl font-bold leading-tight tracking-tight">Satu tempat untuk peluang dan perjalanan karier Anda.</h1><p class="mt-5 text-base leading-7 text-slate-600">Temukan lowongan aktif, siapkan profil dan CV, lalu pantau status lamaran Anda.</p></div>
-                    <div data-role-visual="employer" class="hidden" hidden><img src="{{ asset('images/jobseeker/status-3d.svg') }}" alt="" class="mb-8 w-52 drop-shadow-lg"><p class="text-sm font-semibold text-[#B85B12]">Ruang Employer</p><h1 class="mt-4 text-4xl font-bold leading-tight tracking-tight">Kelola lowongan dan temukan kandidat yang tepat.</h1><p class="mt-5 text-base leading-7 text-slate-600">Atur kebutuhan rekrutmen perusahaan dan pantau lamaran dalam satu ruang kerja.</p></div>
+            <main id="main-content" class="grid flex-1 items-start gap-7 py-7 sm:gap-10 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)] lg:items-stretch lg:gap-12">
+                <section class="order-2 mx-auto w-full max-w-xl lg:order-1" aria-label="Peluang kerja StartWork">
+                    <div data-role-visual="jobseeker" class="auth-promo-panel">
+                        <img src="{{ asset('images/asset/jobseeker.webp') }}" alt="Tim profesional berkolaborasi di kantor">
+                        <div class="auth-promo-content">
+                            <h1>Temukan pekerjaan yang tepat untuk langkah berikutnya.</h1>
+                            <p>Cari peluang, siapkan profil, dan ikuti perkembangan lamaran dalam satu akun.</p>
+                            <ul class="auth-promo-benefits" aria-label="Manfaat untuk Jobseeker">
+                                <li>Lowongan dari perusahaan terverifikasi</li>
+                                <li>Profil dan CV tersimpan dalam satu akun</li>
+                                <li>Pantau proses lamaran dengan mudah</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div data-role-visual="employer" class="auth-promo-panel hidden" hidden>
+                        <img src="{{ asset('images/asset/employer.webp') }}" alt="Tim Employer berdiskusi dalam pertemuan kerja">
+                        <div class="auth-promo-content">
+                            <h1>Temukan kandidat untuk mengembangkan tim Anda.</h1>
+                            <p>Publikasikan kebutuhan, kelola lamaran, dan temukan talenta yang sesuai.</p>
+                            <ul class="auth-promo-benefits" aria-label="Manfaat untuk Employer">
+                                <li>Buat dan kelola lowongan dengan mudah</li>
+                                <li>Pantau kandidat dan lamaran di satu tempat</li>
+                                <li>Jangkau pencari kerja aktif di StartWork</li>
+                            </ul>
+                        </div>
+                    </div>
                 </section>
-                <div class="mx-auto w-full max-w-[460px] lg:mx-0">
+                <div class="order-1 mx-auto w-full max-w-[460px] lg:order-2 lg:mx-0">
                     {{ $authSwitch }}
                     {{ $slot }}
                 </div>

@@ -60,7 +60,7 @@ class ApplicationController extends Controller
         $skills = DB::table('skills')->where('profile_id', $application->profile_id)
             ->select('name')->orderBy('name')->get();
         $certificates = DB::table('certificates')->where('profile_id', $application->profile_id)
-            ->select('name')->orderBy('name')->get();
+            ->select('id', 'name', 'file_path', 'file_url')->orderBy('name')->get();
 
         return view('employer.applications.show', compact('application', 'workExperiences', 'organizations', 'skills', 'certificates'));
     }

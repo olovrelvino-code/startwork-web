@@ -63,7 +63,9 @@ class AdminInternalPagesTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $this->actingAs($admin)->get('/admin/companies')->assertOk()->assertSee('Mitra Nusantara')->assertSee('Milik Employer');
+        $this->actingAs($admin)->get('/admin/companies')->assertOk()->assertSee('Mitra Nusantara')->assertSee('Milik Employer')
+            ->assertSee('Edit perusahaan Mitra Nusantara')->assertSee('Hapus perusahaan Mitra Nusantara')
+            ->assertSee('Hapus perusahaan?', false);
         $this->get('/admin/companies/'.$companyId)->assertOk()->assertSee('Mitra Nusantara')
             ->assertSee('Ubah profil')->assertSee('Logo perusahaan')->assertSee('Hapus perusahaan');
         $this->getJson('/api/admin/companies/'.$companyId)->assertOk()
@@ -185,6 +187,7 @@ class AdminInternalPagesTest extends TestCase
             'status' => 'submitted', 'created_at' => now(), 'updated_at' => now(),
         ]);
         $this->actingAs($admin)->deleteJson('/api/admin/companies/'.$companyId)->assertStatus(409);
+        $this->get('/admin/companies')->assertOk()->assertSee('disabled aria-label="Perusahaan PT Riwayat tidak dapat dihapus', false);
         $this->get('/admin/companies/'.$companyId)->assertOk()
             ->assertSee('Perusahaan tidak dapat dihapus')->assertDontSee('Hapus perusahaan');
         $this->assertDatabaseHas('job_posts', ['id' => $jobId, 'company_id' => $companyId]);

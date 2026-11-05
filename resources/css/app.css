@@ -35,14 +35,30 @@
     .auth-role-switch[data-role="jobseeker"] [data-auth-role="jobseeker"], .auth-role-switch[data-role="employer"] [data-auth-role="employer"] { color: #fff; }
     .auth-role-button:hover:not([aria-pressed="true"]) { color: #B85B12; }
     .auth-role-button { @apply relative z-10 flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold; transition: color 180ms ease; }
-    .auth-form .auth-input { min-height: 2.75rem; width: 100%; border: 1px solid #C7D2D9; border-radius: .5rem; background: #fff; padding: .625rem 2.75rem .625rem .75rem; color: #0f172a; font-size: .875rem; transition: border-color 160ms ease, box-shadow 160ms ease; }
+    .auth-form .auth-input { min-height: 2.75rem; width: 100%; border: 1px solid #C7D2D9; border-radius: .5rem; background: #fff; padding: .625rem 2.75rem; color: #0f172a; font-size: .875rem; transition: border-color 160ms ease, box-shadow 160ms ease; }
     .auth-form .auth-input:hover:not(:focus) { border-color: #8CA8B6; }
-    .auth-form .auth-input:focus { border-color: #21546F; outline: 0; box-shadow: 0 0 0 2px rgb(33 84 111 / 14%); }
+    .auth-form .auth-input:focus { border-color: #B85B12; outline: 0; box-shadow: 0 0 0 2px rgb(184 91 18 / 14%); }
     .auth-form .auth-input[aria-invalid="true"], .auth-form .auth-input[aria-invalid="true"]:focus { border-color: #BE123C; box-shadow: 0 0 0 2px rgb(190 18 60 / 12%); }
-    .auth-field-warning { position: absolute; top: 50%; right: .75rem; width: 1.125rem; height: 1.125rem; transform: translateY(-50%); color: #BE123C; }
+    .auth-field-warning { width: 1rem; height: 1rem; margin-top: .5rem; flex: none; color: #BE123C; }
     .auth-field-error { @apply mt-2 text-sm; color: #9F1239; }
     .auth-feedback { @apply rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5 text-sm; color: #9F1239; }
+    .auth-promo-panel { position: relative; isolation: isolate; display: flex; min-height: 20rem; height: 100%; overflow: hidden; align-items: flex-end; border-radius: 1rem; background: #183047; color: white; }
+    .auth-promo-panel[hidden] { display: none; }
+    .auth-promo-panel::after { content: ''; position: absolute; inset: 0; z-index: 0; background: linear-gradient(180deg, rgb(15 35 54 / 30%) 0%, rgb(15 35 54 / 65%) 42%, rgb(15 35 54 / 92%) 100%); }
+    .auth-promo-panel > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .auth-promo-content { position: relative; z-index: 1; padding: 1.5rem; }
+    .auth-promo-eyebrow { margin-bottom: .75rem; color: #FDBA74; font-size: .875rem; font-weight: 700; }
+    .auth-promo-content h1 { max-width: 28rem; font-size: clamp(1.5rem, 3vw, 2.25rem); font-weight: 700; line-height: 1.15; letter-spacing: -.025em; }
+    .auth-promo-content h1 + p { max-width: 29rem; margin-top: .875rem; color: #f1f5f9; font-size: .9375rem; line-height: 1.6; }
+    .auth-promo-benefits { display: grid; gap: .45rem; margin-top: 1.25rem; font-size: .8125rem; line-height: 1.35; }
+    .auth-promo-benefits li { display: flex; align-items: flex-start; gap: .6rem; }
+    .auth-promo-benefits li::before { content: '✓'; flex: none; color: #FDBA74; font-weight: 700; }
+    @media (min-width: 1024px) { .auth-promo-panel { min-height: 34rem; } .auth-promo-content { padding: 2.25rem; } }
+    .auth-toggle-password { @apply absolute right-1 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-md text-slate-500 transition-colors hover:bg-[#FBF4EE] hover:text-[#95420D] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#B85B12]; }
+    .auth-submit-button { @apply flex min-h-11 w-full items-center justify-center rounded-lg px-5 py-3 text-sm font-semibold text-white transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B85B12] disabled:cursor-not-allowed disabled:opacity-60; background-color: #183047; }
+    .auth-submit-button:hover:not(:disabled) { background-color: #0F2336; }
     .auth-register-form .auth-register-input { border: 1px solid #cbd5e1; box-shadow: none; transition: border-color 160ms ease, box-shadow 160ms ease; }
+    .auth-register-form .auth-field-with-icon .auth-register-input { padding-left: 2.75rem; }
     .auth-register-form .auth-register-input:hover:not(:focus) { border-color: #94a3b8; }
     .auth-register-form .auth-register-input:focus { border-color: #21546f; outline: 0; box-shadow: 0 0 0 1px rgb(33 84 111 / 14%); }
     .auth-register-form .auth-register-input[aria-invalid="true"] { border-color: #be123c; box-shadow: 0 0 0 1px rgb(190 18 60 / 12%); }
@@ -66,6 +82,7 @@
     .auth-form .auth-error { color: var(--admin-error); }
     .auth-visual { position: relative; isolation: isolate; background-color: var(--admin-primary); background-size: cover; }
     .auth-visual--employer { background-image: url('/images/auth/employer-workplace.webp'); background-position: center; }
+    .auth-visual--employer-register { background-image: url('/images/asset/employer.webp'); }
     .auth-visual--admin { background-image: url('/images/auth/admin-office.webp'); background-position: center; }
     .auth-visual::before { content: ''; position: absolute; inset: 0; z-index: 0; background-color: rgb(15 35 54 / 76%); }
     .auth-visual > * { position: relative; z-index: 1; }
@@ -112,13 +129,6 @@
     .article-editor-icon-button:focus-visible { outline-color: var(--admin-focus); }
     .article-editor-icon-button svg { @apply h-4 w-4; }
     .article-editor-icon-button--danger:hover:not(:disabled) { @apply border-rose-200 bg-rose-50 text-rose-700; }
-    .admin-category-chip { @apply rounded-full border text-xs font-medium; }
-    .admin-category-chip[data-tone="0"] { @apply border-sky-200 bg-sky-50 text-sky-900; }
-    .admin-category-chip[data-tone="1"] { @apply border-emerald-200 bg-emerald-50 text-emerald-900; }
-    .admin-category-chip[data-tone="2"] { @apply border-orange-200 bg-orange-50 text-orange-900; }
-    .admin-category-chip[data-tone="legacy"] { @apply border-slate-300 bg-slate-100 text-slate-800; }
-    .admin-category-chip-remove { @apply inline-flex h-7 w-7 flex-none items-center justify-center rounded-full hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2; }
-    .admin-category-chip-remove:focus-visible { outline-color: var(--admin-focus); }
     .article-editor-block { @apply scroll-mt-32 rounded-lg border border-slate-200 bg-slate-50 p-4; }
     .article-editor-block:focus-within { @apply border-slate-400; }
     .article-editor-block-header { @apply mb-3 flex flex-wrap items-center justify-between gap-2; }
@@ -181,9 +191,12 @@
 .admin-shell .auth-visual a:focus-visible { outline: 2px solid white; outline-offset: 4px; }
 .admin-shell .admin-number { font-variant-numeric: tabular-nums; }
 
-.employer-shell { background: #f8fafc; }
+.employer-shell { --admin-brand: #DE7C23; --admin-primary: #17394B; --admin-primary-hover: #0F2336; --admin-focus: #21546F; --admin-canvas: #F3F7F8; --admin-border: #D8E2E7; background: var(--admin-canvas); }
 .employer-shell .admin-label { @apply normal-case font-medium text-slate-700; }
 .employer-shell .admin-table thead { @apply normal-case text-slate-500; }
+.employer-shell .admin-input { border-width: 1px; border-color: #C7D2D9; }
+.employer-shell .admin-panel, .employer-shell .admin-data-surface { border-color: var(--admin-border); }
+.employer-search-button { @apply absolute right-1 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-md bg-[#B85B12] text-white transition-colors hover:bg-[#8A430A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B85B12]; }
 
 .jobseeker-shell {
     --jobseeker-primary: #21546F;

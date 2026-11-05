@@ -15,7 +15,10 @@ class DashboardController extends Controller
         $filters = $request->validate(['q' => ['nullable', 'string', 'max:255']]);
         $search = trim($filters['q'] ?? '');
         $company = DB::table('companies')->where('owner_user_id', $request->user()->id)->first();
-        if ($company === null) {
+        if ($company === null || ($request->user()->google_id !== null
+            && (! filled(trim((string) $company->name)) || ! filled(trim((string) $company->location))
+                || ! filled(trim((string) $request->user()->full_name))
+                || ! filled(trim((string) $request->user()->phone))))) {
             return redirect()->route('employer.setup');
         }
         $trial = DB::table('company_subscriptions')->where('company_id', $company->id)

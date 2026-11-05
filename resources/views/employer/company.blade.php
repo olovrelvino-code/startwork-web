@@ -11,8 +11,13 @@
         <div class="border-b border-slate-200 pb-6">
             <p class="text-sm font-medium text-[#9A4A0A]">Langkah 2 dari 2</p>
             <x-employer.registration-progress :step="$registrationStep" class="mt-4" />
-            <h1 class="mt-7 text-3xl font-semibold tracking-tight text-slate-900">Profil perusahaan</h1>
+            <h2 class="mt-7 text-3xl font-semibold tracking-tight text-slate-900">Profil perusahaan</h2>
             <p class="mt-3 text-sm leading-relaxed text-slate-600">Lengkapi profil perusahaan sebelum masuk ke ruang kerja Employer.</p>
+            <dl class="mt-5 grid gap-2 rounded-lg bg-slate-50 p-4 text-sm text-slate-700" aria-label="Data akun yang sudah tersimpan">
+                <div><dt class="inline font-medium">Nama:</dt> <dd class="inline">{{ auth()->user()->full_name }}</dd></div>
+                <div><dt class="inline font-medium">Telepon:</dt> <dd class="inline">{{ auth()->user()->phone }}</dd></div>
+                <div><dt class="inline font-medium">Email:</dt> <dd class="inline break-all">{{ auth()->user()->email }}</dd></div>
+            </dl>
         </div>
         <div id="employer-feedback" class="mt-6 hidden" aria-live="polite"></div>
     @else

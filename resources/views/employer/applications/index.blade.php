@@ -8,8 +8,7 @@
 
     <form method="GET" action="{{ route('employer.applications.index') }}" class="mb-5 flex flex-wrap items-end gap-3">
         @if (request('job_id'))<input type="hidden" name="job_id" value="{{ request('job_id') }}">@endif
-        <div class="min-w-[220px] flex-1 sm:max-w-sm"><label class="admin-label" for="applicant-search">Cari pelamar</label><input class="admin-input" id="applicant-search" name="q" type="search" value="{{ request('q') }}" placeholder="Nama, lowongan, atau status"></div>
-        <button class="admin-button-secondary" type="submit">Cari</button>
+        <div class="min-w-[220px] flex-1 sm:max-w-sm"><label class="admin-label" for="applicant-search">Cari pelamar</label><div class="relative"><input class="admin-input w-full pr-12" id="applicant-search" name="q" type="search" value="{{ request('q') }}" placeholder="Nama, lowongan, atau status"><button class="employer-search-button" type="submit" aria-label="Cari pelamar" title="Cari pelamar"><svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.2 4.2"/></svg></button></div></div>
         @if (request('q') || request('job_id'))<a class="admin-button-quiet" href="{{ route('employer.applications.index') }}">Hapus pencarian</a>@endif
     </form>
 

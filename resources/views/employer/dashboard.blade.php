@@ -43,9 +43,9 @@
 
     <form method="GET" action="{{ route('employer.dashboard') }}" role="search" class="mb-5 w-full max-w-md">
         <label class="admin-label" for="employer-dashboard-search">Cari data rekrutmen</label>
-        <div class="flex items-center gap-2">
-            <input class="admin-input min-w-0 flex-1" id="employer-dashboard-search" name="q" type="search" value="{{ $search }}" maxlength="255" placeholder="Cari nama pelamar atau judul lowongan...">
-            <button type="submit" class="admin-button-secondary">Cari</button>
+        <div class="relative">
+            <input class="admin-input w-full pr-12" id="employer-dashboard-search" name="q" type="search" value="{{ $search }}" maxlength="255" placeholder="Cari nama pelamar atau judul lowongan...">
+            <button type="submit" class="employer-search-button" aria-label="Cari data rekrutmen" title="Cari data rekrutmen"><svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.2 4.2"/></svg></button>
         </div>
         @if ($search !== '')<a href="{{ route('employer.dashboard') }}" class="admin-link mt-2 inline-block text-sm">Hapus pencarian</a>@endif
     </form>

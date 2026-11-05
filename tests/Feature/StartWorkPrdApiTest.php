@@ -18,7 +18,7 @@ class StartWorkPrdApiTest extends TestCase
         $companyId = $this->actingAs($admin)->postJson('/api/admin/companies', [
             'name' => 'PT Contoh', 'location' => 'Jakarta',
         ])->assertCreated()->json('data.id');
-        $category = 'Technology / IT';
+        $category = 'Technology/IT';
         $jobId = $this->postJson('/api/admin/job-posts', [
             'company_id' => $companyId, 'title' => 'Data Analyst',
             'category' => $category, 'location' => 'Jakarta',

@@ -9,8 +9,7 @@
     </x-admin.page-header>
 
     <form method="GET" action="{{ route('employer.job-posts.index') }}" role="search" class="mb-5 flex flex-wrap items-end gap-3">
-        <div class="min-w-0 flex-1 basis-full sm:basis-64 sm:grow-0"><label class="admin-label" for="employer-job-search">Cari lowongan</label><input class="admin-input" id="employer-job-search" name="q" type="search" value="{{ $search }}" maxlength="255" placeholder="Judul atau lokasi"></div>
-        <button type="submit" class="admin-button-secondary">Cari</button>
+        <div class="min-w-0 flex-1 basis-full sm:basis-64 sm:grow-0"><label class="admin-label" for="employer-job-search">Cari lowongan</label><div class="relative"><input class="admin-input w-full pr-12" id="employer-job-search" name="q" type="search" value="{{ $search }}" maxlength="255" placeholder="Judul atau lokasi"><button type="submit" class="employer-search-button" aria-label="Cari lowongan" title="Cari lowongan"><svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.2 4.2"/></svg></button></div></div>
         @if ($search !== '')<a href="{{ route('employer.job-posts.index') }}" class="admin-button-quiet">Hapus pencarian</a>@endif
     </form>
 

@@ -155,7 +155,7 @@ class EmployerFrontendTest extends TestCase
         $this->get('/employer/setup')->assertOk()->assertSee('Langkah 2 dari 2')
             ->assertSee('aria-current="step"', false)
             ->assertSee('data-state="complete"', false)
-            ->assertSee('registration-progress--dark', false)
+            ->assertSee('data-role-switch', false)
             ->assertSee('data-success-url="'.route('employer.dashboard').'"', false);
         $this->get('/employer/setup')->assertOk()->assertSee('Nama perusahaan');
         $this->assertSame(1, DB::table('users')->where('email', 'employer-baru@example.test')->count());
@@ -212,6 +212,8 @@ class EmployerFrontendTest extends TestCase
         $this->get('/employer/applications/'.$applicationId)->assertOk()
             ->assertSee('Siti Pelamar')->assertSee('data-employer-download', false);
         $this->get('/api/employer/applications/'.$applicationId.'/cv')->assertOk();
+        $this->get('/api/employer/applications/'.$applicationId.'/cv?preview=1')->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')->assertHeader('X-Content-Type-Options', 'nosniff');
         $this->putJson('/api/employer/applications/'.$applicationId.'/status', ['status' => 'in_process'])
             ->assertOk()->assertJsonPath('data.status', 'in_process');
         $this->get('/employer/applications/'.$applicationId)->assertOk()->assertSee('Terima')->assertSee('Tolak');

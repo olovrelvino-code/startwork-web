@@ -9,9 +9,9 @@ use Illuminate\Validation\ValidationException;
 class JobCategory
 {
     public const PREDEFINED = [
+        'Hospitality & F&B',
         'Administration & Support',
         'Sales & Marketing',
-        'Hospitality & F&B',
         'Logistics & Operations',
         'Creative & Media',
         'Retail Operations',
@@ -19,10 +19,25 @@ class JobCategory
         'Finance & Audit',
         'Security',
         'Service',
-        'Technology / IT',
-        'Health & Beauty',
+        'Technology/IT',
+        'Healthy & Beauty',
         'Others',
     ];
+
+    public static function filterValues(array $categories): array
+    {
+        $values = [];
+        foreach ($categories as $category) {
+            $values[] = $category;
+            if ($category === 'Technology/IT') {
+                array_push($values, 'Technology / IT', 'technology', 'teknologi');
+            } elseif ($category === 'Healthy & Beauty') {
+                $values[] = 'Health & Beauty';
+            }
+        }
+
+        return array_values(array_unique($values));
+    }
 
     public static function normalize(string $name): string
     {
@@ -63,6 +78,6 @@ class JobCategory
             'updated_at' => now(),
         ]);
 
-        return DB::table('job_categories')->where('normalized_name', $key)->value('name');
+        return $name;
     }
 }

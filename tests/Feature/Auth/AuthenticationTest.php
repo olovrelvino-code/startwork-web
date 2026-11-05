@@ -28,6 +28,21 @@ class AuthenticationTest extends TestCase
         $this->get('/admin/login')->assertOk()->assertSee('Admin Internal');
     }
 
+    public function test_employer_auth_pages_offer_only_email_and_password(): void
+    {
+        $this->get('/employer/login')->assertOk()
+            ->assertSee('name="email"', false)
+            ->assertSee('name="password"', false)
+            ->assertDontSee('data-google-login', false);
+
+        $this->get('/employer/register')->assertOk()
+            ->assertSee('name="password_confirmation"', false)
+            ->assertDontSee('Daftar dengan Google');
+
+        $this->get('/auth/google/employer')->assertNotFound();
+        $this->get('/auth/google/jobseeker')->assertRedirect();
+    }
+
     public function test_jobseeker_registration_keeps_the_role_switch_and_registration_inputs_are_styled(): void
     {
         $this->get('/register')->assertOk()

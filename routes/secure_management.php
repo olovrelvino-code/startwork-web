@@ -110,7 +110,19 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
         $filename = $cv->cv_filename && strtolower(pathinfo($cv->cv_filename, PATHINFO_EXTENSION)) === strtolower(pathinfo($cv->cv_file, PATHINFO_EXTENSION))
             ? basename($cv->cv_filename) : 'CV.'.pathinfo($cv->cv_file, PATHINFO_EXTENSION);
 
-        return JobseekerDocument::disk()->download($cv->cv_file, $filename);
+        if ($request->boolean('preview')) {
+            $mime = match (strtolower(pathinfo($cv->cv_file, PATHINFO_EXTENSION))) {
+                'pdf' => 'application/pdf',
+                'jpg', 'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                default => null,
+            };
+            abort_if($mime === null, 404);
+
+            return JobseekerDocument::disk()->response($cv->cv_file, $filename, ['Content-Type' => $mime, 'X-Content-Type-Options' => 'nosniff'], 'inline');
+        }
+
+        return JobseekerDocument::disk()->download($cv->cv_file, $filename, ['X-Content-Type-Options' => 'nosniff']);
     });
 });
 
@@ -183,6 +195,46 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function (): void 
         $filename = $cv->cv_filename && strtolower(pathinfo($cv->cv_filename, PATHINFO_EXTENSION)) === strtolower(pathinfo($cv->cv_file, PATHINFO_EXTENSION))
             ? basename($cv->cv_filename) : 'CV.'.pathinfo($cv->cv_file, PATHINFO_EXTENSION);
 
-        return JobseekerDocument::disk()->download($cv->cv_file, $filename);
+        if ($request->boolean('preview')) {
+            $mime = match (strtolower(pathinfo($cv->cv_file, PATHINFO_EXTENSION))) {
+                'pdf' => 'application/pdf',
+                'jpg', 'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                default => null,
+            };
+            abort_if($mime === null, 404);
+
+            return JobseekerDocument::disk()->response($cv->cv_file, $filename, ['Content-Type' => $mime, 'X-Content-Type-Options' => 'nosniff'], 'inline');
+        }
+
+        return JobseekerDocument::disk()->download($cv->cv_file, $filename, ['X-Content-Type-Options' => 'nosniff']);
     });
 });
+
+Route::middleware(['web', 'auth'])->get('/applications/{id}/certificates/{certificateId}/file', function (Request $request, string $id, string $certificateId) {
+    $role = $request->user()->role;
+    abort_unless(in_array($role, ['admin', 'employer'], true), 403);
+
+    $query = DB::table('applications')
+        ->join('jobseeker_profiles', 'applications.profile_id', '=', 'jobseeker_profiles.id')
+        ->join('job_posts', 'applications.job_posts_id', '=', 'job_posts.id')
+        ->join('companies', 'job_posts.company_id', '=', 'companies.id')
+        ->join('certificates', 'certificates.profile_id', '=', 'jobseeker_profiles.id')
+        ->where('applications.id', $id)->where('certificates.id', $certificateId)
+        ->select('certificates.name', 'certificates.file_path', 'jobseeker_profiles.user_id');
+
+    if ($role === 'employer') {
+        $query->where('companies.owner_user_id', $request->user()->id)
+            ->where('job_posts.posted_by', $request->user()->id);
+    }
+
+    $certificate = $query->first();
+    $path = $certificate?->file_path;
+    abort_if($certificate === null || ! JobseekerDocument::ownedPath($path, 'certificates', $certificate->user_id)
+        || ! JobseekerDocument::disk()->exists($path), 404);
+    $filename = ($certificate->name ?: 'Sertifikat').'.'.pathinfo($path, PATHINFO_EXTENSION);
+
+    return $request->boolean('preview')
+        ? JobseekerDocument::disk()->response($path, $filename, ['X-Content-Type-Options' => 'nosniff'], 'inline')
+        : JobseekerDocument::disk()->download($path, $filename, ['X-Content-Type-Options' => 'nosniff']);
+})->whereUuid(['id', 'certificateId']);

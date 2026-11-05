@@ -129,7 +129,7 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function (): void 
                 'posted_by' => $request->user()->id,
                 'subscription_id' => null,
                 'title' => $input['title'],
-                'category' => JobCategory::save($input['category'] ?? 'Umum'),
+                'category' => JobCategory::save(JobCategory::forAdmin($input['category'] ?? 'Others')),
                 'location' => $input['location'],
                 'job_type' => $input['job_type'],
                 'work_type' => $input['work_type'],
@@ -210,7 +210,7 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function (): void 
             $input['expires_at'] = Carbon::parse($input['expires_at'])->utc()->format('Y-m-d H:i:s');
         }
         if (isset($input['category'])) {
-            $input['category'] = JobCategory::save($input['category']);
+            $input['category'] = JobCategory::save(JobCategory::forAdmin($input['category'], 'category', $job->category));
         }
         $input['updated_at'] = now();
         DB::table('job_posts')->where('id', $id)->update($input);

@@ -24,7 +24,7 @@ class User extends Authenticatable
     ];
 
     protected $hidden = [
-        'password', 'password_hash', 'remember_token',
+        'password', 'password_hash', 'remember_token', 'profile_photo', 'google_id',
     ];
 
     public function getAuthPasswordName(): string

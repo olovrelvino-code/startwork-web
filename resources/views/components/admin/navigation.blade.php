@@ -22,8 +22,5 @@
             ]) @if (request()->routeIs(str_replace('.index', '.*', $routeName)) || request()->routeIs($routeName)) aria-current="page" @endif><svg aria-hidden="true" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{ $icon }}" /></svg><span>{{ $label }}</span></a>
         @endforeach
     </nav>
-    <div class="flex shrink-0 items-center gap-3 border-t border-white/10 px-5 py-4">
-        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15 text-sm font-semibold text-white" aria-hidden="true">{{ mb_strtoupper(mb_substr(auth()->user()->full_name ?: auth()->user()->email, 0, 1)) }}</span>
-        <div class="min-w-0"><p class="truncate text-sm font-semibold text-white">{{ auth()->user()->full_name ?: auth()->user()->email }}</p><p class="truncate text-xs text-white/65">Admin Internal</p></div>
-    </div>
+    <x-account-menu />
 </aside>
