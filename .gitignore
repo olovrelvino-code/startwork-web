@@ -25,3 +25,29 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Local authentication test artifacts
+*-cookies.txt
+*test-cookies*.txt
+
+# Local database backups
+*.sql
+*.sql.gz
+*.sqlite
+*.sqlite3
+
+# Additional environment secrets
+.env.*
+!.env.example
+
+# Local authentication test artifacts
+*-cookies.txt
+*-cookie.txt
+demo-login-*.txt
+demo-reset-*.txt
+login-*.txt
+reset-*.txt
+startwork-login-after-reset.txt
+
+# Generated visual testing reports
+.taste-skill/

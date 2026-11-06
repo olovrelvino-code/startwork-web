@@ -74,7 +74,7 @@ class StartWorkRoleSecurityTest extends TestCase
         $this->postJson('/api/jobseeker/profile/details', ['skills' => ['SQL']])->assertOk();
         $this->postJson("/api/job-posts/{$jobId}/apply", [])->assertStatus(422);
         $this->post('/api/jobseeker/profile/cv', [
-            'cv' => UploadedFile::fake()->create('cv.pdf', 50, 'application/pdf'),
+            'cv' => UploadedFile::fake()->createWithContent('cv.pdf', "%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF\n"),
         ], ['Accept' => 'application/json'])->assertOk();
         $this->postJson("/api/job-posts/{$jobId}/apply", [])->assertCreated()->assertJsonPath('status', 'submitted');
         $this->postJson("/api/job-posts/{$jobId}/apply", [])->assertStatus(409);

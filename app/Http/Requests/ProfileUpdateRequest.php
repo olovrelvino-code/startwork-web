@@ -26,6 +26,9 @@ class ProfileUpdateRequest extends FormRequest
                 'max:255',
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
+            'profile_photo' => in_array($this->user()->role, ['admin', 'employer'], true)
+                ? ['sometimes', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048']
+                : ['prohibited'],
         ];
     }
 }

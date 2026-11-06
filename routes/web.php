@@ -1,16 +1,163 @@
 <?php
 
+use App\GoogleRegistration;
+use App\Http\Controllers\Admin\ApplicantController as AdminApplicantController;
+use App\Http\Controllers\Admin\ArticleController as AdminArticleController;
+use App\Http\Controllers\Admin\CompanyController as AdminCompanyController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\JobPostController as AdminJobPostController;
+use App\Http\Controllers\Admin\PackageController as AdminPackageController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Employer\ApplicationController as EmployerApplicationController;
+use App\Http\Controllers\Employer\CompanyController as EmployerCompanyController;
+use App\Http\Controllers\Employer\DashboardController as EmployerDashboardController;
+use App\Http\Controllers\Employer\JobPostController as EmployerJobPostController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicArticleController;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    $activeJobs = DB::table('job_posts')->where('job_posts.status', 'active')
+        ->where(fn ($query) => $query->whereNull('job_posts.expires_at')->orWhere('job_posts.expires_at', '>', now()));
+    $jobs = (clone $activeJobs)->join('companies', 'job_posts.company_id', '=', 'companies.id')
+        ->select('job_posts.id', 'job_posts.title', 'job_posts.location', 'job_posts.category', 'job_posts.job_type', 'job_posts.work_type', 'companies.name as company_name', 'companies.logo as company_logo', 'companies.id as company_id')
+        ->orderByDesc('job_posts.created_at')->orderBy('job_posts.id')->limit(6)->get();
+    $articles = DB::table('articles')->where('status', 'published')->whereNotNull('slug')
+        ->select('slug', 'title', 'excerpt', 'cover_image', 'published_at')
+        ->orderByDesc('published_at')->orderByDesc('id')->limit(3)->get();
+
+    return view('welcome', [
+        'jobs' => $jobs,
+        'articles' => $articles,
+    ]);
 });
 
+Route::get('/loker', function () {
+    $active = DB::table('job_posts')->where('status', 'active')
+        ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()));
+
+    return view('jobseeker.jobs.index', [
+        'jobTypes' => (clone $active)->whereNotNull('job_type')->distinct()->orderBy('job_type')->pluck('job_type'),
+    ]);
+})->name('jobs.index');
+Route::get('/loker/{id}', fn (string $id) => redirect()->route('jobs.show', $id));
+Route::view('/perusahaan', 'jobseeker.companies.index')->name('companies.index');
+Route::get('/perusahaan/{id}', function (string $id) {
+    abort_unless(DB::table('companies')->where('id', $id)->exists(), 404);
+
+    return view('jobseeker.companies.show', compact('id'));
+})->name('companies.show');
+Route::view('/about-us', 'jobseeker.about')->name('about');
+Route::view('/faqs', 'jobseeker.faqs')->name('faqs');
+Route::redirect('/blog', '/articles')->name('blog');
+Route::get('/blog/{slug}', fn (string $slug) => redirect()->route('articles.show', $slug));
+
+Route::get('/articles', [PublicArticleController::class, 'index'])->name('articles.index');
+Route::get('/articles/{slug}/cover', [PublicArticleController::class, 'cover'])->name('articles.cover');
+Route::get('/articles/{slug}/images/{image}', [PublicArticleController::class, 'image'])->name('articles.image');
+Route::get('/articles/{slug}', [PublicArticleController::class, 'show'])->name('articles.show');
+
 Route::get('/dashboard', function () {
-    return view('dashboard');
+    if (request()->user()->role === 'admin') {
+        return redirect()->route('admin.dashboard');
+    }
+
+    if (request()->user()->role === 'employer') {
+        return redirect()->route('employer.dashboard');
+    }
+
+    abort_unless(request()->user()->role === 'jobseeker', 403);
+
+    return redirect()->route('jobs.index');
 })->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::middleware('auth')->group(function (): void {
+    Route::get('/profil', function () {
+        abort_unless(request()->user()->role === 'jobseeker', 403);
+
+        return view('jobseeker.profile');
+    })->name('jobseeker.profile');
+    Route::get('/profil/lamaran', function () {
+        abort_unless(request()->user()->role === 'jobseeker', 403);
+
+        return view('jobseeker.applications');
+    })->name('jobseeker.applications');
+    Route::get('/profil/tersimpan', function () {
+        abort_unless(request()->user()->role === 'jobseeker', 403);
+        $jobs = DB::table('saved_job_posts')->join('job_posts', 'saved_job_posts.job_post_id', '=', 'job_posts.id')
+            ->join('companies', 'job_posts.company_id', '=', 'companies.id')
+            ->where('saved_job_posts.user_id', request()->user()->id)
+            ->select('job_posts.id', 'job_posts.title', 'job_posts.location', 'job_posts.category', 'job_posts.job_type',
+                'job_posts.work_type', 'companies.id as company_id', 'companies.name as company_name', 'companies.logo as company_logo')
+            ->orderByDesc('saved_job_posts.created_at')->paginate(12);
+
+        return view('jobseeker.saved-jobs', compact('jobs'));
+    })->name('jobseeker.saved-jobs');
+    Route::get('/jobs/{id}/apply', function (string $id) {
+        abort_unless(request()->user()->role === 'jobseeker', 403);
+
+        return redirect()->route('jobs.show', $id);
+    })->name('jobs.apply-continue');
+});
+
+Route::middleware('guest')->get('/employer/register', function () {
+    return view('employer.register', ['pendingGoogle' => GoogleRegistration::pending(request(), 'employer')]);
+})->name('employer.register');
+
+Route::middleware('guest')->get('/employer/login', function () {
+    if (request()->query('mode') === 'register') {
+        return view('employer.register', ['pendingGoogle' => GoogleRegistration::pending(request(), 'employer')]);
+    }
+
+    return view('employer.login');
+})->name('employer.login');
+
+Route::middleware('guest')->post('/employer/login', [AuthenticatedSessionController::class, 'store'])->name('employer.login.store');
+
+Route::middleware('guest')->get('/admin/login', function () {
+    return view('auth.admin-login');
+})->name('admin.login');
+
+Route::middleware('guest')->post('/admin/login', [AuthenticatedSessionController::class, 'store'])->name('admin.login.store');
+
+Route::middleware(['auth', 'employer'])->prefix('employer')->name('employer.')->group(function (): void {
+    Route::redirect('/', '/employer/dashboard')->name('home');
+    Route::get('/dashboard', EmployerDashboardController::class)->name('dashboard');
+    Route::get('/setup', [EmployerCompanyController::class, 'setup'])->name('setup');
+    Route::patch('/setup/account', [EmployerCompanyController::class, 'completeAccount'])->name('setup.account');
+    Route::get('/company', EmployerCompanyController::class)->name('company');
+    Route::get('/job-posts', [EmployerJobPostController::class, 'index'])->name('job-posts.index');
+    Route::get('/job-posts/create', [EmployerJobPostController::class, 'create'])->name('job-posts.create');
+    Route::get('/job-posts/{id}', [EmployerJobPostController::class, 'show'])->name('job-posts.show');
+    Route::get('/job-posts/{id}/edit', [EmployerJobPostController::class, 'edit'])->name('job-posts.edit');
+    Route::get('/applications', [EmployerApplicationController::class, 'index'])->name('applications.index');
+    Route::get('/applications/{id}', [EmployerApplicationController::class, 'show'])->name('applications.show');
+});
+
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function (): void {
+    Route::redirect('/', '/admin/dashboard')->name('home');
+    Route::get('/dashboard', AdminDashboardController::class)->name('dashboard');
+
+    Route::get('/companies', [AdminCompanyController::class, 'index'])->name('companies.index');
+    Route::get('/companies/{companyId}/job-posts/create', [AdminJobPostController::class, 'create'])->name('companies.job-posts.create');
+    Route::get('/companies/{id}', [AdminCompanyController::class, 'show'])->name('companies.show');
+
+    Route::get('/job-posts', [AdminJobPostController::class, 'index'])->name('job-posts.index');
+    Route::get('/job-posts/create', [AdminJobPostController::class, 'create'])->name('job-posts.create');
+    Route::get('/job-posts/company-options', [AdminJobPostController::class, 'companyOptions'])->name('job-posts.company-options');
+    Route::get('/job-posts/{id}', [AdminJobPostController::class, 'show'])->name('job-posts.show');
+    Route::get('/job-posts/{id}/edit', [AdminJobPostController::class, 'edit'])->name('job-posts.edit');
+
+    Route::get('/applicants', [AdminApplicantController::class, 'index'])->name('applicants.index');
+    Route::get('/applicants/{id}', [AdminApplicantController::class, 'show'])->name('applicants.show');
+
+    Route::get('/articles', [AdminArticleController::class, 'index'])->name('articles.index');
+    Route::get('/articles/create', [AdminArticleController::class, 'create'])->name('articles.create');
+    Route::get('/articles/{id}/edit', [AdminArticleController::class, 'edit'])->name('articles.edit');
+
+    Route::get('/packages', AdminPackageController::class)->name('packages.index');
+});
 
 Route::get('/jobs/{id}', function (string $id) {
     $job = DB::table('job_posts')
@@ -28,6 +175,7 @@ Route::get('/jobs/{id}', function (string $id) {
 })->name('jobs.show');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/account/photo', [ProfileController::class, 'photo'])->name('account.photo');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
