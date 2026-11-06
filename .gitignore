@@ -39,3 +39,15 @@ Thumbs.db
 # Additional environment secrets
 .env.*
 !.env.example
+
+# Local authentication test artifacts
+*-cookies.txt
+*-cookie.txt
+demo-login-*.txt
+demo-reset-*.txt
+login-*.txt
+reset-*.txt
+startwork-login-after-reset.txt
+
+# Generated visual testing reports
+.taste-skill/
