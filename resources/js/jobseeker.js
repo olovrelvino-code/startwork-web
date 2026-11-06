@@ -45,6 +45,41 @@ if (navPhoto) {
 
 const jobSearch = document.querySelector('[data-job-search]');
 if (jobSearch) {
+    const panel = jobSearch.querySelector('[data-filter-panel]');
+    const toggle = jobSearch.querySelector('[data-filter-toggle]');
+    const sections = [...panel.querySelectorAll('[data-filter-section]')];
+    const mobile = window.matchMedia('(max-width: 767px)');
+    const setPanelOpen = (open) => {
+        panel.classList.toggle('hidden', !open);
+        toggle.setAttribute('aria-expanded', String(open));
+        if (open) sections[0].focus();
+        else toggle.focus();
+    };
+    toggle.addEventListener('click', () => setPanelOpen(panel.classList.contains('hidden')));
+    panel.querySelector('[data-filter-close]').addEventListener('click', () => setPanelOpen(false));
+    jobSearch.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && mobile.matches && !panel.classList.contains('hidden')) setPanelOpen(false);
+    });
+    sections.forEach((button) => button.addEventListener('click', () => {
+        if (!mobile.matches) return;
+        const content = document.getElementById(button.getAttribute('aria-controls'));
+        const open = content.classList.toggle('hidden') === false;
+        button.setAttribute('aria-expanded', String(open));
+    }));
+    const syncSections = () => sections.forEach((button) => button.setAttribute('aria-expanded', String(!mobile.matches || !document.getElementById(button.getAttribute('aria-controls')).classList.contains('hidden'))));
+    mobile.addEventListener('change', syncSections);
+    syncSections();
+    const count = jobSearch.querySelector('[data-filter-count]');
+    const updateCount = () => {
+        count.textContent = Number(Boolean(jobSearch.elements.location.value.trim())) + panel.querySelectorAll('input[name$="[]"]:checked').length;
+    };
+    panel.addEventListener('change', updateCount);
+    jobSearch.elements.location.addEventListener('input', updateCount);
+    panel.querySelector('[data-filter-reset]').addEventListener('click', () => {
+        jobSearch.elements.location.value = '';
+        panel.querySelectorAll('input[name$="[]"]:checked').forEach((input) => { input.checked = false; });
+        jobSearch.submit();
+    });
     const types = jobSearch.querySelector('[data-job-types]');
     const allTypes = types.querySelector('[data-all-types]');
     const chosenTypes = [...types.querySelectorAll('[name="job_type[]"]')];

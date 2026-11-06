@@ -19,21 +19,22 @@ class CompanyController extends Controller
         $subscriptionSummary = DB::table('company_subscriptions')->select('company_id')
             ->selectRaw('COUNT(*) as subscription_count')
             ->selectRaw("MAX(CASE WHEN source = 'admin_trial' THEN expires_at END) as trial_expires_at")
+            ->selectRaw("MAX(CASE WHEN source = 'admin_trial' THEN status END) as trial_status")
             ->groupBy('company_id');
         $jobSummary = DB::table('job_posts')->select('company_id')->selectRaw('COUNT(*) as job_count')->groupBy('company_id');
         $companies = DB::table('companies')
             ->leftJoin('users as owners', 'companies.owner_user_id', '=', 'owners.id')
             ->leftJoinSub($subscriptionSummary, 'subscriptions', fn ($join) => $join->on('subscriptions.company_id', '=', 'companies.id'))
             ->leftJoinSub($jobSummary, 'jobs', fn ($join) => $join->on('jobs.company_id', '=', 'companies.id'))
-            ->select('companies.id', 'companies.name', 'companies.location', 'companies.owner_user_id', 'companies.created_by', 'companies.logo', 'companies.created_at', 'owners.role as owner_role', 'subscriptions.subscription_count', 'subscriptions.trial_expires_at', 'jobs.job_count')
+            ->select('companies.id', 'companies.name', 'companies.location', 'companies.owner_user_id', 'companies.created_by', 'companies.logo', 'companies.created_at', 'owners.role as owner_role', 'subscriptions.subscription_count', 'subscriptions.trial_expires_at', 'subscriptions.trial_status', 'jobs.job_count')
             ->when($filters['q'] ?? null, fn ($query, $search) => $query->where('companies.name', 'like', '%'.$search.'%'))
             ->when($filters['filter'] ?? null, function ($query, $filter) use ($now): void {
                 match ($filter) {
                     'new' => $query->where('companies.created_at', '>', $now->copy()->subDay())
                         ->where('companies.created_at', '<=', $now),
                     'no_trial' => $query->where('owners.role', 'employer')->whereNull('subscriptions.trial_expires_at'),
-                    'trial_active' => $query->where('subscriptions.trial_expires_at', '>', $now),
-                    'trial_expired' => $query->where('subscriptions.trial_expires_at', '<=', $now),
+                    'trial_active' => $query->where('subscriptions.trial_status', 'active')->where('subscriptions.trial_expires_at', '>', $now),
+                    'trial_expired' => $query->whereNotNull('subscriptions.trial_expires_at')->where(fn ($trial) => $trial->where('subscriptions.trial_status', '!=', 'active')->orWhere('subscriptions.trial_expires_at', '<=', $now)),
                     default => null,
                 };
             })
@@ -60,7 +61,7 @@ class CompanyController extends Controller
         $canGrantTrial = $company->owner_role === 'employer' && ! $hasSubscriptionHistory;
         $canDelete = $jobs->total() === 0 && ! $hasSubscriptionHistory;
         $packages = $canGrantTrial
-            ? DB::table('packages')->where('is_active', true)->where('quota', '>', 0)->orderBy('name')->get()
+            ? DB::table('packages')->where('is_active', true)->where('quota', '>', 0)->where('duration_days', '>', 0)->orderBy('name')->get()
             : collect();
 
         return view('admin.companies.show', compact('company', 'jobs', 'canManage', 'canCreateJob', 'canDelete', 'trial', 'canGrantTrial', 'packages'));

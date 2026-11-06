@@ -17,11 +17,6 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias(['admin' => EnsureAdmin::class, 'employer' => EnsureEmployer::class]);
         $middleware->redirectGuestsTo(fn (Request $request): string => match (true) {
-            $request->routeIs('account.switch') => match ($request->route('role')) {
-                'admin' => route('admin.login'),
-                'employer' => route('employer.login'),
-                'jobseeker' => route('login'),
-            },
             $request->is('admin', 'admin/*') => route('admin.login'),
             $request->is('employer', 'employer/*') => route('employer.login'),
             default => route('login'),
@@ -29,14 +24,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo(function (Request $request): string {
             $requestedRole = match (true) {
                 $request->routeIs('admin.login', 'admin.login.store') => 'admin',
-                $request->routeIs('employer.login', 'employer.login.store') => 'employer',
-                $request->routeIs('login', 'login.store') => 'jobseeker',
+                $request->routeIs('employer.login', 'employer.login.store') || $request->is('employer/register') => 'employer',
+                $request->routeIs('login', 'login.store', 'google.redirect') || $request->is('register') => 'jobseeker',
                 default => null,
             };
 
             $currentRole = $request->user()->role;
             if ($requestedRole !== null && $requestedRole !== $currentRole) {
-                return route('account.switch', ['role' => $requestedRole]);
+                abort(403);
             }
 
             return match ($currentRole) {

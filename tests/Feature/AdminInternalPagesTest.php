@@ -118,7 +118,7 @@ class AdminInternalPagesTest extends TestCase
             $this->deleteJson('/api/admin/companies/'.$companyId)->assertForbidden();
         }
         $this->actingAs($admin)->get('/admin/companies/'.$companyId)->assertOk();
-        $this->post('/logout')->assertRedirect('/');
+        $this->post('/logout')->assertRedirect(route('admin.login', absolute: false));
         $this->putJson('/api/admin/companies/'.$companyId, ['name' => 'Tanpa login'])->assertUnauthorized();
         $this->deleteJson('/api/admin/companies/'.$companyId)->assertUnauthorized();
         $this->assertDatabaseHas('companies', ['id' => $companyId, 'name' => 'PT Role']);

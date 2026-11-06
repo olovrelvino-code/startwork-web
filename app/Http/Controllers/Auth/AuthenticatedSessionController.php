@@ -85,11 +85,11 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        $destination = match ($request->input('next')) {
+        $destination = match ($request->user()->role) {
             'admin' => route('admin.login', absolute: false),
             'employer' => route('employer.login', absolute: false),
             'jobseeker' => route('login', absolute: false),
-            default => '/',
+            default => route('login', absolute: false),
         };
 
         Auth::guard('web')->logout();

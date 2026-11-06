@@ -32,7 +32,7 @@
             </div>
             <p data-auth-feedback class="auth-feedback hidden" role="alert" aria-live="assertive" hidden></p>
             <div class="flex min-h-11 flex-wrap items-center justify-between gap-3 text-sm"><label class="inline-flex min-h-11 items-center gap-2 text-slate-600"><input name="remember" type="checkbox" class="rounded border-slate-300 accent-[#B85B12] focus:ring-[#B85B12]">Ingat saya</label><a href="{{ route('password.request') }}" class="text-sm font-semibold text-[#183047] hover:text-[#95420D] hover:underline">Lupa kata sandi?</a></div>
-            <button type="submit" data-loading-label="Memprosesâ€¦" class="auth-submit-button">Masuk</button>
+            <button type="submit" data-loading-label="Memproses..." class="auth-submit-button">Masuk</button>
         </form>
         <div class="my-5 flex items-center gap-3 text-xs text-slate-500" aria-hidden="true"><span class="h-px flex-1 bg-slate-200"></span>atau<span class="h-px flex-1 bg-slate-200"></span></div>
         <a href="{{ route('google.redirect', 'jobseeker') }}" data-google-login class="flex min-h-11 w-full items-center justify-center gap-3 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-[#183047] transition-colors hover:border-[#B85B12] hover:bg-orange-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B85B12]" aria-label="Masuk dengan Google sebagai Jobseeker">

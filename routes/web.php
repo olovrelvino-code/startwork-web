@@ -101,13 +101,6 @@ Route::middleware('auth')->group(function (): void {
     })->name('jobs.apply-continue');
 });
 
-Route::middleware('auth')->get('/account/switch/{role}', function (string $role) {
-    return view('auth.switch-account', [
-        'role' => $role,
-        'user' => request()->user(),
-    ]);
-})->where('role', 'admin|employer|jobseeker')->name('account.switch');
-
 Route::middleware('guest')->get('/employer/register', function () {
     return view('employer.register', ['pendingGoogle' => GoogleRegistration::pending(request(), 'employer')]);
 })->name('employer.register');

@@ -148,7 +148,7 @@ class JobseekerFrontendTest extends TestCase
         $this->actingAs($seeker)->get('/profil')->assertOk()->assertSee('Profil Saya');
         $this->get('/profil/lamaran')->assertOk()->assertSee('Lamaran Saya');
         $this->get('/loker')->assertSee('aria-current="page"', false)
-            ->assertSee(route('account.switch', ['role' => 'employer']));
+            ->assertDontSee('/account/switch/');
     }
 
     public function test_job_listing_omits_date_controls_and_profile_places_photo_after_readiness(): void

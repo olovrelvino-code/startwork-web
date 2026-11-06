@@ -717,8 +717,8 @@ Route::post('/admin/companies/{companyId}/grant-trial', function (Request $reque
             409, 'Perusahaan sudah memiliki riwayat subscription');
 
         $package = DB::table('packages')->where('id', $input['package_id'])->where('is_active', true)->first();
-        abort_if($package === null || $package->quota === null || $package->quota < 1,
-            422, 'Paket aktif dengan kuota diperlukan');
+        abort_if($package === null || $package->quota === null || $package->quota < 1 || $package->duration_days === null || $package->duration_days < 1,
+            422, 'Paket aktif dengan kuota dan durasi diperlukan');
 
         $startsAt = now();
         $id = (string) Str::uuid();
@@ -733,16 +733,39 @@ Route::post('/admin/companies/{companyId}/grant-trial', function (Request $reque
             'quota_used' => 0,
             'price_snapshot' => 0,
             'starts_at' => $startsAt,
-            'expires_at' => $startsAt->copy()->addDays(30),
+            'expires_at' => $startsAt->copy()->addDays($package->duration_days),
             'granted_by_admin_id' => $request->user()->id,
             'created_at' => $startsAt,
             'updated_at' => $startsAt,
         ]);
 
         return response()->json([
-            'message' => 'Trial 30 hari berhasil diberikan',
+            'message' => "Trial {$package->duration_days} hari berhasil diberikan",
             'data' => DB::table('company_subscriptions')->where('id', $id)->first(),
         ], 201);
+    });
+})->middleware(['web', 'auth']);
+
+Route::post('/admin/companies/{companyId}/revoke-trial', function (Request $request, string $companyId) {
+    abort_unless($request->user()->role === 'admin', 403);
+    $input = $request->validate(['reason' => ['required', 'string', 'max:500']]);
+
+    return DB::transaction(function () use ($request, $companyId, $input) {
+        $trial = DB::table('company_subscriptions')->where('company_id', $companyId)
+            ->where('source', 'admin_trial')->lockForUpdate()->first();
+        abort_if($trial === null, 404, 'Trial tidak ditemukan');
+        abort_unless($trial->status === 'active' && Carbon::parse($trial->starts_at)->lessThanOrEqualTo(now())
+            && Carbon::parse($trial->expires_at)->isFuture(), 409, 'Trial tidak aktif');
+
+        DB::table('company_subscriptions')->where('id', $trial->id)->update([
+            'status' => 'revoked', 'revoked_at' => now(), 'revoked_by' => $request->user()->id,
+            'revocation_reason' => $input['reason'], 'quota_used' => 0, 'updated_at' => now(),
+        ]);
+        DB::table('job_posts')->where('subscription_id', $trial->id)->where('status', 'active')->update([
+            'status' => 'inactive', 'inactive_reason' => 'Trial diakhiri oleh admin', 'updated_at' => now(),
+        ]);
+
+        return response()->json(['message' => 'Trial berhasil diakhiri']);
     });
 })->middleware(['web', 'auth']);
 

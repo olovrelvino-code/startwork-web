@@ -40,15 +40,20 @@
 
         <div class="space-y-7">
             <section class="admin-panel p-5 sm:p-6" aria-labelledby="company-trial-title">
-                <div class="flex flex-wrap items-center justify-between gap-2"><h2 id="company-trial-title" class="text-lg font-semibold text-slate-900">Trial perusahaan</h2><x-admin.company-flags :created-at="$company->created_at" :trial-expires-at="$trial?->expires_at" :owner-role="$company->owner_role" /></div>
+                <div class="flex flex-wrap items-center justify-between gap-2"><h2 id="company-trial-title" class="text-lg font-semibold text-slate-900">Trial perusahaan</h2><x-admin.company-flags :created-at="$company->created_at" :trial-expires-at="$trial?->expires_at" :trial-status="$trial?->status" :owner-role="$company->owner_role" /></div>
                 @if ($trial)
                     <p class="mt-3 text-sm text-slate-600">Mulai {{ \Illuminate\Support\Carbon::parse($trial->starts_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i') }} WIB · Berakhir {{ \Illuminate\Support\Carbon::parse($trial->expires_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i') }} WIB</p>
+                    @if ($trial->status === 'revoked')
+                        <p class="mt-3 text-sm text-slate-600">Dicabut {{ \Illuminate\Support\Carbon::parse($trial->revoked_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i') }} WIB · Alasan: {{ $trial->revocation_reason }}</p>
+                    @elseif ($trial->status === 'active' && \Illuminate\Support\Carbon::parse($trial->starts_at)->lessThanOrEqualTo(now()) && \Illuminate\Support\Carbon::parse($trial->expires_at)->isFuture())
+                        <div class="mt-4"><x-admin.confirm-dialog title="Akhiri trial?" message="Akses trial dan lowongan yang sedang tayang dengan trial ini akan dinonaktifkan. Data tetap tersimpan." :endpoint="url('/api/admin/companies/'.$company->id.'/revoke-trial')" :success-url="route('admin.companies.show', $company->id)" button-label="Akhiri Trial" confirm-label="Ya, akhiri trial" method="POST" :reason-required="true" /></div>
+                    @endif
                 @elseif ($canGrantTrial && $packages->isNotEmpty())
-                    <p class="mt-3 text-sm text-slate-600">Trial dimulai saat diberikan dan berlaku selama 30 hari. Kuota mengikuti paket yang dipilih.</p>
-                    <form data-admin-form data-success-url="{{ route('admin.companies.show', $company->id) }}" data-success-message="Trial 30 hari berhasil diberikan." method="POST" action="{{ url('/api/admin/companies/'.$company->id.'/grant-trial') }}" class="mt-5 space-y-4">
+                    <p class="mt-3 text-sm text-slate-600">Trial dimulai saat diberikan. Durasi dan kuota mengikuti paket yang dipilih.</p>
+                    <form data-admin-form data-success-url="{{ route('admin.companies.show', $company->id) }}" method="POST" action="{{ url('/api/admin/companies/'.$company->id.'/grant-trial') }}" class="mt-5 space-y-4">
                         @csrf
-                        <div><label class="admin-label" for="trial-package">Paket trial</label><select class="admin-input" id="trial-package" name="package_id" required><option value="">Pilih paket</option>@foreach ($packages as $package)<option value="{{ $package->id }}">{{ $package->name }} · {{ $package->quota }} lowongan</option>@endforeach</select></div>
-                        <button type="submit" class="admin-button-primary">Berikan trial 30 hari</button>
+                        <div><label class="admin-label" for="trial-package">Paket trial</label><select class="admin-input" id="trial-package" name="package_id" required><option value="">Pilih paket</option>@foreach ($packages as $package)<option value="{{ $package->id }}">{{ $package->name }} · {{ $package->quota }} lowongan · {{ $package->duration_days }} hari</option>@endforeach</select></div>
+                        <button type="submit" class="admin-button-primary">Berikan trial</button>
                     </form>
                 @else
                     <p class="mt-3 text-sm text-slate-600">Trial hanya dapat diberikan sekali kepada perusahaan Employer yang belum memiliki riwayat subscription.</p>

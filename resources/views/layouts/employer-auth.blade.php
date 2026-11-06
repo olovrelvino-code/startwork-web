@@ -37,7 +37,7 @@
                 <div role="group" aria-label="Pilih jenis akun" data-role-switch data-role="employer" class="auth-role-switch mb-4 rounded-xl p-1">
                     <span class="auth-role-indicator" aria-hidden="true"></span>
                     @if (request()->routeIs('employer.setup'))
-                        <form method="POST" action="{{ route('logout') }}" class="relative z-10 flex-1">@csrf<input type="hidden" name="next" value="jobseeker"><button type="submit" data-auth-role="jobseeker" class="auth-role-button w-full text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B85B12]">Jobseeker</button></form>
+                        <form method="POST" action="{{ route('logout') }}" class="relative z-10 flex-1">@csrf<button type="submit" class="auth-role-button w-full text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B85B12]">Keluar</button></form>
                     @else
                         <a href="{{ request()->routeIs('employer.register') || request()->query('mode') === 'register' ? route('login', ['mode' => 'register']) : route('login') }}" data-auth-role="jobseeker" class="auth-role-button text-center text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B85B12]">Jobseeker</a>
                     @endif

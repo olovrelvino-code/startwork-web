@@ -31,7 +31,7 @@
                 <label class="inline-flex min-h-11 items-center gap-2 text-slate-600"><input name="remember" type="checkbox" class="auth-checkbox">Ingat saya</label>
                 <a href="{{ route('password.request') }}" class="text-sm font-semibold text-[#183047] hover:text-[#95420D] hover:underline">Lupa kata sandi?</a>
             </div>
-            <button type="submit" class="auth-submit-button" data-loading-label="Memprosesâ€¦">Masuk</button>
+            <button type="submit" class="auth-submit-button" data-loading-label="Memproses...">Masuk</button>
         </form>
         <p class="mt-6 text-center text-sm text-slate-600">Belum punya akun? <a href="{{ route('employer.login', ['mode' => 'register']) }}" class="font-semibold text-[#183047] hover:text-[#95420D] hover:underline">Daftar di sini</a></p>
     </section>

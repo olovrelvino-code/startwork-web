@@ -15,6 +15,8 @@
                 <h2 class="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#8F460F]">Akses trial</h2>
                 @if ($trialIsActive)
                     <p class="leading-relaxed text-slate-700"><strong class="text-slate-900">Trial aktif.</strong> Terbitkan draft hingga {{ \Illuminate\Support\Carbon::parse($trial->expires_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i') }} WIB, sesuai kuota paket.</p>
+                @elseif ($trial->status === 'revoked')
+                    <p class="leading-relaxed text-slate-700"><strong class="text-slate-900">Trial telah diakhiri oleh admin.</strong> Draft dan riwayat lowongan tetap tersedia; publikasi baru memerlukan akses aktif.</p>
                 @else
                     <p class="leading-relaxed text-slate-700"><strong class="text-slate-900">Trial telah berakhir.</strong> Draft dan riwayat lowongan tetap tersedia; publikasi baru memerlukan akses aktif.</p>
                 @endif

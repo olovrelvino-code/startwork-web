@@ -37,7 +37,7 @@
                 @foreach ($companies as $company)
                     <div class="px-4 py-4">
                         <span class="admin-number mb-1 block text-xs text-slate-500">{{ $companies->firstItem() + $loop->index }}.</span>
-                        <span class="flex flex-wrap items-center gap-2 font-semibold text-slate-900">{{ $company->name }} <x-admin.company-flags :created-at="$company->created_at" :trial-expires-at="$company->trial_expires_at" :owner-role="$company->owner_role" /></span>
+                        <span class="flex flex-wrap items-center gap-2 font-semibold text-slate-900">{{ $company->name }} <x-admin.company-flags :created-at="$company->created_at" :trial-expires-at="$company->trial_expires_at" :trial-status="$company->trial_status" :owner-role="$company->owner_role" /></span>
                         <span class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">{{ $company->location ?: 'Lokasi belum diisi' }} <x-admin.ownership-label :owner-id="$company->owner_user_id" :owner-role="$company->owner_role" /></span>
                         <span class="mt-1 block text-xs text-slate-500">Terdaftar {{ \Illuminate\Support\Carbon::parse($company->created_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i') }} WIB</span>
                         <div class="mt-3 flex items-center gap-2">
@@ -57,7 +57,7 @@
                     @foreach ($companies as $company)
                         <tr>
                             <td class="admin-number text-slate-500">{{ $companies->firstItem() + $loop->index }}</td>
-                            <td><span class="font-semibold text-slate-900">{{ $company->name }}</span><span class="mt-1 block"><x-admin.company-flags :created-at="$company->created_at" :trial-expires-at="$company->trial_expires_at" :owner-role="$company->owner_role" /></span></td>
+                            <td><span class="font-semibold text-slate-900">{{ $company->name }}</span><span class="mt-1 block"><x-admin.company-flags :created-at="$company->created_at" :trial-expires-at="$company->trial_expires_at" :trial-status="$company->trial_status" :owner-role="$company->owner_role" /></span></td>
                             <td class="whitespace-nowrap">{{ \Illuminate\Support\Carbon::parse($company->created_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i') }} WIB</td>
                             <td>{{ $company->location ?: '—' }}</td>
                             <td><x-admin.ownership-label :owner-id="$company->owner_user_id" :owner-role="$company->owner_role" /></td>

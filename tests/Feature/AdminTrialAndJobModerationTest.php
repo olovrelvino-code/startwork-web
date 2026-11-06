@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -11,6 +12,103 @@ use Tests\TestCase;
 class AdminTrialAndJobModerationTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_only_internal_admin_can_end_active_trial(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $employer = User::factory()->create(['role' => 'employer']);
+        $companyId = $this->company($employer, 'PT Revocation');
+        $packageId = $this->package(2);
+        $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])->assertCreated();
+
+        $this->get("/admin/companies/{$companyId}")->assertOk()->assertSee('Akhiri Trial');
+        $this->actingAs($employer)->postJson("/api/admin/companies/{$companyId}/revoke-trial", ['reason' => 'Pelanggaran ketentuan'])->assertForbidden();
+        $this->actingAs($admin);
+        $this->postJson("/api/admin/companies/{$companyId}/revoke-trial", [])->assertUnprocessable()->assertJsonValidationErrors('reason');
+        $this->assertDatabaseHas('company_subscriptions', ['company_id' => $companyId, 'status' => 'active']);
+    }
+
+    public function test_revocation_ends_trial_access_without_deleting_jobs_and_cannot_repeat(): void
+    {
+        $this->travelTo(now()->startOfSecond());
+        $admin = User::factory()->create(['role' => 'admin']);
+        $employer = User::factory()->create(['role' => 'employer']);
+        $companyId = $this->company($employer, 'PT Trial Revoked');
+        $packageId = $this->package(2);
+        $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])->assertCreated();
+        $trialId = DB::table('company_subscriptions')->where('company_id', $companyId)->value('id');
+        $jobId = $this->actingAs($employer)->postJson('/api/employer/job-posts', [
+            'title' => 'Analis', 'location' => 'Jakarta', 'job_type' => 'Full-time',
+            'work_type' => 'Hybrid', 'expires_at' => now()->addDays(10)->toIso8601String(),
+        ])->assertCreated()->json('data.id');
+        $this->putJson("/api/employer/job-posts/{$jobId}/status", ['status' => 'active'])->assertOk();
+
+        $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/revoke-trial", ['reason' => 'Pelanggaran ketentuan'])
+            ->assertOk()->assertJsonPath('message', 'Trial berhasil diakhiri');
+        $this->assertDatabaseHas('company_subscriptions', [
+            'id' => $trialId, 'status' => 'revoked', 'revoked_by' => $admin->id,
+            'revocation_reason' => 'Pelanggaran ketentuan', 'revoked_at' => now()->toDateTimeString(), 'quota_used' => 0,
+        ]);
+        $this->assertDatabaseHas('job_posts', ['id' => $jobId, 'status' => 'inactive', 'subscription_id' => $trialId]);
+        $this->assertDatabaseHas('companies', ['id' => $companyId]);
+        $this->get('/loker')->assertOk()->assertDontSee('Analis');
+        $this->get("/admin/companies/{$companyId}")->assertOk()->assertSee('Trial dicabut')->assertDontSee('Akhiri Trial');
+        $this->get('/admin/companies?filter=trial_active')->assertDontSee('PT Trial Revoked');
+        $this->get('/admin/companies?filter=trial_expired')->assertSee('PT Trial Revoked');
+        $this->postJson("/api/admin/companies/{$companyId}/revoke-trial", ['reason' => 'Alasan lain'])->assertStatus(409);
+        $this->actingAs($employer)->get('/employer/dashboard')->assertOk()->assertSee('Trial telah diakhiri oleh admin');
+        $this->putJson("/api/employer/job-posts/{$jobId}/status", ['status' => 'active'])->assertStatus(409);
+        $this->travel(2)->days();
+        $this->assertDatabaseHas('company_subscriptions', ['id' => $trialId, 'status' => 'revoked']);
+        $this->travelBack();
+    }
+
+    public function test_expired_trial_and_paid_subscription_cannot_be_revoked(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $employer = User::factory()->create(['role' => 'employer']);
+        $companyId = $this->company($employer, 'PT Expired Trial');
+        $packageId = $this->package(2);
+        $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])->assertCreated();
+        DB::table('company_subscriptions')->where('company_id', $companyId)->update(['expires_at' => now()->subMinute()]);
+        $this->postJson("/api/admin/companies/{$companyId}/revoke-trial", ['reason' => 'Terlambat'])->assertStatus(409);
+        $this->assertDatabaseHas('company_subscriptions', ['company_id' => $companyId, 'status' => 'active', 'revoked_at' => null]);
+
+        $paidCompanyId = $this->company(User::factory()->create(['role' => 'employer']), 'PT Paid');
+        DB::table('company_subscriptions')->insert([
+            'id' => (string) Str::uuid(), 'company_id' => $paidCompanyId, 'package_id' => $packageId,
+            'source' => 'purchase', 'status' => 'active', 'starts_at' => now()->subDay(),
+            'expires_at' => now()->addMonth(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->actingAs($admin)->postJson("/api/admin/companies/{$paidCompanyId}/revoke-trial", ['reason' => 'Tidak berlaku'])->assertNotFound();
+        $this->assertDatabaseHas('company_subscriptions', ['company_id' => $paidCompanyId, 'source' => 'purchase', 'status' => 'active']);
+    }
+
+    public function test_trial_expiry_and_employer_access_follow_each_package_duration(): void
+    {
+        $this->travelTo(now()->startOfSecond());
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        foreach (['Basic' => 15, 'Standard' => 30, 'Premium' => 45] as $name => $days) {
+            $employer = User::factory()->create(['role' => 'employer']);
+            $companyId = $this->company($employer, 'PT '.$name);
+            $packageId = $this->package(2, $days, $name);
+            $this->actingAs($admin)->get("/admin/companies/{$companyId}")->assertOk()
+                ->assertSee("{$name} · 2 lowongan · {$days} hari");
+
+            $this->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])
+                ->assertCreated()->assertJsonPath('message', "Trial {$days} hari berhasil diberikan");
+            $subscription = DB::table('company_subscriptions')->where('company_id', $companyId)->first();
+            $this->assertSame($days * 86400, strtotime($subscription->expires_at) - strtotime($subscription->starts_at));
+            $this->actingAs($admin)->get("/admin/companies/{$companyId}")->assertOk()
+                ->assertSee('Berakhir '.Carbon::parse($subscription->expires_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i'));
+
+            $this->actingAs($employer)->get('/employer/dashboard')->assertOk()->assertSee('Trial aktif');
+            $this->travel($days + 1)->days();
+            $this->get('/employer/dashboard')->assertOk()->assertSee('Trial telah berakhir');
+            $this->travelBack();
+        }
+    }
 
     public function test_trial_is_admin_only_once_and_controls_employer_publication_for_30_days(): void
     {
@@ -213,7 +311,7 @@ class AdminTrialAndJobModerationTest extends TestCase
         $this->postJson('/api/admin/companies', ['name' => 'Internal Office', 'location' => 'Jakarta'])->assertCreated();
 
         $this->get('/admin/companies?filter=new')->assertOk()->assertSee('Fresh No Trial')->assertSee('Fresh With Trial')
-            ->assertSee('aria-current="page"', false)->assertSee('aria-label="Ubah perusahaan Fresh No Trial"', false)
+            ->assertSee('aria-current="page"', false)->assertSee('aria-label="Edit perusahaan Fresh No Trial"', false)
             ->assertDontSee('Old Expired')->assertSee('NEW');
         $this->get('/admin/companies?filter=no_trial')->assertOk()->assertSee('Fresh No Trial')
             ->assertDontSee('Fresh With Trial')->assertDontSee('Old Expired')->assertDontSee('Internal Office');
@@ -237,12 +335,12 @@ class AdminTrialAndJobModerationTest extends TestCase
         ])->assertCreated()->json('data.id');
     }
 
-    private function package(int $quota): string
+    private function package(int $quota, int $durationDays = 30, ?string $name = null): string
     {
         $id = (string) Str::uuid();
         DB::table('packages')->insert([
-            'id' => $id, 'name' => 'Trial '.$id, 'quota' => $quota,
-            'duration_days' => 30, 'price' => 0, 'currency' => 'IDR', 'is_active' => true,
+            'id' => $id, 'name' => $name ?? 'Trial '.$id, 'quota' => $quota,
+            'duration_days' => $durationDays, 'price' => 0, 'currency' => 'IDR', 'is_active' => true,
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
