@@ -59,7 +59,7 @@
             <div class="grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                     <a href="{{ url('/') }}" aria-label="StartWork, halaman utama" class="inline-block rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4"><img src="{{ asset('images/asset/Logo Start Work D putih.png') }}" alt="StartWork" width="3406" height="924" loading="lazy" decoding="async" class="block h-auto w-48 max-w-full object-contain sm:w-52"></a>
-                    <p class="mt-4 max-w-xs text-sm leading-6 text-white/80">Peluang kerja dan informasi karier untuk langkah berikutnya.</p>
+                    <p class="mt-4 max-w-xs text-sm leading-6 text-white/80">Menghubungkan talenta dengan peluang kerja.</p>
                 </div>
                 <nav aria-label="Footer pencari kerja">
                     <h2 class="text-sm font-bold text-white">Pencari Kerja</h2>
