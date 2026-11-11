@@ -13,12 +13,38 @@ class AdminTrialAndJobModerationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_trial_requires_basic_and_uses_fixed_terms_without_payment(): void
+    {
+        $this->travelTo(now()->startOfSecond());
+        $admin = User::factory()->create(['role' => 'admin']);
+        $employer = User::factory()->create(['role' => 'employer']);
+        $companyId = $this->company($employer, 'PT Basic Trial');
+        $basicId = $this->package();
+        $otherId = (string) Str::uuid();
+        DB::table('packages')->insert([
+            'id' => $otherId, 'name' => 'Standard', 'quota' => 20, 'duration_days' => 30,
+            'price' => 149000, 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('packages')->where('id', $basicId)->update(['quota' => 20, 'duration_days' => 30, 'is_active' => false]);
+
+        $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $otherId])
+            ->assertUnprocessable();
+        $this->get("/admin/companies/{$companyId}")->assertOk()->assertSee('Trial Basic dimulai');
+        $this->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $basicId])
+            ->assertCreated()->assertJsonPath('data.quota_total', 10)
+            ->assertJsonPath('data.source', 'admin_trial');
+        $trial = DB::table('company_subscriptions')->where('company_id', $companyId)->first();
+        $this->assertSame(15 * 86400, strtotime($trial->expires_at) - strtotime($trial->starts_at));
+        $this->assertSame(0, DB::table('company_subscriptions')->where('source', 'purchase')->count());
+        $this->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $basicId])->assertStatus(409);
+    }
+
     public function test_only_internal_admin_can_end_active_trial(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $employer = User::factory()->create(['role' => 'employer']);
         $companyId = $this->company($employer, 'PT Revocation');
-        $packageId = $this->package(2);
+        $packageId = $this->package();
         $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])->assertCreated();
 
         $this->get("/admin/companies/{$companyId}")->assertOk()->assertSee('Akhiri Trial');
@@ -34,7 +60,7 @@ class AdminTrialAndJobModerationTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $employer = User::factory()->create(['role' => 'employer']);
         $companyId = $this->company($employer, 'PT Trial Revoked');
-        $packageId = $this->package(2);
+        $packageId = $this->package();
         $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])->assertCreated();
         $trialId = DB::table('company_subscriptions')->where('company_id', $companyId)->value('id');
         $jobId = $this->actingAs($employer)->postJson('/api/employer/job-posts', [
@@ -68,7 +94,7 @@ class AdminTrialAndJobModerationTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $employer = User::factory()->create(['role' => 'employer']);
         $companyId = $this->company($employer, 'PT Expired Trial');
-        $packageId = $this->package(2);
+        $packageId = $this->package();
         $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])->assertCreated();
         DB::table('company_subscriptions')->where('company_id', $companyId)->update(['expires_at' => now()->subMinute()]);
         $this->postJson("/api/admin/companies/{$companyId}/revoke-trial", ['reason' => 'Terlambat'])->assertStatus(409);
@@ -89,12 +115,12 @@ class AdminTrialAndJobModerationTest extends TestCase
         $this->travelTo(now()->startOfSecond());
         $admin = User::factory()->create(['role' => 'admin']);
 
-        foreach (['Basic' => 15, 'Standard' => 30, 'Premium' => 45] as $name => $days) {
+        foreach (['Basic' => 15] as $name => $days) {
             $employer = User::factory()->create(['role' => 'employer']);
             $companyId = $this->company($employer, 'PT '.$name);
-            $packageId = $this->package(2, $days, $name);
+            $packageId = $this->package();
             $this->actingAs($admin)->get("/admin/companies/{$companyId}")->assertOk()
-                ->assertSee("{$name} · 2 lowongan · {$days} hari");
+                ->assertSee('Trial Basic dimulai saat diberikan: 10 lowongan selama 15 hari.');
 
             $this->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])
                 ->assertCreated()->assertJsonPath('message', "Trial {$days} hari berhasil diberikan");
@@ -110,13 +136,13 @@ class AdminTrialAndJobModerationTest extends TestCase
         }
     }
 
-    public function test_trial_is_admin_only_once_and_controls_employer_publication_for_30_days(): void
+    public function test_trial_is_admin_only_once_and_controls_employer_publication_for_15_days(): void
     {
         $this->travelTo(now()->startOfSecond());
         $admin = User::factory()->create(['role' => 'admin']);
         $employer = User::factory()->create(['role' => 'employer']);
         $companyId = $this->company($employer, 'PT Trial');
-        $packageId = $this->package(2);
+        $packageId = $this->package();
         $jobId = $this->actingAs($employer)->postJson('/api/employer/job-posts', [
             'title' => 'Analis', 'location' => 'Jakarta', 'job_type' => 'Full-time',
             'work_type' => 'Hybrid', 'expires_at' => now()->addDays(10)->toIso8601String(),
@@ -129,9 +155,9 @@ class AdminTrialAndJobModerationTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('expires_at');
         $this->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])
             ->assertCreated()->assertJsonPath('data.source', 'admin_trial')
-            ->assertJsonPath('data.quota_total', 2);
+            ->assertJsonPath('data.quota_total', 10);
         $subscription = DB::table('company_subscriptions')->where('company_id', $companyId)->first();
-        $this->assertEqualsWithDelta(30 * 86400, strtotime($subscription->expires_at) - strtotime($subscription->starts_at), 1);
+        $this->assertEqualsWithDelta(15 * 86400, strtotime($subscription->expires_at) - strtotime($subscription->starts_at), 1);
         $this->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])->assertStatus(409);
         $adminCompanyId = $this->postJson('/api/admin/companies', [
             'name' => 'Internal Admin', 'location' => 'Jakarta',
@@ -142,7 +168,7 @@ class AdminTrialAndJobModerationTest extends TestCase
             ->assertOk()->assertJsonPath('data.subscription_id', $subscription->id);
         $this->assertDatabaseHas('company_subscriptions', ['id' => $subscription->id, 'quota_used' => 1]);
 
-        $this->travel(31)->days();
+        $this->travel(16)->days();
         $laterJob = $this->postJson('/api/employer/job-posts', [
             'title' => 'Desainer', 'location' => 'Jakarta', 'job_type' => 'Full-time',
             'work_type' => 'Hybrid', 'expires_at' => now()->addDay()->toIso8601String(),
@@ -194,7 +220,7 @@ class AdminTrialAndJobModerationTest extends TestCase
         $this->get("/employer/job-posts/{$jobId}")->assertOk()->assertDontSee('Terbitkan lowongan');
         $this->get('/employer/job-posts/create')->assertOk()->assertSee('Simpan draft');
 
-        $packageId = $this->package(2);
+        $packageId = $this->package();
         $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/grant-trial", [
             'package_id' => $packageId,
         ])->assertCreated();
@@ -219,7 +245,7 @@ class AdminTrialAndJobModerationTest extends TestCase
         ])->assertOk();
         $this->get("/employer/job-posts/{$tooLongId}")->assertOk()->assertSee('Terbitkan lowongan');
 
-        $this->travel(31)->days();
+        $this->travel(16)->days();
         $this->get('/employer/dashboard')->assertOk()->assertSee('Trial telah berakhir');
         $this->get('/employer/job-posts/create')->assertOk()->assertSee('Simpan draft');
         $this->get("/employer/job-posts/{$tooLongId}")->assertOk()->assertDontSee('Terbitkan lowongan');
@@ -235,7 +261,7 @@ class AdminTrialAndJobModerationTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $employer = User::factory()->create(['role' => 'employer']);
         $companyId = $this->company($employer, 'PT Riwayat');
-        $packageId = $this->package(1);
+        $packageId = $this->package();
         $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])->assertCreated();
         $subscriptionId = DB::table('company_subscriptions')->where('company_id', $companyId)->value('id');
         $jobId = $this->actingAs($employer)->postJson('/api/employer/job-posts', [
@@ -273,7 +299,7 @@ class AdminTrialAndJobModerationTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $employer = User::factory()->create(['role' => 'employer']);
         $companyId = $this->company($employer, 'PT Kuota');
-        $packageId = $this->package(1);
+        $packageId = $this->package();
         $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/grant-trial", [
             'package_id' => $packageId,
         ])->assertCreated();
@@ -284,6 +310,13 @@ class AdminTrialAndJobModerationTest extends TestCase
             'work_type' => 'Hybrid', 'expires_at' => now()->addDays(7)->toIso8601String(),
         ])->assertCreated()->json('data.id');
         $this->putJson("/api/employer/job-posts/{$first}/status", ['status' => 'active'])->assertOk();
+        for ($index = 2; $index <= 10; $index++) {
+            $jobId = $this->postJson('/api/employer/job-posts', [
+                'title' => 'Editor '.$index, 'location' => 'Jakarta', 'job_type' => 'Full-time',
+                'work_type' => 'Hybrid', 'expires_at' => now()->addDays(7)->toIso8601String(),
+            ])->assertCreated()->json('data.id');
+            $this->putJson("/api/employer/job-posts/{$jobId}/status", ['status' => 'active'])->assertOk();
+        }
         $second = $this->postJson('/api/employer/job-posts', [
             'title' => 'Fotografer', 'location' => 'Jakarta', 'job_type' => 'Full-time',
             'work_type' => 'Hybrid', 'expires_at' => now()->addDays(7)->toIso8601String(),
@@ -299,7 +332,7 @@ class AdminTrialAndJobModerationTest extends TestCase
     {
         $this->travelTo(now()->startOfSecond());
         $admin = User::factory()->create(['role' => 'admin']);
-        $packageId = $this->package(2);
+        $packageId = $this->package();
         $fresh = $this->company(User::factory()->create(['role' => 'employer']), 'Fresh No Trial');
         $freshTrial = $this->company(User::factory()->create(['role' => 'employer']), 'Fresh With Trial');
         $old = $this->company(User::factory()->create(['role' => 'employer']), 'Old Expired');
@@ -335,15 +368,8 @@ class AdminTrialAndJobModerationTest extends TestCase
         ])->assertCreated()->json('data.id');
     }
 
-    private function package(int $quota, int $durationDays = 30, ?string $name = null): string
+    private function package(): string
     {
-        $id = (string) Str::uuid();
-        DB::table('packages')->insert([
-            'id' => $id, 'name' => $name ?? 'Trial '.$id, 'quota' => $quota,
-            'duration_days' => $durationDays, 'price' => 0, 'currency' => 'IDR', 'is_active' => true,
-            'created_at' => now(), 'updated_at' => now(),
-        ]);
-
-        return $id;
+        return DB::table('packages')->where('name', 'Basic')->value('id');
     }
 }

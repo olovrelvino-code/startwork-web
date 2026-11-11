@@ -725,9 +725,8 @@ Route::post('/admin/companies/{companyId}/grant-trial', function (Request $reque
         abort_if(DB::table('company_subscriptions')->where('company_id', $companyId)->exists(),
             409, 'Perusahaan sudah memiliki riwayat subscription');
 
-        $package = DB::table('packages')->where('id', $input['package_id'])->where('is_active', true)->first();
-        abort_if($package === null || $package->quota === null || $package->quota < 1 || $package->duration_days === null || $package->duration_days < 1,
-            422, 'Paket aktif dengan kuota dan durasi diperlukan');
+        $package = DB::table('packages')->where('id', $input['package_id'])->where('name', 'Basic')->first();
+        abort_if($package === null, 422, 'Paket Basic diperlukan');
 
         $startsAt = now();
         $id = (string) Str::uuid();
@@ -738,18 +737,18 @@ Route::post('/admin/companies/{companyId}/grant-trial', function (Request $reque
             'source' => 'admin_trial',
             'change_type' => 'trial',
             'status' => 'active',
-            'quota_total' => $package->quota,
+            'quota_total' => 10,
             'quota_used' => 0,
             'price_snapshot' => 0,
             'starts_at' => $startsAt,
-            'expires_at' => $startsAt->copy()->addDays($package->duration_days),
+            'expires_at' => $startsAt->copy()->addDays(15),
             'granted_by_admin_id' => $request->user()->id,
             'created_at' => $startsAt,
             'updated_at' => $startsAt,
         ]);
 
         return response()->json([
-            'message' => "Trial {$package->duration_days} hari berhasil diberikan",
+            'message' => 'Trial 15 hari berhasil diberikan',
             'data' => DB::table('company_subscriptions')->where('id', $id)->first(),
         ], 201);
     });
