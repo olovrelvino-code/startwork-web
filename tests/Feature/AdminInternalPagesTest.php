@@ -197,11 +197,7 @@ class AdminInternalPagesTest extends TestCase
         $otherCompanyId = $this->actingAs($otherEmployer)->postJson('/api/employer/company', [
             'name' => 'PT Trial', 'location' => 'Bogor',
         ])->assertCreated()->json('data.id');
-        $packageId = (string) Str::uuid();
-        DB::table('packages')->insert([
-            'id' => $packageId, 'name' => 'Uji Riwayat', 'quota' => 1, 'duration_days' => 30,
-            'price' => 0, 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
-        ]);
+        $packageId = DB::table('packages')->where('name', 'Basic')->value('id');
         $this->actingAs($admin)->postJson('/api/admin/companies/'.$otherCompanyId.'/grant-trial', [
             'package_id' => $packageId,
         ])->assertCreated();

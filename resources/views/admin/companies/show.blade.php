@@ -49,10 +49,10 @@
                         <div class="mt-4"><x-admin.confirm-dialog title="Akhiri trial?" message="Akses trial dan lowongan yang sedang tayang dengan trial ini akan dinonaktifkan. Data tetap tersimpan." :endpoint="url('/api/admin/companies/'.$company->id.'/revoke-trial')" :success-url="route('admin.companies.show', $company->id)" button-label="Akhiri Trial" confirm-label="Ya, akhiri trial" method="POST" :reason-required="true" /></div>
                     @endif
                 @elseif ($canGrantTrial && $packages->isNotEmpty())
-                    <p class="mt-3 text-sm text-slate-600">Trial dimulai saat diberikan. Durasi dan kuota mengikuti paket yang dipilih.</p>
+                    <p class="mt-3 text-sm text-slate-600">Trial Basic dimulai saat diberikan: 10 lowongan selama 15 hari.</p>
                     <form data-admin-form data-success-url="{{ route('admin.companies.show', $company->id) }}" method="POST" action="{{ url('/api/admin/companies/'.$company->id.'/grant-trial') }}" class="mt-5 space-y-4">
                         @csrf
-                        <div><label class="admin-label" for="trial-package">Paket trial</label><select class="admin-input" id="trial-package" name="package_id" required><option value="">Pilih paket</option>@foreach ($packages as $package)<option value="{{ $package->id }}">{{ $package->name }} · {{ $package->quota }} lowongan · {{ $package->duration_days }} hari</option>@endforeach</select></div>
+                        <input type="hidden" name="package_id" value="{{ $packages->first()->id }}">
                         <button type="submit" class="admin-button-primary">Berikan trial</button>
                     </form>
                 @else

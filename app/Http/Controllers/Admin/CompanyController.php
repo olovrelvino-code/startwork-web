@@ -61,7 +61,7 @@ class CompanyController extends Controller
         $canGrantTrial = $company->owner_role === 'employer' && ! $hasSubscriptionHistory;
         $canDelete = $jobs->total() === 0 && ! $hasSubscriptionHistory;
         $packages = $canGrantTrial
-            ? DB::table('packages')->where('is_active', true)->where('quota', '>', 0)->where('duration_days', '>', 0)->orderBy('name')->get()
+            ? DB::table('packages')->where('name', 'Basic')->get()
             : collect();
 
         return view('admin.companies.show', compact('company', 'jobs', 'canManage', 'canCreateJob', 'canDelete', 'trial', 'canGrantTrial', 'packages'));
