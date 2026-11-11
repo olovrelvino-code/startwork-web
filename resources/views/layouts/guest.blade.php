@@ -18,7 +18,7 @@
                 <a href="{{ route('jobs.index') }}" class="text-sm font-semibold text-slate-700 hover:text-blue-700">Jelajahi Lowongan</a>
             </header>
             <main id="main-content" class="grid flex-1 items-start gap-7 py-7 sm:gap-10 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)] lg:items-stretch lg:gap-12">
-                <section class="order-2 mx-auto w-full max-w-xl lg:order-1" aria-label="Peluang kerja StartWork">
+                <section class="order-2 mx-auto w-full max-w-xl lg:order-1 @if (request()->routeIs('login')) hidden md:block @endif" aria-label="Peluang kerja StartWork">
                     <div data-role-visual="jobseeker" class="auth-promo-panel">
                         <img src="{{ asset('images/asset/jobseeker.webp') }}" alt="Tim profesional berkolaborasi di kantor">
                         <div class="auth-promo-content">

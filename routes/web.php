@@ -38,7 +38,9 @@ Route::get('/loker', function () {
         ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()));
 
     return view('jobseeker.jobs.index', [
-        'jobTypes' => (clone $active)->whereNotNull('job_type')->distinct()->orderBy('job_type')->pluck('job_type'),
+        'jobTypes' => collect(['Full-time', 'Part-time', 'Contract', 'Internship'])
+            ->concat((clone $active)->whereNotNull('job_type')->distinct()->orderBy('job_type')->pluck('job_type'))
+            ->filter()->unique()->values(),
     ]);
 })->name('jobs.index');
 Route::get('/loker/{id}', fn (string $id) => redirect()->route('jobs.show', $id));
