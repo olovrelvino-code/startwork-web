@@ -275,11 +275,14 @@ class JobseekerFrontendTest extends TestCase
         }
 
         $this->get('/loker')->assertOk()
-            ->assertSee('value="Seasonal"', false)->assertDontSee('value="Contract"', false)
+            ->assertSee('value="Full-time"', false)->assertSee('value="Part-time"', false)
+            ->assertSee('value="Contract"', false)->assertSee('value="Internship"', false)
+            ->assertSee('value="Seasonal"', false)
             ->assertSee('value="On-site"', false)->assertSee('value="Hybrid"', false)
             ->assertSee('value="Remote"', false)->assertSee('value="Work From Home"', false)
             ->assertDontSee('value="Field"', false);
         $this->getJson('/api/job-posts?job_type%5B%5D=Seasonal')->assertOk()->assertJsonPath('total', 1);
+        $this->getJson('/api/job-posts?job_type=Contract')->assertOk()->assertJsonPath('total', 0);
     }
 
     public function test_my_applications_can_be_paged_and_filtered_without_exposing_another_account(): void
@@ -339,6 +342,7 @@ class JobseekerFrontendTest extends TestCase
             ['Analis', 'Bandung', 'Full-time', 'Hybrid', $firstDay->copy()->addHours(23)],
             ['Editor', 'Jakarta', 'Contract', 'Remote', $firstDay->copy()->addDay()->addHours(20)],
             ['Magang', 'Bandung', 'Internship', 'on-site', $firstDay->copy()->addDays(2)],
+            ['Paruh Waktu', 'Bandung', 'Part-time', 'Remote', $firstDay->copy()->addDays(2)],
         ] as [$title, $location, $jobType, $workType, $createdAt]) {
             DB::table('job_posts')->insert([
                 'id' => (string) Str::uuid(), 'company_id' => $companyId, 'posted_by' => $admin->id,
@@ -357,6 +361,10 @@ class JobseekerFrontendTest extends TestCase
             ->assertJsonPath('data.0.title', 'Analis')->assertJsonPath('data.1.title', 'Editor');
         $this->getJson('/api/job-posts?job_type=Full-time&location=Bandung')->assertOk()
             ->assertJsonPath('total', 1)->assertJsonPath('data.0.title', 'Analis');
+        $this->getJson('/api/job-posts?job_type=Part-time')->assertOk()
+            ->assertJsonPath('total', 1)->assertJsonPath('data.0.title', 'Paruh Waktu');
+        $this->getJson('/api/job-posts?job_type=Internship')->assertOk()
+            ->assertJsonPath('total', 1)->assertJsonPath('data.0.title', 'Magang');
         $this->getJson('/api/job-posts?work_type=On-site')->assertOk()
             ->assertJsonPath('total', 1)->assertJsonPath('data.0.title', 'Magang');
         $this->getJson('/api/job-posts?created_to='.$firstDay->toDateString())->assertOk()

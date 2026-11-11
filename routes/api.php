@@ -392,8 +392,17 @@ Route::get('/job-posts/{id}/apply-now', function (string $id) {
     abort_if($job === null, 404, 'Lowongan tidak ditemukan');
     abort_if($job->status !== 'active' || empty($job->apply_url) || ($job->expires_at !== null && Carbon::parse($job->expires_at)->lessThanOrEqualTo(now())), 404, 'Link pendaftaran tidak tersedia');
 
+    $email = str_starts_with(strtolower($job->apply_url), 'mailto:') ? substr($job->apply_url, 7) : $job->apply_url;
+    if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        return redirect()->away('https://mail.google.com/mail/?view=cm&fs=1&to='.rawurlencode($email));
+    }
+
+    if (preg_match('~\A(?:https?://)?wa\.me/[1-9][0-9]{5,15}\z~i', $job->apply_url)) {
+        return redirect()->away('https://'.preg_replace('~\A(?:https?://)?~i', '', $job->apply_url));
+    }
+
     $scheme = strtolower((string) parse_url($job->apply_url, PHP_URL_SCHEME));
-    abort_unless(in_array($scheme, ['http', 'https', 'mailto'], true), 404);
+    abort_unless(filter_var($job->apply_url, FILTER_VALIDATE_URL) && in_array($scheme, ['http', 'https'], true), 404);
 
     return redirect()->away($job->apply_url);
 });
@@ -776,6 +785,14 @@ $applyUrlRule = static function (string $attribute, mixed $value, Closure $fail)
         return;
     }
 
+    if (filter_var($value, FILTER_VALIDATE_EMAIL)) {
+        return;
+    }
+
+    if (preg_match('~\A(?:https?://)?wa\.me/[1-9][0-9]{5,15}\z~i', $value)) {
+        return;
+    }
+
     if (str_starts_with(strtolower($value), 'mailto:')) {
         if (filter_var(substr($value, 7), FILTER_VALIDATE_EMAIL)) {
             return;
@@ -787,7 +804,7 @@ $applyUrlRule = static function (string $attribute, mixed $value, Closure $fail)
         return;
     }
 
-    $fail('Link pendaftaran harus berupa URL HTTP(S) atau mailto:alamat@email.');
+    $fail('Kontak pendaftaran harus berupa alamat email, wa.me/nomor, atau URL HTTP(S).');
 };
 
 Route::middleware(['web', 'auth'])->prefix('admin')->group(function () use ($applyUrlRule) {

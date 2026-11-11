@@ -14,15 +14,27 @@
                 @endforeach
             </article>
             <aside class="rounded-xl border border-slate-200 bg-white p-6 lg:sticky lg:top-20">
-                @if ($job->apply_url)
-                    <a href="{{ url('/api/job-posts/'.$job->id.'/apply-now') }}" rel="nofollow" class="block rounded-lg bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">Apply Sekarang di situs perusahaan ↗</a>
+                @php
+                    $applyUrl = trim((string) $job->apply_url);
+                    $applyEmail = str_starts_with(strtolower($applyUrl), 'mailto:') ? substr($applyUrl, 7) : $applyUrl;
+                    $isWebUrl = filter_var($applyUrl, FILTER_VALIDATE_URL) && in_array(strtolower((string) parse_url($applyUrl, PHP_URL_SCHEME)), ['http', 'https'], true);
+                    $isWhatsApp = preg_match('~\A(?:https?://)?wa\.me/[1-9][0-9]{5,15}\z~i', $applyUrl);
+                    $applyHref = filter_var($applyEmail, FILTER_VALIDATE_EMAIL)
+                        ? 'https://mail.google.com/mail/?view=cm&fs=1&to='.rawurlencode($applyEmail)
+                        : ($isWhatsApp ? 'https://'.preg_replace('~\A(?:https?://)?~i', '', $applyUrl) : ($isWebUrl ? $applyUrl : null));
+                @endphp
+                @if ($applyHref)
+                    <a href="{{ $applyHref }}" target="_blank" rel="noopener noreferrer nofollow" class="block rounded-lg bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">Apply Sekarang</a>
                     <p class="mt-3 text-xs leading-5 text-slate-500">Pendaftaran dilanjutkan di luar StartWork.</p>
+                @elseif ($applyUrl !== '')
+                    <p class="text-sm text-slate-600" role="status">Kontak pendaftaran lowongan ini tidak valid. Hubungi perusahaan untuk informasi lebih lanjut.</p>
                 @else
                 @guest
-                    <a href="{{ route('jobs.apply-continue', $job->id) }}" class="block rounded-lg bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">Masuk untuk melamar</a>
+                    <a href="{{ route('jobs.apply-continue', $job->id) }}" class="block rounded-lg bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">Apply Sekarang</a>
+                    <p class="mt-3 text-xs leading-5 text-slate-500">Masuk untuk melamar melalui StartWork.</p>
                 @else
                     @if (auth()->user()->role === 'jobseeker')
-                        <button type="button" data-job-apply="{{ $job->id }}" class="w-full rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:bg-slate-300">Kirim lamaran</button>
+                        <button type="button" data-job-apply="{{ $job->id }}" class="w-full rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:bg-slate-300">Apply Sekarang</button>
                         <p data-apply-feedback class="mt-3 text-sm text-slate-600" role="status">Profil utama, minimal satu skill, dan CV diperlukan untuk melamar.</p>
                     @else
                         <p class="text-sm text-slate-600">Hanya akun Jobseeker yang dapat mengirim lamaran internal.</p>

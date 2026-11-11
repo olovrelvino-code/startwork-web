@@ -17,10 +17,12 @@ class AuthenticationTest extends TestCase
 
         $response->assertOk()->assertSee('Masuk Jobseeker')
             ->assertSee('Logo Start Work B transparan.png')
+            ->assertSee('class="order-2 mx-auto w-full max-w-xl lg:order-1  hidden md:block "', false)
             ->assertSee('data-auth-error="password"', false)
             ->assertSee('Jelajahi Lowongan');
         $this->get('/employer/login')->assertOk()
             ->assertSee('Masuk sebagai Employer')
+            ->assertSee('class="order-2 mx-auto w-full max-w-xl lg:order-1  hidden md:block "', false)
             ->assertSee('Logo Start Work B transparan.png')
             ->assertSee('auth-card', false)
             ->assertSee('data-auth-error="password"', false)

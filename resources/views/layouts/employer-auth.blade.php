@@ -19,7 +19,7 @@
             <a href="{{ route('jobs.index') }}" class="text-sm font-semibold text-slate-700 hover:text-blue-700">Jelajahi Lowongan</a>
         </header>
         <main id="main-content" class="grid flex-1 items-start gap-8 py-7 sm:gap-10 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)] lg:items-stretch lg:gap-12">
-            <section class="order-2 mx-auto w-full max-w-xl lg:order-1" aria-label="Ruang kerja Employer">
+            <section class="order-2 mx-auto w-full max-w-xl lg:order-1 @if (request()->routeIs('employer.login')) hidden md:block @endif" aria-label="Ruang kerja Employer">
                 <div class="auth-promo-panel">
                     <img src="{{ asset('images/asset/employer.webp') }}" alt="Tim Employer berdiskusi dalam pertemuan kerja">
                     <div class="auth-promo-content">
