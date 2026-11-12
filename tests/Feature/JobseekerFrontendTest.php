@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -129,6 +130,45 @@ class JobseekerFrontendTest extends TestCase
             ->assertJsonCount(2, 'data.skills')
             ->assertJsonCount(1, 'data.certificates');
         $this->assertSame(1, DB::table('certificates')->count());
+    }
+
+    public function test_skills_can_be_added_edited_removed_and_resaved_without_replacing_unchanged_rows(): void
+    {
+        $seeker = User::factory()->create(['role' => 'jobseeker']);
+        $profileId = (string) Str::uuid();
+        DB::table('jobseeker_profiles')->insert(['id' => $profileId, 'user_id' => $seeker->id, 'created_at' => now(), 'updated_at' => now()]);
+        $legacyId = (string) Str::uuid();
+        DB::table('skills')->insert(['id' => $legacyId, 'profile_id' => $profileId, 'name' => 'SQL', 'created_at' => now(), 'updated_at' => now()]);
+
+        $this->actingAs($seeker)->getJson('/api/jobseeker/profile/details')->assertOk()->assertJsonPath('data.skills.0.id', $legacyId);
+        $this->postJson('/api/jobseeker/profile/details', ['skills' => ['SQL']])->assertOk();
+        $this->assertDatabaseHas('skills', ['id' => $legacyId, 'name' => 'sql']);
+        $this->postJson('/api/jobseeker/profile/details', ['skills' => [['id' => $legacyId, 'name' => ' SQL '], ['name' => ' Laravel ']]])->assertOk();
+        $laravelId = DB::table('skills')->where('profile_id', $profileId)->where('name', 'laravel')->value('id');
+        $this->assertNotNull($laravelId);
+        $this->postJson('/api/jobseeker/profile/details', ['skills' => [['id' => $legacyId, 'name' => 'sql'], ['id' => $laravelId, 'name' => 'laravel']]])->assertOk();
+        $this->assertSame([$legacyId, $laravelId], DB::table('skills')->where('profile_id', $profileId)->orderBy('created_at')->pluck('id')->all());
+
+        $this->putJson('/api/jobseeker/profile/details', ['skills' => [['id' => $legacyId, 'name' => 'Python']]])->assertOk();
+        $this->assertDatabaseHas('skills', ['id' => $legacyId, 'name' => 'python']);
+        $this->assertDatabaseMissing('skills', ['id' => $laravelId]);
+    }
+
+    public function test_skills_reject_duplicates_empty_names_and_foreign_ids(): void
+    {
+        $seeker = User::factory()->create(['role' => 'jobseeker']);
+        $profileId = (string) Str::uuid();
+        DB::table('jobseeker_profiles')->insert(['id' => $profileId, 'user_id' => $seeker->id, 'created_at' => now(), 'updated_at' => now()]);
+
+        $this->actingAs($seeker)->postJson('/api/jobseeker/profile/details', ['skills' => [' SQL ', 'sql']])->assertUnprocessable()
+            ->assertJsonFragment(['skills.1.name' => ['Skill ini sudah ada. Ubah nama atau hapus salah satunya.']]);
+        $this->postJson('/api/jobseeker/profile/details', ['skills' => ['   ']])->assertUnprocessable()->assertJsonValidationErrors('skills.0.name');
+        $this->postJson('/api/jobseeker/profile/details', ['skills' => [['id' => (string) Str::uuid(), 'name' => 'SQL']]])->assertUnprocessable()->assertJsonValidationErrors('skills.0.id');
+        $this->assertSame(0, DB::table('skills')->count());
+
+        $this->postJson('/api/jobseeker/profile/details', ['skills' => ['SQL']])->assertOk();
+        $this->expectException(UniqueConstraintViolationException::class);
+        DB::table('skills')->insert(['id' => (string) Str::uuid(), 'profile_id' => $profileId, 'name' => ' SQL ', 'created_at' => now(), 'updated_at' => now()]);
     }
 
     public function test_public_pages_render_and_private_pages_enforce_jobseeker_role(): void
@@ -485,6 +525,10 @@ class JobseekerFrontendTest extends TestCase
             ->assertSee('value="D4/Sarjana Terapan"', false)
             ->assertSee('value="SD/Sederajat"', false)
             ->assertSee('aria-label="Tambah skills"', false)
+            ->assertSee('flex flex-wrap items-start gap-2', false)
+            ->assertSee('data-entry-template="skills"><div data-entry class="flex max-w-full', false)
+            ->assertSee('aria-label="Nama skill, ubah untuk mengedit"', false)
+            ->assertSee('data-skill-error role="alert"', false)
             ->assertSee('aria-label="Hapus riwayat pendidikan"', false)
             ->assertDontSee('>Hapus entri</button>', false)
             ->assertDontSee('>Profesi</option>', false);

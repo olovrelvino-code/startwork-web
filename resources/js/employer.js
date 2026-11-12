@@ -10,6 +10,11 @@ if (upgradeDialog instanceof HTMLDialogElement && upgradeTrigger instanceof HTML
     const list = upgradeDialog.querySelector('[data-upgrade-packages]');
     const template = upgradeDialog.querySelector('[data-upgrade-template]');
     const names = ['Basic', 'Standard', 'Premium'];
+    const benefits = {
+        Basic: ['Website 15 hari', '1 Instagram Story', '1 Instagram Feed (Simple Design)'],
+        Standard: ['Website 30 hari', '1 Instagram Feed (Excellent Design)', '2 Instagram Story', 'Featured Website 1 hari'],
+        Premium: ['Website 45 hari', '1 Instagram Reels', '1 Instagram Feed', '3 Instagram Story', 'Featured Website 3 hari'],
+    };
     const rupiah = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
     let request;
 
@@ -34,11 +39,23 @@ if (upgradeDialog instanceof HTMLDialogElement && upgradeTrigger instanceof HTML
             packages.forEach((item) => {
                 const card = template.content.firstElementChild.cloneNode(true);
                 card.dataset.featured = String(item.name === 'Standard');
+                card.querySelector('[data-package-badge]').textContent = item.name === 'Standard' ? 'Pilihan populer' : 'Paket employer';
                 card.querySelector('[data-package-name]').textContent = item.name;
                 const price = Number(item.price);
                 card.querySelector('[data-package-price]').textContent = Number.isFinite(price) ? rupiah.format(price) : 'Harga tidak tersedia';
                 card.querySelector('[data-package-quota]').textContent = item.quota === null ? 'Belum ditentukan' : `${item.quota} lowongan`;
                 card.querySelector('[data-package-duration]').textContent = item.duration_days === null ? 'Belum ditentukan' : `${item.duration_days} hari`;
+                const benefitList = card.querySelector('[data-package-benefits]');
+                benefits[item.name].forEach((benefit) => {
+                    const row = document.createElement('li');
+                    row.className = 'flex gap-2';
+                    const mark = document.createElement('span');
+                    mark.className = 'shrink-0 font-semibold text-[#B85B12]';
+                    mark.setAttribute('aria-hidden', 'true');
+                    mark.textContent = '✓';
+                    row.append(mark, document.createTextNode(benefit));
+                    benefitList.append(row);
+                });
                 card.querySelector('[data-select-package]').addEventListener('click', () => {
                     list.querySelectorAll('article').forEach((option) => {
                         option.dataset.selected = String(option === card);

@@ -42,8 +42,8 @@
                 <button x-ref="menuButton" type="button" class="flex h-11 w-11 items-center justify-center rounded-lg text-[#17394B] lg:hidden" @click="menuOpen = true; $nextTick(() => $refs.closeMenu.focus())" aria-label="Buka menu" aria-controls="employer-menu" :aria-expanded="menuOpen.toString()"><svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button>
                 <span class="hidden min-w-0 flex-1 truncate text-sm text-slate-600 sm:block">Start Work / @yield('section_label', 'Employer')</span>
                 <div class="ml-auto flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+                    <button type="button" class="admin-button-secondary" data-upgrade-open aria-haspopup="dialog" aria-controls="employer-upgrade-dialog">Pilih Paket</button>
                     <span class="hidden text-xs font-medium text-slate-500 sm:inline">Sesi Employer</span>
-                    <button type="button" class="admin-button-secondary" data-upgrade-open aria-haspopup="dialog" aria-controls="employer-upgrade-dialog">Upgrade Plan</button>
                     <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="admin-button-quiet">Keluar</button></form>
                 </div>
             </header>
@@ -55,18 +55,20 @@
             </main>
         </div>
     </div>
-    <dialog id="employer-upgrade-dialog" data-upgrade-dialog data-packages-url="{{ url('/api/packages') }}" aria-modal="true" aria-labelledby="upgrade-title" aria-describedby="upgrade-description" class="max-h-[calc(100dvh-2rem)] w-full max-w-5xl overflow-y-auto rounded-2xl border border-slate-400 bg-slate-900 p-0 text-white shadow-xl backdrop:bg-slate-950/65" style="width:min(94vw,62rem)">
-        <div class="p-5 sm:p-8 lg:p-10">
+    <dialog id="employer-upgrade-dialog" data-upgrade-dialog data-packages-url="{{ url('/api/packages') }}" aria-modal="true" aria-labelledby="upgrade-title" aria-describedby="upgrade-description" class="w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-400 bg-slate-900 p-0 text-white shadow-xl backdrop:bg-slate-950/65" style="width:min(94vw,62rem)">
+        <div class="p-4 sm:p-6 lg:p-7">
             <div class="flex justify-end"><button type="button" data-upgrade-close aria-label="Tutup pilihan paket" class="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-200 transition-colors hover:border-slate-400 hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E6A66F]">Tutup</button></div>
-            <div class="mx-auto max-w-xl text-center"><p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#E6A66F]">Paket StartWork</p><h2 id="upgrade-title" class="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Upgrade Plan</h2><p id="upgrade-description" class="mt-3 text-sm leading-relaxed text-slate-300">Pilih paket sesuai kebutuhan rekrutmen. Pembelian belum tersedia dan pilihan tidak mengubah akses akun.</p></div>
-            <p data-upgrade-status class="mt-6 min-h-5 text-center text-sm text-slate-300" role="status" aria-live="polite">Memuat paket…</p>
-            <div data-upgrade-packages class="mt-6 grid gap-4 sm:grid-cols-3"></div>
+            <div class="mx-auto max-w-2xl text-center"><p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#E6A66F]">Paket StartWork</p><h2 id="upgrade-title" class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Pilih Paket</h2><p id="upgrade-description" class="mt-2 text-sm leading-relaxed text-slate-300">Pilih dukungan rekrutmen yang sesuai kebutuhan Anda. Paket yang dipilih belum mengubah akses akun.</p></div>
+            <p data-upgrade-status class="mt-3 min-h-5 text-center text-sm text-slate-300" role="status" aria-live="polite">Memuat paket…</p>
+            <div data-upgrade-packages class="mt-3 grid items-stretch gap-3 md:grid-cols-3"></div>
             <template data-upgrade-template>
-                <article class="flex min-w-0 flex-col rounded-2xl border border-slate-400 bg-slate-800 p-5 transition-colors data-[featured=true]:border-[#C87431] data-[selected=true]:ring-2 data-[selected=true]:ring-[#E6A66F] sm:p-6">
-                    <h3 data-package-name class="text-lg font-semibold text-white"></h3>
-                    <p data-package-price class="admin-number mt-6 break-words text-2xl font-semibold tracking-tight text-white lg:text-[1.75rem]"></p>
-                    <dl class="mt-6 space-y-3 border-t border-slate-600 pt-5 text-sm"><div class="flex justify-between gap-3"><dt class="text-slate-300">Kuota</dt><dd data-package-quota class="text-right font-semibold text-white"></dd></div><div class="flex justify-between gap-3"><dt class="text-slate-300">Durasi</dt><dd data-package-duration class="text-right font-semibold text-white"></dd></div></dl>
-                    <button type="button" data-select-package class="mt-7 w-full rounded-lg border border-[#C87431] bg-[#B85B12] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#9D4D10] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F5C093] data-[selected=true]:border-[#F5C093] data-[selected=true]:bg-[#613B22]" aria-pressed="false">Pilih paket</button>
+                <article class="flex min-w-0 flex-col rounded-xl border border-slate-600 bg-slate-800 p-4 transition-colors hover:border-[#E6A66F] hover:bg-slate-700 data-[featured=true]:border-[#C87431] data-[featured=true]:hover:border-[#E6A66F] data-[selected=true]:border-[#E6A66F] data-[selected=true]:bg-slate-700 data-[selected=true]:ring-2 data-[selected=true]:ring-[#E6A66F] sm:p-5">
+                    <p data-package-badge class="min-h-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#E6A66F]"></p>
+                    <h3 data-package-name class="mt-1 text-lg font-semibold text-white"></h3>
+                    <p data-package-price class="admin-number mt-2 break-words text-xl font-semibold tracking-tight text-white"></p>
+                    <dl class="mt-3 grid grid-cols-2 gap-2 border-y border-slate-600 py-3 text-xs"><div><dt class="text-slate-300">Kuota</dt><dd data-package-quota class="mt-1 font-semibold text-white"></dd></div><div><dt class="text-slate-300">Durasi</dt><dd data-package-duration class="mt-1 font-semibold text-white"></dd></div></dl>
+                    <p class="mt-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-300">Benefit paket</p><ul data-package-benefits class="mt-2 flex-1 space-y-1 text-xs leading-snug text-slate-200"></ul>
+                    <button type="button" data-select-package class="mt-4 w-full rounded-lg border border-[#C87431] bg-[#B85B12] px-3 py-2 text-sm font-semibold text-white transition-colors hover:border-[#E6A66F] hover:bg-[#9D4D10] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E6A66F] data-[featured=true]:border-[#E6A66F] data-[featured=true]:bg-[#613B22] data-[featured=true]:hover:bg-[#613B22] data-[selected=true]:border-[#F5C093] data-[selected=true]:bg-[#613B22] data-[selected=true]:hover:bg-[#613B22]" aria-pressed="false">Pilih paket</button>
                 </article>
             </template>
         </div>

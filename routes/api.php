@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 
 /*
 |--------------------------------------------------------------------------
@@ -562,9 +563,18 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::match(['post', 'put'], '/jobseeker/profile/details', function (Request $request) use ($tables, $ownProfile) {
         $profile = $ownProfile($request);
 
+        if (is_array($request->input('skills'))) {
+            $request->merge(['skills' => array_map(
+                fn ($skill) => is_string($skill) ? ['name' => $skill] : $skill,
+                $request->input('skills')
+            )]);
+        }
+
         $input = $request->validate([
             'skills' => ['required', 'array', 'min:1'],
-            'skills.*' => ['required', 'string', 'max:255'],
+            'skills.*' => ['required', 'array'],
+            'skills.*.id' => ['nullable', 'uuid'],
+            'skills.*.name' => ['required', 'string', 'max:255'],
 
             'work_experiences' => ['nullable', 'array'],
             'work_experiences.*' => ['array'],
@@ -597,12 +607,60 @@ Route::middleware(['web', 'auth'])->group(function () {
             'certificates.*.file_url' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $existingSkills = DB::table('skills')->where('profile_id', $profile->id)->get()->keyBy('id');
+        $seenNames = [];
+        $seenIds = [];
+        foreach ($input['skills'] as $index => &$skill) {
+            $skill['name'] = Str::lower(trim($skill['name']));
+            if ($skill['name'] === '') {
+                throw ValidationException::withMessages(["skills.$index.name" => 'Isi nama skill, atau hapus chip kosong ini.']);
+            }
+            if (isset($seenNames[$skill['name']])) {
+                throw ValidationException::withMessages(["skills.$index.name" => 'Skill ini sudah ada. Ubah nama atau hapus salah satunya.']);
+            }
+            $seenNames[$skill['name']] = true;
+            if (isset($skill['id'])) {
+                if (! $existingSkills->has($skill['id']) || isset($seenIds[$skill['id']])) {
+                    throw ValidationException::withMessages(["skills.$index.id" => 'Skill tidak valid.']);
+                }
+                $seenIds[$skill['id']] = true;
+            }
+        }
+        unset($skill);
+
         if (array_key_exists('certificates', $input)) {
             abort_if(DB::table('certificates')->where('profile_id', $profile->id)->whereNotNull('file_path')->exists(), 409, 'Kelola sertifikat terunggah melalui formulir sertifikat');
         }
 
-        DB::transaction(function () use ($profile, $input, $tables): void {
+        DB::transaction(function () use ($profile, $input, $tables, $existingSkills): void {
+            $keptIds = [];
+            foreach ($input['skills'] as &$skill) {
+                if (! isset($skill['id'])) {
+                    $match = $existingSkills->first(fn ($row) => Str::lower(trim($row->name ?? '')) === $skill['name'] && ! in_array($row->id, $keptIds, true));
+                    $skill['id'] = $match?->id ?? (string) Str::uuid();
+                }
+                $keptIds[] = $skill['id'];
+            }
+            unset($skill);
+            DB::table('skills')->where('profile_id', $profile->id)->whereNotIn('id', $keptIds)->delete();
+            foreach ($input['skills'] as $skill) {
+                if ($existingSkills->has($skill['id']) && $existingSkills[$skill['id']]->name !== $skill['name']) {
+                    DB::table('skills')->where('id', $skill['id'])->update(['name' => (string) Str::uuid()]);
+                }
+            }
+            foreach ($input['skills'] as $skill) {
+                if ($existingSkills->has($skill['id'])) {
+                    if ($existingSkills[$skill['id']]->name !== $skill['name']) {
+                        DB::table('skills')->where('id', $skill['id'])->update(['name' => $skill['name'], 'updated_at' => now()]);
+                    }
+                } else {
+                    DB::table('skills')->insert(['id' => $skill['id'], 'profile_id' => $profile->id, 'name' => $skill['name'], 'created_at' => now(), 'updated_at' => now()]);
+                }
+            }
             foreach ($tables as $table => $columns) {
+                if ($table === 'skills') {
+                    continue;
+                }
                 if ($table === 'certificates' && ! array_key_exists('certificates', $input)) {
                     continue;
                 }
@@ -616,12 +674,8 @@ Route::middleware(['web', 'auth'])->group(function () {
                         'updated_at' => now(),
                     ];
 
-                    if ($table === 'skills') {
-                        $row['name'] = $entry;
-                    } else {
-                        foreach ($columns as $column) {
-                            $row[$column] = $entry[$column] ?? null;
-                        }
+                    foreach ($columns as $column) {
+                        $row[$column] = $entry[$column] ?? null;
                     }
 
                     DB::table($table)->insert($row);
