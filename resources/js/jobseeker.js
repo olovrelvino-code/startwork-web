@@ -421,26 +421,48 @@ if (profile) {
         details.querySelectorAll('input, select, textarea, button').forEach((control) => { control.disabled = !loaded; });
     }
 
+    function showSkillError(entry, message = '') {
+        const field = entry.querySelector('[data-field="name"]');
+        const chip = entry.querySelector('[data-skill-chip]');
+        const note = entry.querySelector('[data-skill-error]');
+        if (message) field.setAttribute('aria-invalid', 'true');
+        else field.removeAttribute('aria-invalid');
+        chip.classList.toggle('border-rose-600', Boolean(message));
+        chip.classList.toggle('border-blue-200', !message);
+        note.textContent = message;
+        note.style.width = message ? `${chip.getBoundingClientRect().width}px` : '';
+        note.classList.toggle('hidden', !message);
+    }
+
     function addEntry(section, values = {}) {
         const template = document.querySelector(`[data-entry-template="${section}"]`);
         const entry = template.content.firstElementChild.cloneNode(true);
+        if (section === 'skills' && values.id) entry.dataset.id = values.id;
         entry.querySelectorAll('[data-field]').forEach((field) => {
             const value = String(values[field.dataset.field] ?? '');
             if (field.tagName === 'SELECT' && value && ![...field.options].some((option) => option.value === value)) { const option = new Option(`${value} (data lama)`, value); option.dataset.legacy = 'true'; field.add(option); }
             field.value = value;
             if (field.type === 'date') field.value = field.value.slice(0, 10);
+            if (section === 'skills') {
+                const context = document.createElement('canvas').getContext('2d');
+                const resize = () => {
+                    context.font = getComputedStyle(field).font;
+                    field.style.width = `${Math.ceil(context.measureText(field.value || field.placeholder).width) + 12}px`;
+                };
+                field.addEventListener('input', () => { resize(); showSkillError(entry); });
+            }
         });
         entry.querySelector('[data-remove]').addEventListener('click', () => { if (window.confirm('Hapus entri ini? Simpan perubahan untuk menerapkannya.')) entry.remove(); });
         details.querySelector(`[data-entries="${section}"]`).append(entry);
+        if (section === 'skills') entry.querySelector('[data-field="name"]').dispatchEvent(new Event('input'));
         return entry;
     }
 
     function fillDetails(data = {}) {
         sections.forEach((section) => {
             details.querySelector(`[data-entries="${section}"]`).replaceChildren();
-            (data[section] || []).forEach((entry) => addEntry(section, section === 'skills' ? { name: entry.name } : entry));
+            (data[section] || []).forEach((entry) => addEntry(section, entry));
         });
-        if (!details.querySelector('[data-entries="skills"] [data-entry]')) addEntry('skills');
         ready('skills', Boolean(data.skills?.length), data.skills?.length ? 'Terisi' : 'Belum lengkap');
         renderCertificates(data.certificates || []);
     }
@@ -567,7 +589,10 @@ if (profile) {
         content.classList.remove('hidden');
     });
 
-    details.querySelectorAll('[data-add]').forEach((button) => button.addEventListener('click', () => addEntry(button.dataset.add).querySelector('[data-field]')?.focus()));
+    details.querySelectorAll('[data-add]').forEach((button) => button.addEventListener('click', () => {
+        addEntry(button.dataset.add).querySelector('[data-field]')?.focus();
+        if (button.dataset.add === 'skills') detailsFeedback.textContent = 'Baris skill ditambahkan. Isi nama lalu simpan perubahan.';
+    }));
 
     main.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -599,13 +624,27 @@ if (profile) {
         event.preventDefault();
         if (!detailsLoaded) { detailsFeedback.textContent = 'Muat keahlian dan riwayat sebelum menyimpan.'; return; }
         if (!profileExists) { detailsFeedback.textContent = 'Simpan data diri terlebih dahulu.'; main.querySelector('input').focus(); return; }
+        const skillEntries = [...details.querySelectorAll('[data-entries="skills"] [data-entry]')];
+        const names = new Set();
+        let invalidSkill = null;
+        skillEntries.forEach((entry) => {
+            const field = entry.querySelector('[data-field="name"]');
+            const name = field.value.trim().toLocaleLowerCase('id');
+            showSkillError(entry);
+            if (!name || names.has(name)) {
+                showSkillError(entry, name ? 'Skill ini sudah ada. Ubah nama atau hapus salah satunya.' : 'Isi nama skill, atau hapus chip kosong ini.');
+                invalidSkill ||= field;
+            }
+            names.add(name);
+        });
+        if (invalidSkill) { detailsFeedback.textContent = 'Periksa petunjuk di bawah chip yang ditandai.'; invalidSkill.focus(); return; }
         const payload = {};
         sections.forEach((section) => {
             const entries = [...details.querySelectorAll(`[data-entries="${section}"] [data-entry]`)];
             payload[section] = entries.map((entry) => {
                 const values = Object.fromEntries([...entry.querySelectorAll('[data-field]')].map((field) => [field.dataset.field, field.value.trim()]));
-                return section === 'skills' ? values.name : values;
-            }).filter((values) => section === 'skills' ? values !== '' : Object.values(values).some(Boolean));
+                return section === 'skills' ? { ...(entry.dataset.id ? { id: entry.dataset.id } : {}), name: values.name } : values;
+            }).filter((values) => section === 'skills' ? values.name !== '' : Object.values(values).some(Boolean));
         });
         if (!payload.skills.length) { detailsFeedback.textContent = 'Tambahkan minimal satu skill.'; return; }
         const button = details.querySelector('[type="submit"]');
@@ -613,9 +652,16 @@ if (profile) {
         detailsFeedback.textContent = 'Menyimpan…';
         try {
             await api('/api/jobseeker/profile/details', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            fillDetails((await api('/api/jobseeker/profile/details')).data);
             detailsFeedback.textContent = 'Keahlian dan riwayat berhasil disimpan.';
             ready('skills', true, 'Terisi');
-        } catch (error) { detailsFeedback.textContent = errorMessage(error); }
+        } catch (error) {
+            detailsFeedback.textContent = errorMessage(error);
+            Object.entries(error.body?.errors || {}).forEach(([field, messages]) => {
+                const index = /^skills\.(\d+)\.(?:name|id)$/.exec(field)?.[1];
+                if (index !== undefined && skillEntries[Number(index)]) showSkillError(skillEntries[Number(index)], messages[0]);
+            });
+        }
         finally { button.disabled = false; }
     });
 
