@@ -2,6 +2,50 @@ import './auth-switch.js';
 
 const feedback = document.querySelector('#employer-feedback');
 
+const subscription = document.querySelector('[data-subscription]');
+if (subscription) {
+    const list = subscription.querySelector('[data-package-list]');
+    const status = subscription.querySelector('[data-package-status]');
+    const template = subscription.querySelector('[data-package-template]');
+    const dialog = document.querySelector('[data-package-dialog]');
+    const benefits = { Basic: ['Tayang di website (15 hari)', '1x Instagram Story', '1x Feed (Simple Design)'], Standard: ['Tayang di website (30 hari)', '1x Feed (Excellent Design)', '2x Instagram Story', 'Featured Lowongan di Website (1 hari)'], Premium: ['Tayang di website (45 hari)', '1x Reels (Video)', '1x Feed', '3x Instagram Story', 'Featured Lowongan di Website (3 hari)'] };
+    const currency = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
+    let selectedButton;
+    fetch(subscription.dataset.packagesUrl, { headers: { Accept: 'application/json' }, credentials: 'same-origin' }).then((response) => response.json()).then(({ data }) => {
+        const plans = ['Basic', 'Standard', 'Premium'];
+        const packages = data.filter((item) => plans.includes(item.name) && item.currency === 'IDR' && item.is_active).sort((a, b) => plans.indexOf(a.name) - plans.indexOf(b.name));
+        if (!packages.length) { status.textContent = 'Belum ada paket aktif yang tersedia.'; return; }
+        packages.forEach((item) => {
+            const card = template.content.firstElementChild.cloneNode(true);
+            card.style.borderTopColor = { Basic: '#17394B', Standard: '#B85B12', Premium: '#167C83' }[item.name];
+            card.querySelector('[data-package-name]').textContent = item.name;
+            if (item.name === 'Standard') card.querySelector('[data-package-badge]').classList.remove('hidden');
+            const price = currency.format(Number(item.price));
+            const quota = `${item.quota} lowongan`;
+            const duration = `${item.duration_days} hari`;
+            card.querySelector('[data-package-price]').textContent = price;
+            card.querySelector('[data-package-quota]').textContent = quota;
+            card.querySelector('[data-package-duration]').textContent = duration;
+            benefits[item.name].forEach((text) => { const row = document.createElement('li'); row.textContent = text; card.querySelector('[data-package-benefits]').append(row); });
+            const button = card.querySelector('[data-select-package]');
+            button.addEventListener('click', () => {
+                selectedButton = button;
+                dialog.querySelector('[data-confirm-name]').textContent = item.name;
+                dialog.querySelector('[data-confirm-price]').textContent = price;
+                dialog.querySelector('[data-confirm-quota]').textContent = quota;
+                dialog.querySelector('[data-confirm-duration]').textContent = duration;
+                dialog.showModal();
+            });
+            list.append(card);
+        });
+        status.textContent = '';
+    }).catch(() => { status.textContent = 'Katalog paket gagal dimuat. Muat ulang halaman untuk mencoba lagi.'; });
+    dialog.querySelector('[data-package-close]').addEventListener('click', () => dialog.close());
+    dialog.querySelector('[data-package-confirm]').addEventListener('click', () => { status.textContent = `Paket ${dialog.querySelector('[data-confirm-name]').textContent} dipilih. Pembelian belum tersedia; akses akun tidak berubah.`; dialog.close(); });
+    dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
+    dialog.addEventListener('close', () => selectedButton?.focus());
+}
+
 const upgradeDialog = document.querySelector('[data-upgrade-dialog]');
 const upgradeTrigger = document.querySelector('[data-upgrade-open]');
 if (upgradeDialog instanceof HTMLDialogElement && upgradeTrigger instanceof HTMLButtonElement) {

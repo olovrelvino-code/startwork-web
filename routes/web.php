@@ -126,6 +126,7 @@ Route::middleware('guest')->post('/admin/login', [AuthenticatedSessionController
 Route::middleware(['auth', 'employer'])->prefix('employer')->name('employer.')->group(function (): void {
     Route::redirect('/', '/employer/dashboard')->name('home');
     Route::get('/dashboard', EmployerDashboardController::class)->name('dashboard');
+    Route::view('/subscription', 'employer.subscription')->name('subscription');
     Route::get('/setup', [EmployerCompanyController::class, 'setup'])->name('setup');
     Route::patch('/setup/account', [EmployerCompanyController::class, 'completeAccount'])->name('setup.account');
     Route::get('/company', EmployerCompanyController::class)->name('company');

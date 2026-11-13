@@ -27,6 +27,7 @@
                     ['employer.company', 'Perusahaan', 'M4 21V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v16M4 21h16M17 9h1a2 2 0 0 1 2 2v10M8 8h.01M12 8h.01M8 12h.01M12 12h.01'],
                     ['employer.job-posts.*', 'Lowongan kerja', 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8ZM8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18'],
                     ['employer.applications.*', 'Pelamar & CV', 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8M18 8a3 3 0 0 1 0 6M22 20v-2a4 4 0 0 0-3-3.87'],
+                    ['employer.subscription', 'Langganan', 'M3 7h18v14H3zM3 11h18M7 4h10v3'],
                 ] as [$routeName, $label, $icon])
                     <a href="{{ route(str_replace('.*', '.index', $routeName)) }}" @class([
                         'flex items-center gap-3 rounded-lg border-l-2 px-4 py-2.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#B85B12]',
@@ -42,7 +43,6 @@
                 <button x-ref="menuButton" type="button" class="flex h-11 w-11 items-center justify-center rounded-lg text-[#17394B] lg:hidden" @click="menuOpen = true; $nextTick(() => $refs.closeMenu.focus())" aria-label="Buka menu" aria-controls="employer-menu" :aria-expanded="menuOpen.toString()"><svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button>
                 <span class="hidden min-w-0 flex-1 truncate text-sm text-slate-600 sm:block">Start Work / @yield('section_label', 'Employer')</span>
                 <div class="ml-auto flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-                    <button type="button" class="admin-button-secondary" data-upgrade-open aria-haspopup="dialog" aria-controls="employer-upgrade-dialog">Pilih Paket</button>
                     <span class="hidden text-xs font-medium text-slate-500 sm:inline">Sesi Employer</span>
                     <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="admin-button-quiet">Keluar</button></form>
                 </div>
