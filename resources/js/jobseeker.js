@@ -392,10 +392,63 @@ const profile = document.querySelector('[data-jobseeker-profile]');
 if (profile) {
     let profileExists = false;
     const main = profile.querySelector('[data-profile-main]');
+    const birthDate = main.elements.namedItem('birth_date');
+    birthDate.addEventListener('focus', () => {
+        if (!birthDate.value) {
+            birthDate.value = '2000-01-01';
+            birthDate.dataset.previewDate = '';
+        }
+    });
+    birthDate.addEventListener('input', () => { delete birthDate.dataset.previewDate; });
+    birthDate.addEventListener('blur', () => {
+        if ('previewDate' in birthDate.dataset) {
+            birthDate.value = '';
+            delete birthDate.dataset.previewDate;
+        }
+    });
     const details = profile.querySelector('[data-profile-details]');
     const content = profile.querySelector('[data-profile-content]');
     const loading = profile.querySelector('[data-profile-loading]');
     const mainFeedback = profile.querySelector('[data-main-feedback]');
+    const toast = profile.querySelector('[data-profile-toast]');
+    let toastTimer;
+    const notifySave = (message, success) => {
+        clearTimeout(toastTimer);
+        toast.className = `fixed bottom-4 right-4 z-50 flex max-w-sm items-center gap-3 rounded-lg border bg-white px-4 py-3 text-sm shadow-lg sm:bottom-6 sm:right-6 ${success ? 'border-emerald-300 text-emerald-900' : 'border-rose-300 text-rose-900'}`;
+        toast.querySelector('[data-toast-icon]').className = `grid h-6 w-6 shrink-0 place-items-center rounded-full font-bold ${success ? 'bg-emerald-100' : 'bg-rose-100'}`;
+        toast.querySelector('[data-toast-icon]').textContent = success ? '✓' : '!';
+        toast.querySelector('[data-toast-message]').textContent = message;
+        toast.setAttribute('role', success ? 'status' : 'alert');
+        toast.setAttribute('aria-live', success ? 'polite' : 'assertive');
+        toastTimer = setTimeout(() => toast.classList.add('hidden'), 5000);
+    };
+    const clearFieldError = (field) => {
+        main.querySelector(`[data-field-error="${field.name}"]`)?.remove();
+        field.removeAttribute('aria-invalid');
+        field.removeAttribute('aria-describedby');
+        field.classList.remove('!border-rose-600', '!ring-rose-600');
+        if (field.type === 'radio') field.closest('fieldset').classList.remove('rounded-lg', 'ring-1', 'ring-rose-600');
+    };
+    const showFieldError = (field, message) => {
+        clearFieldError(field);
+        field.setAttribute('aria-invalid', 'true');
+        if (field.type === 'radio') field.closest('fieldset').classList.add('rounded-lg', 'ring-1', 'ring-rose-600');
+        else field.classList.add('!border-rose-600', '!ring-rose-600');
+        const note = node('span', 'mt-1 block text-xs text-rose-700', message);
+        note.dataset.fieldError = field.name;
+        note.id = `profile-${field.name}-error`;
+        field.setAttribute('aria-describedby', note.id);
+        (field.type === 'radio' ? field.closest('fieldset') : field.parentElement).append(note);
+    };
+    main.addEventListener('input', (event) => {
+        if (event.target?.name) clearFieldError(event.target.type === 'radio' ? main.querySelector('[name="gender"]') : event.target);
+    });
+    main.addEventListener('change', (event) => {
+        if (event.target?.name) clearFieldError(event.target.type === 'radio' ? main.querySelector('[name="gender"]') : event.target);
+        if (event.target === birthDate && birthDate.value && !birthDate.validity.valid) {
+            showFieldError(birthDate, birthDate.validity.rangeOverflow ? 'Usia minimal 18 tahun.' : 'Usia maksimal 70 tahun.');
+        }
+    });
     const detailsFeedback = profile.querySelector('[data-details-feedback]');
     const retryDetails = profile.querySelector('[data-details-retry]');
     const sections = ['skills', 'work_experiences', 'organization_experiences', 'education_histories'];
@@ -452,7 +505,7 @@ if (profile) {
                 field.addEventListener('input', () => { resize(); showSkillError(entry); });
             }
         });
-        entry.querySelector('[data-remove]').addEventListener('click', () => { if (window.confirm('Hapus entri ini? Simpan perubahan untuk menerapkannya.')) entry.remove(); });
+        entry.querySelector('[data-remove]').addEventListener('click', () => { if (window.confirm('Hapus entri ini? Simpan perubahan untuk menerapkannya.')) { entry.remove(); detailsFeedback.textContent = 'Perubahan belum disimpan.'; } });
         details.querySelector(`[data-entries="${section}"]`).append(entry);
         if (section === 'skills') entry.querySelector('[data-field="name"]').dispatchEvent(new Event('input'));
         return entry;
@@ -511,7 +564,8 @@ if (profile) {
                 try {
                     await api(`/api/jobseeker/profile/certificates/${encodeURIComponent(certificate.id)}`, { method: 'DELETE' });
                     await refreshCertificates(); certificateFeedback.textContent = 'Sertifikat berhasil dihapus.';
-                } catch (error) { certificateFeedback.textContent = errorMessage(error); remove.disabled = false; }
+                    notifySave('Sertifikat berhasil dihapus.', true);
+                } catch (error) { certificateFeedback.textContent = errorMessage(error); notifySave(errorMessage(error), false); remove.disabled = false; }
             });
             actions.append(edit, remove);
             row.append(actions);
@@ -591,13 +645,41 @@ if (profile) {
 
     details.querySelectorAll('[data-add]').forEach((button) => button.addEventListener('click', () => {
         addEntry(button.dataset.add).querySelector('[data-field]')?.focus();
-        if (button.dataset.add === 'skills') detailsFeedback.textContent = 'Baris skill ditambahkan. Isi nama lalu simpan perubahan.';
+        detailsFeedback.textContent = button.dataset.add === 'skills' ? 'Baris skill ditambahkan. Isi nama lalu simpan perubahan.' : 'Perubahan belum disimpan.';
     }));
+    details.addEventListener('input', (event) => { event.target.classList.remove('!border-rose-600'); detailsFeedback.textContent = 'Perubahan belum disimpan.'; });
+    details.addEventListener('change', (event) => { event.target.classList.remove('!border-rose-600'); detailsFeedback.textContent = 'Perubahan belum disimpan.'; });
+    details.addEventListener('invalid', (event) => {
+        event.target.classList.add('!border-rose-600');
+        notifySave('Lengkapi kolom yang wajib diisi sebelum menyimpan.', false);
+    }, true);
 
     main.addEventListener('submit', async (event) => {
         event.preventDefault();
-        main.querySelectorAll('[data-field-error]').forEach((item) => item.remove());
-        main.querySelectorAll('[aria-invalid]').forEach((item) => item.removeAttribute('aria-invalid'));
+        mainFeedback.textContent = '';
+        if ('previewDate' in birthDate.dataset) {
+            birthDate.value = '';
+            delete birthDate.dataset.previewDate;
+        }
+        const labels = { full_name: 'Nama lengkap', domicile: 'Domisili', birth_date: 'Tanggal lahir', gender: 'Jenis kelamin', last_education: 'Pendidikan terakhir', portfolio_link: 'Link portofolio' };
+        let firstInvalid = null;
+        main.querySelectorAll('input, select').forEach((field) => {
+            if (field.type === 'radio' && field.value !== 'Laki-laki') return;
+            clearFieldError(field);
+            if (!field.required && !field.value) return;
+            if (field.validity.valid) return;
+            const message = field.validity.valueMissing ? `${labels[field.name]} wajib diisi.`
+                : field === birthDate && field.validity.rangeOverflow ? 'Usia minimal 18 tahun.'
+                    : field === birthDate && field.validity.rangeUnderflow ? 'Usia maksimal 70 tahun.'
+                        : `${labels[field.name]} tidak valid.`;
+            showFieldError(field, message);
+            firstInvalid ??= field;
+        });
+        if (firstInvalid) {
+            notifySave('Periksa kolom yang ditandai sebelum menyimpan.', false);
+            firstInvalid.focus();
+            return;
+        }
         const values = Object.fromEntries(new FormData(main));
         values.portfolio_link ||= null;
         const button = main.querySelector('[type="submit"]');
@@ -607,23 +689,23 @@ if (profile) {
             const response = await api('/api/jobseeker/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values) });
             fillProfile(response.data);
             mainFeedback.textContent = 'Data diri berhasil disimpan.';
+            notifySave('Data diri berhasil disimpan.', true);
         } catch (error) {
             mainFeedback.textContent = errorMessage(error);
+            notifySave(error.status === 422 ? 'Periksa kolom yang ditandai sebelum menyimpan.' : errorMessage(error), false);
             Object.entries(error.body?.errors || {}).forEach(([field, messages]) => {
-                const input = main.elements.namedItem(field);
+                const control = main.elements.namedItem(field);
+                const input = control instanceof RadioNodeList ? control.item(0) : control;
                 if (!(input instanceof HTMLElement)) return;
-                input.setAttribute('aria-invalid', 'true');
-                const note = node('span', 'mt-1 block text-xs text-rose-700', messages[0]);
-                note.dataset.fieldError = field;
-                input.parentElement.append(note);
+                showFieldError(input, messages[0]);
             });
         } finally { button.disabled = false; }
     });
 
     details.addEventListener('submit', async (event) => {
         event.preventDefault();
-        if (!detailsLoaded) { detailsFeedback.textContent = 'Muat keahlian dan riwayat sebelum menyimpan.'; return; }
-        if (!profileExists) { detailsFeedback.textContent = 'Simpan data diri terlebih dahulu.'; main.querySelector('input').focus(); return; }
+        if (!detailsLoaded) { detailsFeedback.textContent = 'Muat keahlian dan riwayat sebelum menyimpan.'; notifySave(detailsFeedback.textContent, false); return; }
+        if (!profileExists) { detailsFeedback.textContent = 'Simpan data diri terlebih dahulu.'; notifySave(detailsFeedback.textContent, false); main.querySelector('input').focus(); return; }
         const skillEntries = [...details.querySelectorAll('[data-entries="skills"] [data-entry]')];
         const names = new Set();
         let invalidSkill = null;
@@ -637,7 +719,7 @@ if (profile) {
             }
             names.add(name);
         });
-        if (invalidSkill) { detailsFeedback.textContent = 'Periksa petunjuk di bawah chip yang ditandai.'; invalidSkill.focus(); return; }
+        if (invalidSkill) { detailsFeedback.textContent = 'Periksa petunjuk di bawah chip yang ditandai.'; notifySave(detailsFeedback.textContent, false); invalidSkill.focus(); return; }
         const payload = {};
         sections.forEach((section) => {
             const entries = [...details.querySelectorAll(`[data-entries="${section}"] [data-entry]`)];
@@ -646,7 +728,7 @@ if (profile) {
                 return section === 'skills' ? { ...(entry.dataset.id ? { id: entry.dataset.id } : {}), name: values.name } : values;
             }).filter((values) => section === 'skills' ? values.name !== '' : Object.values(values).some(Boolean));
         });
-        if (!payload.skills.length) { detailsFeedback.textContent = 'Tambahkan minimal satu skill.'; return; }
+        if (!payload.skills.length) { detailsFeedback.textContent = 'Tambahkan minimal satu skill.'; notifySave(detailsFeedback.textContent, false); return; }
         const button = details.querySelector('[type="submit"]');
         button.disabled = true;
         detailsFeedback.textContent = 'Menyimpan…';
@@ -654,9 +736,11 @@ if (profile) {
             await api('/api/jobseeker/profile/details', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             fillDetails((await api('/api/jobseeker/profile/details')).data);
             detailsFeedback.textContent = 'Keahlian dan riwayat berhasil disimpan.';
+            notifySave(detailsFeedback.textContent, true);
             ready('skills', true, 'Terisi');
         } catch (error) {
             detailsFeedback.textContent = errorMessage(error);
+            notifySave(detailsFeedback.textContent, false);
             Object.entries(error.body?.errors || {}).forEach(([field, messages]) => {
                 const index = /^skills\.(\d+)\.(?:name|id)$/.exec(field)?.[1];
                 if (index !== undefined && skillEntries[Number(index)]) showSkillError(skillEntries[Number(index)], messages[0]);
@@ -677,6 +761,27 @@ if (profile) {
         return pdf || jpeg || png ? null : 'Isi berkas tidak sesuai dengan format yang dipilih.';
     }
 
+    async function uploadError(file, kind) {
+        if (kind === 'photo') {
+            if (file.size > 2 * 1024 * 1024) return 'Ukuran foto maksimal 2 MB.';
+            if (!/\.(jpe?g|png)$/i.test(file.name)) return 'Foto harus berupa JPG, JPEG, atau PNG.';
+        }
+        const problem = await documentError(file);
+        return kind === 'photo' && problem ? 'Foto harus berupa JPG, JPEG, atau PNG yang valid.' : problem;
+    }
+
+    function uploadFeedback(form, message, invalid = false) {
+        const area = form.querySelector('[data-upload-area]');
+        area.classList.toggle('!border-rose-600', invalid);
+        area.classList.toggle('bg-rose-50', invalid);
+        form.querySelector('input[type="file"]').toggleAttribute('aria-invalid', invalid);
+        const feedback = form.querySelector('[data-upload-feedback]');
+        feedback.textContent = message;
+        feedback.setAttribute('role', invalid ? 'alert' : 'status');
+        feedback.classList.toggle('text-rose-700', invalid);
+        feedback.classList.toggle('text-slate-600', !invalid);
+    }
+
     profile.querySelector('[data-certificate-add]').addEventListener('click', () => {
         certificateForm.reset(); delete certificateForm.dataset.id;
         certificateForm.elements.namedItem('file').required = true;
@@ -685,12 +790,18 @@ if (profile) {
         certificateForm.elements.namedItem('name').focus();
     });
     profile.querySelector('[data-certificate-cancel]').addEventListener('click', () => certificateForm.classList.add('hidden'));
+    certificateForm.addEventListener('input', (event) => { event.target.classList.remove('!border-rose-600'); certificateForm.querySelector('[data-certificate-feedback]').textContent = 'Perubahan belum disimpan.'; });
+    certificateForm.addEventListener('change', (event) => { event.target.classList.remove('!border-rose-600'); certificateForm.querySelector('[data-certificate-feedback]').textContent = 'Perubahan belum disimpan.'; });
+    certificateForm.addEventListener('invalid', (event) => {
+        event.target.classList.add('!border-rose-600');
+        notifySave('Lengkapi kolom sertifikat yang wajib diisi.', false);
+    }, true);
     certificateForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         const feedback = certificateForm.querySelector('[data-certificate-feedback]');
-        if (!profileExists) { feedback.textContent = 'Simpan data diri terlebih dahulu.'; return; }
+        if (!profileExists) { feedback.textContent = 'Simpan data diri terlebih dahulu.'; notifySave(feedback.textContent, false); return; }
         const file = certificateForm.elements.namedItem('file').files[0];
-        if (file) { const problem = await documentError(file); if (problem) { feedback.textContent = problem; return; } }
+        if (file) { const problem = await documentError(file); if (problem) { feedback.textContent = problem; notifySave(problem, false); return; } }
         const button = certificateForm.querySelector('[type="submit"]');
         button.disabled = true; feedback.textContent = 'Menyimpan sertifikat…';
         const url = `/api/jobseeker/profile/certificates${certificateForm.dataset.id ? `/${certificateForm.dataset.id}` : ''}`;
@@ -701,7 +812,8 @@ if (profile) {
             await refreshCertificates();
             certificateForm.classList.add('hidden'); certificateForm.reset();
             certificateFeedback.textContent = 'Sertifikat berhasil disimpan.';
-        } catch (error) { feedback.textContent = errorMessage(error); }
+            notifySave(certificateFeedback.textContent, true);
+        } catch (error) { feedback.textContent = errorMessage(error); notifySave(feedback.textContent, false); }
         finally { button.disabled = false; }
     });
 
@@ -718,31 +830,45 @@ if (profile) {
         finally { button.disabled = false; }
     });
 
-    profile.querySelectorAll('[data-upload]').forEach((form) => form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const kind = form.dataset.upload;
+    profile.querySelectorAll('[data-upload]').forEach((form) => {
         const input = form.querySelector('input[type="file"]');
-        const file = input.files[0];
-        const feedback = form.querySelector('[data-upload-feedback]');
-        if (!profileExists) { feedback.textContent = 'Simpan data diri terlebih dahulu.'; return; }
-        if (!file) { feedback.textContent = 'Pilih berkas terlebih dahulu.'; return; }
-        if (kind === 'photo' && file.size > 2 * 1024 * 1024) { feedback.textContent = 'Ukuran foto melebihi 2 MB.'; return; }
-        if (kind === 'cv') { const problem = await documentError(file); if (problem) { feedback.textContent = problem; return; } }
-        const body = new FormData();
-        body.append(kind, file);
-        const button = form.querySelector('[type="submit"]');
-        button.disabled = true;
-        feedback.textContent = 'Mengunggah…';
-        try {
-            await api(`/api/jobseeker/profile/${kind}`, { method: 'POST', body });
-            const response = await api('/api/jobseeker/profile');
-            fillProfile(response.data);
-            if (kind === 'photo' && navPhoto) navPhoto.src = `/api/jobseeker/profile/photo?updated=${Date.now()}`;
-            feedback.textContent = `${kind === 'photo' ? 'Foto' : 'CV'} berhasil diunggah.`;
-            input.value = '';
-        } catch (error) { feedback.textContent = kind === 'photo' && error.status >= 500 ? 'Foto belum dapat diproses di server. Coba lagi nanti.' : errorMessage(error); }
-        finally { button.disabled = false; }
-    }));
+        form.addEventListener('change', async () => {
+            const file = input.files[0];
+            uploadFeedback(form, '');
+            if (!file) return;
+            const problem = await uploadError(file, form.dataset.upload);
+            if (input.files[0] === file && problem) uploadFeedback(form, problem, true);
+        });
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const kind = form.dataset.upload;
+            const file = input.files[0];
+            if (!profileExists) { uploadFeedback(form, 'Simpan data diri terlebih dahulu.'); notifySave('Simpan data diri terlebih dahulu.', false); return; }
+            if (!file) { const message = `Pilih ${kind === 'photo' ? 'foto profil' : 'CV'} terlebih dahulu.`; uploadFeedback(form, message, true); notifySave(message, false); return; }
+            const problem = await uploadError(file, kind);
+            if (problem) { uploadFeedback(form, problem, true); notifySave(problem, false); return; }
+            uploadFeedback(form, '');
+            const body = new FormData();
+            body.append(kind, file);
+            const button = form.querySelector('[type="submit"]');
+            button.disabled = true;
+            uploadFeedback(form, 'Mengunggah…');
+            try {
+                await api(`/api/jobseeker/profile/${kind}`, { method: 'POST', body });
+                const response = await api('/api/jobseeker/profile');
+                fillProfile(response.data);
+                if (kind === 'photo' && navPhoto) navPhoto.src = `/api/jobseeker/profile/photo?updated=${Date.now()}`;
+                const message = `${kind === 'photo' ? 'Foto' : 'CV'} berhasil diunggah.`;
+                uploadFeedback(form, message);
+                notifySave(message, true);
+                input.value = '';
+            } catch (error) {
+                const message = kind === 'photo' && error.status >= 500 ? 'Foto belum dapat diproses di server. Coba lagi nanti.' : errorMessage(error);
+                uploadFeedback(form, message, error.status === 422);
+                notifySave(message, false);
+            } finally { button.disabled = false; }
+        });
+    });
 }
 
 const applications = document.querySelector('[data-my-applications]');
