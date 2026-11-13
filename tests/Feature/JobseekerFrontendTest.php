@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
@@ -15,6 +16,24 @@ use Tests\TestCase;
 class JobseekerFrontendTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_profile_birth_date_accepts_ages_18_to_70_and_rejects_dates_outside_that_range(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-13'));
+        $seeker = User::factory()->create(['role' => 'jobseeker']);
+        $profile = [
+            'full_name' => 'Pencari Kerja', 'domicile' => 'Bandung', 'gender' => 'female',
+            'last_education' => 'S1',
+        ];
+
+        $this->actingAs($seeker)->postJson('/api/jobseeker/profile', $profile + ['birth_date' => '2008-11-13'])->assertCreated();
+        $this->postJson('/api/jobseeker/profile', $profile + ['birth_date' => '1956-11-13'])->assertOk();
+        $this->postJson('/api/jobseeker/profile', $profile + ['birth_date' => '2008-11-14'])
+            ->assertUnprocessable()->assertJsonPath('errors.birth_date.0', 'Usia minimal 18 tahun.');
+        $this->postJson('/api/jobseeker/profile', $profile + ['birth_date' => '1956-11-12'])
+            ->assertUnprocessable()->assertJsonPath('errors.birth_date.0', 'Usia maksimal 70 tahun.');
+        $this->assertDatabaseHas('jobseeker_profiles', ['user_id' => $seeker->id, 'birth_date' => '1956-11-13']);
+    }
 
     public function test_homepage_sections_use_only_active_jobs_and_keep_demo_content_labeled(): void
     {
@@ -463,7 +482,7 @@ class JobseekerFrontendTest extends TestCase
         $this->actingAs($seeker);
 
         $this->post('/api/jobseeker/profile/photo', ['photo' => UploadedFile::fake()->image('large.png')->size(2049)], ['Accept' => 'application/json'])
-            ->assertUnprocessable()->assertJsonValidationErrors('photo');
+            ->assertUnprocessable()->assertJsonPath('errors.photo.0', 'Ukuran foto maksimal 2 MB.');
         $this->post('/api/jobseeker/profile/photo', ['photo' => UploadedFile::fake()->createWithContent('fake.jpg', 'invalid')], ['Accept' => 'application/json'])
             ->assertUnprocessable()->assertJsonValidationErrors('photo');
         Storage::disk('local')->assertExists($oldPath);
@@ -579,7 +598,7 @@ class JobseekerFrontendTest extends TestCase
 
         $oldPath = $path;
         $this->post('/api/jobseeker/profile/cv', ['cv' => UploadedFile::fake()->image('large.png')->size(2049)], ['Accept' => 'application/json'])
-            ->assertUnprocessable()->assertJsonValidationErrors('cv');
+            ->assertUnprocessable()->assertJsonPath('errors.cv.0', 'Gambar harus valid dan berukuran maksimal 2 MB.');
         $this->post('/api/jobseeker/profile/cv', ['cv' => UploadedFile::fake()->createWithContent('fake.pdf', 'invalid')], ['Accept' => 'application/json'])
             ->assertUnprocessable()->assertJsonValidationErrors('cv');
         $this->post('/api/jobseeker/profile/cv', ['cv' => UploadedFile::fake()->createWithContent('wrong.txt', "%PDF-1.4\n%%EOF")], ['Accept' => 'application/json'])

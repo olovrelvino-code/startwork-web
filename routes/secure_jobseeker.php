@@ -56,10 +56,13 @@ Route::middleware(['web', 'auth'])->group(function (): void {
             'profile_photo' => ['missing'],
             'full_name' => ['required', 'string', 'max:255'],
             'domicile' => ['required', 'string', 'max:255'],
-            'birth_date' => ['required', 'date'],
+            'birth_date' => ['required', 'date', 'after_or_equal:'.today()->subYearsNoOverflow(70)->toDateString(), 'before_or_equal:'.today()->subYearsNoOverflow(18)->toDateString()],
             'gender' => ['required', 'in:male,female,Laki-laki,Perempuan'],
             'last_education' => ['required', 'string', 'max:255'],
             'portfolio_link' => ['nullable', 'url', 'max:255'],
+        ], [
+            'birth_date.after_or_equal' => 'Usia maksimal 70 tahun.',
+            'birth_date.before_or_equal' => 'Usia minimal 18 tahun.',
         ]);
 
         $profile = DB::table('jobseeker_profiles')->where('user_id', $userId)->first();
@@ -92,7 +95,13 @@ Route::middleware(['web', 'auth'])->group(function (): void {
         $userId = $jobseeker($request);
         $profile = DB::table('jobseeker_profiles')->where('user_id', $userId)->first();
         abort_if($profile === null, 404, 'Buat profil terlebih dahulu');
-        $input = $request->validate(['photo' => ['required', ...WebpImage::rules()]]);
+        $input = $request->validate(['photo' => ['required', ...WebpImage::rules()]], [
+            'photo.required' => 'Pilih foto profil terlebih dahulu.',
+            'photo.image' => 'Foto harus berupa gambar JPG, JPEG, atau PNG yang valid.',
+            'photo.mimes' => 'Foto harus berupa JPG, JPEG, atau PNG.',
+            'photo.extensions' => 'Foto harus berupa JPG, JPEG, atau PNG.',
+            'photo.max' => 'Ukuran foto maksimal 2 MB.',
+        ]);
         $path = WebpImage::store($input['photo'], "profile-photos/{$userId}", 'photo', disk: 'local', maxDimension: 1024);
         $filename = basename($path);
         try {
@@ -124,7 +133,11 @@ Route::middleware(['web', 'auth'])->group(function (): void {
         $userId = $jobseeker($request);
         $profile = DB::table('jobseeker_profiles')->where('user_id', $userId)->first();
         abort_if($profile === null, 404, 'Buat profil terlebih dahulu');
-        $input = $request->validate(['cv' => JobseekerDocument::rules()]);
+        $input = $request->validate(['cv' => JobseekerDocument::rules()], [
+            'cv.required' => 'Pilih CV terlebih dahulu.',
+            'cv.mimes' => 'CV harus berupa PDF, JPG, JPEG, atau PNG.',
+            'cv.extensions' => 'CV harus berupa PDF, JPG, JPEG, atau PNG.',
+        ]);
         $file = $input['cv'];
         $filename = Str::uuid().'.'.strtolower($file->getClientOriginalExtension());
         $path = $file->storeAs("cvs/{$userId}", $filename, config('filesystems.jobseeker_documents_disk'));

@@ -154,6 +154,19 @@
     .article-table-scroll td { @apply border border-slate-200 px-4 py-3 align-top; }
 }
 
+[data-jobseeker-profile] :is(input:not([type="file"]):not([type="radio"]), select, textarea) {
+    border-width: 1px;
+    border-color: #d7e3e8;
+}
+
+[data-jobseeker-profile] [data-skill-chip] input[data-field="name"],
+[data-jobseeker-profile] [data-skill-chip] input[data-field="name"]:focus {
+    border: 0;
+    box-shadow: none;
+    outline: none;
+    background: transparent;
+}
+
 .admin-shell [x-cloak] { display: none !important; }
 .admin-internal-shell {
     --admin-brand: #DE7C23;
