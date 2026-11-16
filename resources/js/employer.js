@@ -11,15 +11,14 @@ if (subscription) {
     const benefits = { Basic: ['Tayang di website (15 hari)', '1x Instagram Story', '1x Feed (Simple Design)'], Standard: ['Tayang di website (30 hari)', '1x Feed (Excellent Design)', '2x Instagram Story', 'Featured Lowongan di Website (1 hari)'], Premium: ['Tayang di website (45 hari)', '1x Reels (Video)', '1x Feed', '3x Instagram Story', 'Featured Lowongan di Website (3 hari)'] };
     const currency = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
     let selectedButton;
+    let selectedPackage;
     fetch(subscription.dataset.packagesUrl, { headers: { Accept: 'application/json' }, credentials: 'same-origin' }).then((response) => response.json()).then(({ data }) => {
         const plans = ['Basic', 'Standard', 'Premium'];
         const packages = data.filter((item) => plans.includes(item.name) && item.currency === 'IDR' && item.is_active).sort((a, b) => plans.indexOf(a.name) - plans.indexOf(b.name));
         if (!packages.length) { status.textContent = 'Belum ada paket aktif yang tersedia.'; return; }
         packages.forEach((item) => {
             const card = template.content.firstElementChild.cloneNode(true);
-            card.style.borderTopColor = { Basic: '#17394B', Standard: '#B85B12', Premium: '#167C83' }[item.name];
             card.querySelector('[data-package-name]').textContent = item.name;
-            if (item.name === 'Standard') card.querySelector('[data-package-badge]').classList.remove('hidden');
             const price = currency.format(Number(item.price));
             const quota = `${item.quota} lowongan`;
             const duration = `${item.duration_days} hari`;
@@ -30,96 +29,98 @@ if (subscription) {
             const button = card.querySelector('[data-select-package]');
             button.addEventListener('click', () => {
                 selectedButton = button;
+                selectedPackage = item;
                 dialog.querySelector('[data-confirm-name]').textContent = item.name;
                 dialog.querySelector('[data-confirm-price]').textContent = price;
                 dialog.querySelector('[data-confirm-quota]').textContent = quota;
                 dialog.querySelector('[data-confirm-duration]').textContent = duration;
+                const benefitList = dialog.querySelector('[data-confirm-benefits]');
+                benefitList.replaceChildren(...benefits[item.name].map((benefit) => { const row = document.createElement('li'); row.textContent = benefit; return row; }));
+                const confirmBtn = dialog.querySelector('[data-package-confirm]');
+                if (confirmBtn) {
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = 'Konfirmasi';
+                    delete confirmBtn.dataset.submitting;
+                }
                 dialog.showModal();
             });
             list.append(card);
         });
         status.textContent = '';
     }).catch(() => { status.textContent = 'Katalog paket gagal dimuat. Muat ulang halaman untuk mencoba lagi.'; });
-    dialog.querySelector('[data-package-close]').addEventListener('click', () => dialog.close());
-    dialog.querySelector('[data-package-confirm]').addEventListener('click', () => { status.textContent = `Paket ${dialog.querySelector('[data-confirm-name]').textContent} dipilih. Pembelian belum tersedia; akses akun tidak berubah.`; dialog.close(); });
-    dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
-    dialog.addEventListener('close', () => selectedButton?.focus());
-}
-
-const upgradeDialog = document.querySelector('[data-upgrade-dialog]');
-const upgradeTrigger = document.querySelector('[data-upgrade-open]');
-if (upgradeDialog instanceof HTMLDialogElement && upgradeTrigger instanceof HTMLButtonElement) {
-    const close = upgradeDialog.querySelector('[data-upgrade-close]');
-    const status = upgradeDialog.querySelector('[data-upgrade-status]');
-    const list = upgradeDialog.querySelector('[data-upgrade-packages]');
-    const template = upgradeDialog.querySelector('[data-upgrade-template]');
-    const names = ['Basic', 'Standard', 'Premium'];
-    const benefits = {
-        Basic: ['Website 15 hari', '1 Instagram Story', '1 Instagram Feed (Simple Design)'],
-        Standard: ['Website 30 hari', '1 Instagram Feed (Excellent Design)', '2 Instagram Story', 'Featured Website 1 hari'],
-        Premium: ['Website 45 hari', '1 Instagram Reels', '1 Instagram Feed', '3 Instagram Story', 'Featured Website 3 hari'],
-    };
-    const rupiah = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
-    let request;
-
-    upgradeTrigger.addEventListener('click', async () => {
-        request?.abort();
-        request = new AbortController();
-        list.replaceChildren();
-        status.textContent = 'Memuat paket…';
-        upgradeDialog.showModal();
+    dialog.querySelectorAll('[data-package-close]').forEach((button) => button.addEventListener('click', () => dialog.close()));
+    const confirmButton = dialog.querySelector('[data-package-confirm]');
+    confirmButton.addEventListener('click', async () => {
+        if (confirmButton.disabled || confirmButton.dataset.submitting === 'true') return;
+        confirmButton.disabled = true;
+        confirmButton.dataset.submitting = 'true';
+        confirmButton.textContent = 'Memproses…';
+        const popup = window.open('', '_blank');
         try {
-            const response = await fetch(upgradeDialog.dataset.packagesUrl, {
-                headers: { Accept: 'application/json' }, credentials: 'same-origin', signal: request.signal,
+            const response = await fetch(subscription.dataset.purchaseUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                },
+                body: JSON.stringify({
+                    package_id: selectedPackage.id,
+                    idempotency_key: generateUuid(),
+                }),
             });
-            if (!response.ok) throw new Error('Katalog paket tidak tersedia.');
-            const result = await response.json();
-            const packages = (result.data || []).filter((item) => names.includes(item.name) && item.currency === 'IDR')
-                .sort((a, b) => names.indexOf(a.name) - names.indexOf(b.name));
-            if (!packages.length) {
-                status.textContent = 'Belum ada paket aktif yang tersedia.';
-                return;
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Permintaan pembelian gagal.');
+            if (popup) {
+                popup.location.href = data.whatsapp_url;
+                window.location.reload();
+            } else {
+                window.location.href = data.whatsapp_url;
             }
-            packages.forEach((item) => {
-                const card = template.content.firstElementChild.cloneNode(true);
-                card.dataset.featured = String(item.name === 'Standard');
-                card.querySelector('[data-package-badge]').textContent = item.name === 'Standard' ? 'Pilihan populer' : 'Paket employer';
-                card.querySelector('[data-package-name]').textContent = item.name;
-                const price = Number(item.price);
-                card.querySelector('[data-package-price]').textContent = Number.isFinite(price) ? rupiah.format(price) : 'Harga tidak tersedia';
-                card.querySelector('[data-package-quota]').textContent = item.quota === null ? 'Belum ditentukan' : `${item.quota} lowongan`;
-                card.querySelector('[data-package-duration]').textContent = item.duration_days === null ? 'Belum ditentukan' : `${item.duration_days} hari`;
-                const benefitList = card.querySelector('[data-package-benefits]');
-                benefits[item.name].forEach((benefit) => {
-                    const row = document.createElement('li');
-                    row.className = 'flex gap-2';
-                    const mark = document.createElement('span');
-                    mark.className = 'shrink-0 font-semibold text-[#B85B12]';
-                    mark.setAttribute('aria-hidden', 'true');
-                    mark.textContent = '✓';
-                    row.append(mark, document.createTextNode(benefit));
-                    benefitList.append(row);
-                });
-                card.querySelector('[data-select-package]').addEventListener('click', () => {
-                    list.querySelectorAll('article').forEach((option) => {
-                        option.dataset.selected = String(option === card);
-                        const button = option.querySelector('[data-select-package]');
-                        button.dataset.selected = String(option === card);
-                        button.setAttribute('aria-pressed', String(option === card));
-                        button.textContent = option === card ? 'Dipilih' : 'Pilih paket';
-                    });
-                    status.textContent = `Paket ${item.name} dipilih. Pembelian belum tersedia; akses akun tidak berubah.`;
-                });
-                list.append(card);
-            });
-            status.textContent = 'Pilih paket untuk membandingkan opsi. Pembelian belum tersedia.';
         } catch (error) {
-            if (error.name !== 'AbortError') status.textContent = 'Katalog paket gagal dimuat. Tutup dan buka kembali untuk mencoba lagi.';
+            popup?.close();
+            showFeedback(error.message);
+            confirmButton.disabled = false;
+            confirmButton.textContent = 'Konfirmasi';
+            delete confirmButton.dataset.submitting;
         }
     });
-    close.addEventListener('click', () => upgradeDialog.close());
-    upgradeDialog.addEventListener('click', (event) => { if (event.target === upgradeDialog) upgradeDialog.close(); });
-    upgradeDialog.addEventListener('close', () => { request?.abort(); upgradeTrigger.focus(); });
+    document.querySelectorAll('[data-proof-form]').forEach((form) => form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        try {
+            const response = await fetch(form.action, { method: 'POST', credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }, body: new FormData(form) });
+            if (response.ok) window.location.reload();
+            else showFeedback((await response.json()).message || 'Bukti pembayaran gagal dikirim.');
+        } catch { showFeedback('Koneksi terputus. Periksa status transaksi sebelum mengirim ulang.'); }
+    }));
+    dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
+    dialog.addEventListener('close', () => {
+        if (confirmButton) {
+            confirmButton.disabled = false;
+            confirmButton.textContent = 'Konfirmasi';
+            delete confirmButton.dataset.submitting;
+        }
+        selectedButton?.focus();
+    });
+}
+
+function generateUuid() {
+    if (typeof crypto !== 'undefined') {
+        if (typeof crypto.randomUUID === 'function') {
+            return crypto.randomUUID();
+        }
+        if (typeof crypto.getRandomValues === 'function') {
+            return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) =>
+                (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)
+            );
+        }
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+    });
 }
 
 function showFeedback(message) {

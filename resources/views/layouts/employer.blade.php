@@ -28,6 +28,7 @@
                     ['employer.job-posts.*', 'Lowongan kerja', 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8ZM8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18'],
                     ['employer.applications.*', 'Pelamar & CV', 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8M18 8a3 3 0 0 1 0 6M22 20v-2a4 4 0 0 0-3-3.87'],
                     ['employer.subscription', 'Langganan', 'M3 7h18v14H3zM3 11h18M7 4h10v3'],
+                    ['employer.subscription.history', 'Riwayat Pembelian', 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01'],
                 ] as [$routeName, $label, $icon])
                     <a href="{{ route(str_replace('.*', '.index', $routeName)) }}" @class([
                         'flex items-center gap-3 rounded-lg border-l-2 px-4 py-2.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#B85B12]',
@@ -38,7 +39,7 @@
             </nav>
             <x-account-menu />
         </aside>
-        <div class="min-w-0 flex-1" :inert="menuOpen && !desktop">
+        <div class="min-w-0 flex-1 flex flex-col min-h-screen" :inert="menuOpen && !desktop">
             <header class="flex min-h-16 flex-wrap items-center gap-3 border-b border-[#D8E2E7] bg-white px-4 py-2 sm:px-6 lg:px-8">
                 <button x-ref="menuButton" type="button" class="flex h-11 w-11 items-center justify-center rounded-lg text-[#17394B] lg:hidden" @click="menuOpen = true; $nextTick(() => $refs.closeMenu.focus())" aria-label="Buka menu" aria-controls="employer-menu" :aria-expanded="menuOpen.toString()"><svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button>
                 <span class="hidden min-w-0 flex-1 truncate text-sm text-slate-600 sm:block">Start Work / @yield('section_label', 'Employer')</span>
@@ -47,31 +48,13 @@
                     <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="admin-button-quiet">Keluar</button></form>
                 </div>
             </header>
-            <main id="main-content" class="lg:p-2 lg:pl-0">
-                <div class="admin-sheet min-h-[calc(100vh-5rem)] px-4 pb-12 pt-7 sm:px-6 lg:px-8 lg:pt-8">
+            <main id="main-content" class="flex-1 flex flex-col p-0 lg:p-2 lg:pl-0">
+                <div class="admin-sheet flex-1 min-h-[calc(100vh-4rem)] lg:min-h-[calc(100vh-5rem)] px-4 pb-12 pt-7 sm:px-6 lg:px-8 lg:pt-8">
                     <div id="employer-feedback" aria-live="polite" class="mb-5 hidden"></div>
                     @yield('content')
                 </div>
             </main>
         </div>
     </div>
-    <dialog id="employer-upgrade-dialog" data-upgrade-dialog data-packages-url="{{ url('/api/packages') }}" aria-modal="true" aria-labelledby="upgrade-title" aria-describedby="upgrade-description" class="w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-400 bg-slate-900 p-0 text-white shadow-xl backdrop:bg-slate-950/65" style="width:min(94vw,62rem)">
-        <div class="p-4 sm:p-6 lg:p-7">
-            <div class="flex justify-end"><button type="button" data-upgrade-close aria-label="Tutup pilihan paket" class="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-200 transition-colors hover:border-slate-400 hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E6A66F]">Tutup</button></div>
-            <div class="mx-auto max-w-2xl text-center"><p class="text-xs font-semibold uppercase tracking-[0.16em] text-[#E6A66F]">Paket StartWork</p><h2 id="upgrade-title" class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Pilih Paket</h2><p id="upgrade-description" class="mt-2 text-sm leading-relaxed text-slate-300">Pilih dukungan rekrutmen yang sesuai kebutuhan Anda. Paket yang dipilih belum mengubah akses akun.</p></div>
-            <p data-upgrade-status class="mt-3 min-h-5 text-center text-sm text-slate-300" role="status" aria-live="polite">Memuat paket…</p>
-            <div data-upgrade-packages class="mt-3 grid items-stretch gap-3 md:grid-cols-3"></div>
-            <template data-upgrade-template>
-                <article class="flex min-w-0 flex-col rounded-xl border border-slate-600 bg-slate-800 p-4 transition-colors hover:border-[#E6A66F] hover:bg-slate-700 data-[featured=true]:border-[#C87431] data-[featured=true]:hover:border-[#E6A66F] data-[selected=true]:border-[#E6A66F] data-[selected=true]:bg-slate-700 data-[selected=true]:ring-2 data-[selected=true]:ring-[#E6A66F] sm:p-5">
-                    <p data-package-badge class="min-h-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#E6A66F]"></p>
-                    <h3 data-package-name class="mt-1 text-lg font-semibold text-white"></h3>
-                    <p data-package-price class="admin-number mt-2 break-words text-xl font-semibold tracking-tight text-white"></p>
-                    <dl class="mt-3 grid grid-cols-2 gap-2 border-y border-slate-600 py-3 text-xs"><div><dt class="text-slate-300">Kuota</dt><dd data-package-quota class="mt-1 font-semibold text-white"></dd></div><div><dt class="text-slate-300">Durasi</dt><dd data-package-duration class="mt-1 font-semibold text-white"></dd></div></dl>
-                    <p class="mt-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-300">Benefit paket</p><ul data-package-benefits class="mt-2 flex-1 space-y-1 text-xs leading-snug text-slate-200"></ul>
-                    <button type="button" data-select-package class="mt-4 w-full rounded-lg border border-[#C87431] bg-[#B85B12] px-3 py-2 text-sm font-semibold text-white transition-colors hover:border-[#E6A66F] hover:bg-[#9D4D10] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E6A66F] data-[featured=true]:border-[#E6A66F] data-[featured=true]:bg-[#613B22] data-[featured=true]:hover:bg-[#613B22] data-[selected=true]:border-[#F5C093] data-[selected=true]:bg-[#613B22] data-[selected=true]:hover:bg-[#613B22]" aria-pressed="false">Pilih paket</button>
-                </article>
-            </template>
-        </div>
-    </dialog>
 </body>
 </html>

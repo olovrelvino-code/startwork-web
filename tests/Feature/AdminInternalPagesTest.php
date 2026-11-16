@@ -43,6 +43,15 @@ class AdminInternalPagesTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $this->actingAs($admin);
 
+        $navigation = $this->get('/admin/dashboard')->assertOk()->assertSeeTextInOrder([
+            'Dashboard', 'Perusahaan', 'Lowongan Kerja', 'Pelamar & CV', 'Artikel & Berita',
+            'Paket & Promosi', 'Kelola Subscription', 'Dashboard',
+            'Permintaan', 'Riwayat Transaksi', 'Status Subscription',
+        ]);
+        foreach (['admin.dashboard', 'admin.companies.index', 'admin.job-posts.index', 'admin.applicants.index', 'admin.articles.index', 'admin.packages.index', 'admin.transactions.dashboard', 'admin.transactions.requests', 'admin.transactions.history', 'admin.transactions.subscriptions'] as $routeName) {
+            $navigation->assertSee('href="'.route($routeName).'"', false);
+        }
+
         foreach (['companies', 'job-posts', 'job-posts/create', 'applicants', 'articles', 'articles/create', 'packages'] as $path) {
             $this->get('/admin/'.$path)->assertOk();
         }

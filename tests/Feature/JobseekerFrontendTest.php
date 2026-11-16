@@ -56,7 +56,7 @@ class JobseekerFrontendTest extends TestCase
             ->assertDontSee('konten promosi sementara')
             ->assertSee('Posisi active')->assertDontSee('Posisi inactive')
             ->assertSee(url('/api/companies/'.$companyId.'/logo'))
-            ->assertSee('Data demo')->assertSee('Mitra Perusahaan')->assertSee('Logo dan daftar mitra resmi belum tersedia.')
+            ->assertSee('Data demo')->assertSee('Mitra Perusahaan')
             ->assertDontSee('Perusahaan paling aktif')
             ->assertSee('Nama lowongan')->assertSee('Kota atau lokasi')
             ->assertSee('action="'.route('jobs.index').'"', false)

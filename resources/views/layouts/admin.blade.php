@@ -16,10 +16,10 @@
     <div x-data="{ menuOpen: false }" class="min-h-screen lg:flex">
         <div x-cloak x-show="menuOpen" x-transition.opacity class="fixed inset-0 z-40 bg-slate-950/60 lg:hidden" @click="menuOpen = false" aria-hidden="true"></div>
         <x-admin.navigation />
-        <div class="min-w-0 flex-1">
+        <div class="min-w-0 flex-1 flex flex-col min-h-screen">
             <x-admin.topbar />
-            <main id="main-content" class="p-0 lg:p-2 lg:pl-0">
-                <div class="admin-sheet px-4 pb-12 pt-7 sm:px-6 lg:px-8 lg:pt-8">
+            <main id="main-content" class="flex-1 flex flex-col p-0 lg:p-2 lg:pl-0">
+                <div class="admin-sheet flex-1 min-h-[calc(100vh-4rem)] lg:min-h-[calc(100vh-5rem)] px-4 pb-12 pt-7 sm:px-6 lg:px-8 lg:pt-8">
                     <div id="admin-feedback" aria-live="polite" class="mb-5 hidden"></div>
                     @if (session('success'))
                         <x-admin.notice type="success" :message="session('success')" />

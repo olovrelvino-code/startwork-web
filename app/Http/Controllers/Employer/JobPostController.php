@@ -39,7 +39,7 @@ class JobPostController extends Controller
         $subscription = $this->activeSubscription($company->id);
         $hasQuota = $subscription !== null && $subscription->quota_total !== null
             && DB::table('job_posts')->where('company_id', $company->id)
-                ->where('status', 'active')->whereNotNull('subscription_id')
+                ->where('status', 'active')->where('subscription_id', $subscription->id)
                 ->where('expires_at', '>', now())->count() < $subscription->quota_total;
 
         return view('employer.job-posts.create', compact('company', 'subscription', 'hasQuota'));
@@ -51,7 +51,7 @@ class JobPostController extends Controller
         $applicationCount = DB::table('applications')->where('job_posts_id', $job->id)->count();
         $subscription = $this->activeSubscription($job->company_id);
         $activeCount = DB::table('job_posts')->where('company_id', $job->company_id)
-            ->where('status', 'active')->whereNotNull('subscription_id')
+            ->where('status', 'active')->where('subscription_id', $subscription?->id)
             ->where('expires_at', '>', now())->count();
         $hasValidExpiry = $subscription !== null && $job->expires_at !== null
             && Carbon::parse($job->expires_at)->isFuture()

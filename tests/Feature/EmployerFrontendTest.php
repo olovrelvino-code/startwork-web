@@ -35,7 +35,7 @@ class EmployerFrontendTest extends TestCase
 
         $byApplicant = $this->actingAs($employer)->get('/employer/dashboard?q=rInA');
         $byApplicant->assertOk()->assertSee('Rina Pelamar')->assertDontSee('Sari Pelamar')->assertDontSee('Rahasia Pelamar')
-            ->assertSee('data-upgrade-dialog', false)->assertSee('Sesi Employer')->assertSee('data-upgrade-template', false)
+            ->assertSee('Langganan')->assertSee('Sesi Employer')->assertDontSee('data-upgrade-dialog', false)
             ->assertSee('Cari nama pelamar atau judul lowongan...');
         $this->assertSame(1, $byApplicant->viewData('applications')->total());
         $this->assertSame(2, $byApplicant->viewData('jobs')->total());
@@ -49,6 +49,27 @@ class EmployerFrontendTest extends TestCase
         $missing = $this->get('/employer/dashboard?q=Rahasia')->assertOk();
         $missing->assertSee('Lamaran tidak ditemukan')->assertSee('Lowongan tidak ditemukan')->assertDontSee('Rahasia Pelamar');
         $this->getJson('/employer/dashboard?q='.str_repeat('x', 256))->assertUnprocessable()->assertJsonValidationErrors('q');
+    }
+
+    public function test_subscription_page_uses_the_signed_in_employers_company_and_keeps_access_scoped(): void
+    {
+        $employer = User::factory()->create(['role' => 'employer']);
+        $other = User::factory()->create(['role' => 'employer']);
+        DB::table('companies')->insert([
+            ['id' => (string) Str::uuid(), 'owner_user_id' => $employer->id, 'name' => 'Studio Kerja', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => (string) Str::uuid(), 'owner_user_id' => $other->id, 'name' => 'Studio Asing', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $this->actingAs($employer)->get(route('employer.subscription'))->assertOk()
+            ->assertSee('data-company-name="Studio Kerja"', false)
+            ->assertDontSee('Studio Asing')
+            ->assertSee('data-confirm-benefits', false)
+            ->assertSee('data-purchase-url="'.route('employer.subscription.purchases.store').'"', false)
+            ->assertDontSee('Most Popular')
+            ->assertDontSee('data-upgrade-dialog', false);
+
+        $this->actingAs(User::factory()->create(['role' => 'jobseeker']))
+            ->get(route('employer.subscription'))->assertForbidden();
     }
 
     public function test_job_search_matches_title_or_location_and_preserves_pagination_scope(): void
@@ -110,7 +131,7 @@ class EmployerFrontendTest extends TestCase
         $this->get('/employer/login')->assertOk()->assertSee('Masuk sebagai Employer')->assertSee('Daftar di sini')->assertSee('data-employer-auth-content', false);
         $this->get('/employer/register')->assertOk()->assertSee('Buat akun dan lanjutkan')
             ->assertSee('Langkah 1 dari 2')->assertSee('Profil perusahaan')
-            ->assertSee('registration-progress--dark', false);
+            ->assertSee('registration-progress', false);
         $this->get('/employer/dashboard')->assertRedirect(route('employer.login'));
         $this->get('/employer/setup')->assertRedirect(route('employer.login'));
 

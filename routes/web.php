@@ -7,11 +7,13 @@ use App\Http\Controllers\Admin\CompanyController as AdminCompanyController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\JobPostController as AdminJobPostController;
 use App\Http\Controllers\Admin\PackageController as AdminPackageController;
+use App\Http\Controllers\Admin\TransactionController as AdminTransactionController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Employer\ApplicationController as EmployerApplicationController;
 use App\Http\Controllers\Employer\CompanyController as EmployerCompanyController;
 use App\Http\Controllers\Employer\DashboardController as EmployerDashboardController;
 use App\Http\Controllers\Employer\JobPostController as EmployerJobPostController;
+use App\Http\Controllers\Employer\SubscriptionPurchaseController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicArticleController;
 use Illuminate\Support\Facades\DB;
@@ -126,7 +128,15 @@ Route::middleware('guest')->post('/admin/login', [AuthenticatedSessionController
 Route::middleware(['auth', 'employer'])->prefix('employer')->name('employer.')->group(function (): void {
     Route::redirect('/', '/employer/dashboard')->name('home');
     Route::get('/dashboard', EmployerDashboardController::class)->name('dashboard');
-    Route::view('/subscription', 'employer.subscription')->name('subscription');
+    Route::get('/subscription', function () {
+        $company = DB::table('companies')->where('owner_user_id', auth()->id())->first();
+
+        return view('employer.subscription', ['companyName' => $company?->name]);
+    })->name('subscription');
+    Route::get('/subscription/history', [SubscriptionPurchaseController::class, 'history'])->name('subscription.history');
+    Route::post('/subscription/purchases', [SubscriptionPurchaseController::class, 'store'])->name('subscription.purchases.store');
+    Route::post('/subscription/purchases/{id}/proof', [SubscriptionPurchaseController::class, 'proof'])->name('subscription.purchases.proof');
+    Route::post('/subscription/purchases/{id}/cancel', [SubscriptionPurchaseController::class, 'cancel'])->name('subscription.purchases.cancel');
     Route::get('/setup', [EmployerCompanyController::class, 'setup'])->name('setup');
     Route::patch('/setup/account', [EmployerCompanyController::class, 'completeAccount'])->name('setup.account');
     Route::get('/company', EmployerCompanyController::class)->name('company');
@@ -160,6 +170,13 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/articles/{id}/edit', [AdminArticleController::class, 'edit'])->name('articles.edit');
 
     Route::get('/packages', AdminPackageController::class)->name('packages.index');
+    Route::get('/transactions', [AdminTransactionController::class, 'dashboard'])->name('transactions.dashboard');
+    Route::get('/transactions/requests', [AdminTransactionController::class, 'requests'])->name('transactions.requests');
+    Route::get('/transactions/history', [AdminTransactionController::class, 'history'])->name('transactions.history');
+    Route::get('/transactions/subscriptions', [AdminTransactionController::class, 'subscriptions'])->name('transactions.subscriptions');
+    Route::get('/transactions/{id}', [AdminTransactionController::class, 'show'])->name('transactions.show');
+    Route::get('/transactions/{id}/proof', [AdminTransactionController::class, 'proof'])->name('transactions.proof');
+    Route::post('/transactions/{id}/decision', [AdminTransactionController::class, 'decide'])->name('transactions.decide');
 });
 
 Route::get('/jobs/{id}', function (string $id) {
