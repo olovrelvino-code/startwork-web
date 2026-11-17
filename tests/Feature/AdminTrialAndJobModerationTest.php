@@ -16,29 +16,67 @@ class AdminTrialAndJobModerationTest extends TestCase
     public function test_trial_requires_basic_and_uses_fixed_terms_without_payment(): void
     {
         $this->travelTo(now()->startOfSecond());
+
         $admin = User::factory()->create(['role' => 'admin']);
         $employer = User::factory()->create(['role' => 'employer']);
+
         $companyId = $this->company($employer, 'PT Basic Trial');
         $basicId = $this->package();
-        $otherId = (string) Str::uuid();
-        DB::table('packages')->insert([
-            'id' => $otherId, 'name' => 'Standard', 'quota' => 20, 'duration_days' => 30,
-            'price' => 149000, 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
-        ]);
-        DB::table('packages')->where('id', $basicId)->update(['quota' => 20, 'duration_days' => 30, 'is_active' => false]);
 
-        $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $otherId])
+        $otherId = DB::table('packages')
+            ->where('name', 'Standard')
+            ->value('id');
+
+        $this->assertNotNull(
+            $otherId,
+            'Paket Standard seharusnya tersedia setelah migration test.'
+        );
+
+        DB::table('packages')
+            ->where('id', $basicId)
+            ->update([
+                'quota' => 20,
+                'duration_days' => 30,
+                'is_active' => false,
+            ]);
+
+        $this->actingAs($admin)
+            ->postJson("/api/admin/companies/{$companyId}/grant-trial", [
+                'package_id' => $otherId,
+            ])
             ->assertUnprocessable();
-        $this->get("/admin/companies/{$companyId}")->assertOk()->assertSee('Trial Basic dimulai');
-        $this->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $basicId])
-            ->assertCreated()->assertJsonPath('data.quota_total', 10)
-            ->assertJsonPath('data.source', 'admin_trial');
-        $trial = DB::table('company_subscriptions')->where('company_id', $companyId)->first();
-        $this->assertSame(15 * 86400, strtotime($trial->expires_at) - strtotime($trial->starts_at));
-        $this->assertSame(0, DB::table('company_subscriptions')->where('source', 'purchase')->count());
-        $this->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $basicId])->assertStatus(409);
-    }
 
+        $this->get("/admin/companies/{$companyId}")
+            ->assertOk()
+            ->assertSee('Trial Basic dimulai');
+
+        $this->postJson("/api/admin/companies/{$companyId}/grant-trial", [
+            'package_id' => $basicId,
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.quota_total', 10)
+            ->assertJsonPath('data.source', 'admin_trial');
+
+        $trial = DB::table('company_subscriptions')
+            ->where('company_id', $companyId)
+            ->first();
+
+        $this->assertSame(
+            15 * 86400,
+            strtotime($trial->expires_at) - strtotime($trial->starts_at)
+        );
+
+        $this->assertSame(
+            0,
+            DB::table('company_subscriptions')
+                ->where('source', 'purchase')
+                ->count()
+        );
+
+        $this->postJson("/api/admin/companies/{$companyId}/grant-trial", [
+            'package_id' => $basicId,
+        ])->assertStatus(409);
+    }
     public function test_only_internal_admin_can_end_active_trial(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
@@ -64,16 +102,23 @@ class AdminTrialAndJobModerationTest extends TestCase
         $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])->assertCreated();
         $trialId = DB::table('company_subscriptions')->where('company_id', $companyId)->value('id');
         $jobId = $this->actingAs($employer)->postJson('/api/employer/job-posts', [
-            'title' => 'Analis', 'location' => 'Jakarta', 'job_type' => 'Full-time',
-            'work_type' => 'Hybrid', 'expires_at' => now()->addDays(10)->toIso8601String(),
+            'title' => 'Analis',
+            'location' => 'Jakarta',
+            'job_type' => 'Full-time',
+            'work_type' => 'Hybrid',
+            'expires_at' => now()->addDays(10)->toIso8601String(),
         ])->assertCreated()->json('data.id');
         $this->putJson("/api/employer/job-posts/{$jobId}/status", ['status' => 'active'])->assertOk();
 
         $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/revoke-trial", ['reason' => 'Pelanggaran ketentuan'])
             ->assertOk()->assertJsonPath('message', 'Trial berhasil diakhiri');
         $this->assertDatabaseHas('company_subscriptions', [
-            'id' => $trialId, 'status' => 'revoked', 'revoked_by' => $admin->id,
-            'revocation_reason' => 'Pelanggaran ketentuan', 'revoked_at' => now()->toDateTimeString(), 'quota_used' => 0,
+            'id' => $trialId,
+            'status' => 'revoked',
+            'revoked_by' => $admin->id,
+            'revocation_reason' => 'Pelanggaran ketentuan',
+            'revoked_at' => now()->toDateTimeString(),
+            'quota_used' => 0,
         ]);
         $this->assertDatabaseHas('job_posts', ['id' => $jobId, 'status' => 'inactive', 'subscription_id' => $trialId]);
         $this->assertDatabaseHas('companies', ['id' => $companyId]);
@@ -102,9 +147,15 @@ class AdminTrialAndJobModerationTest extends TestCase
 
         $paidCompanyId = $this->company(User::factory()->create(['role' => 'employer']), 'PT Paid');
         DB::table('company_subscriptions')->insert([
-            'id' => (string) Str::uuid(), 'company_id' => $paidCompanyId, 'package_id' => $packageId,
-            'source' => 'purchase', 'status' => 'active', 'starts_at' => now()->subDay(),
-            'expires_at' => now()->addMonth(), 'created_at' => now(), 'updated_at' => now(),
+            'id' => (string) Str::uuid(),
+            'company_id' => $paidCompanyId,
+            'package_id' => $packageId,
+            'source' => 'purchase',
+            'status' => 'active',
+            'starts_at' => now()->subDay(),
+            'expires_at' => now()->addMonth(),
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
         $this->actingAs($admin)->postJson("/api/admin/companies/{$paidCompanyId}/revoke-trial", ['reason' => 'Tidak berlaku'])->assertNotFound();
         $this->assertDatabaseHas('company_subscriptions', ['company_id' => $paidCompanyId, 'source' => 'purchase', 'status' => 'active']);
@@ -117,7 +168,7 @@ class AdminTrialAndJobModerationTest extends TestCase
 
         foreach (['Basic' => 15] as $name => $days) {
             $employer = User::factory()->create(['role' => 'employer']);
-            $companyId = $this->company($employer, 'PT '.$name);
+            $companyId = $this->company($employer, 'PT ' . $name);
             $packageId = $this->package();
             $this->actingAs($admin)->get("/admin/companies/{$companyId}")->assertOk()
                 ->assertSee('Trial Basic dimulai saat diberikan: 10 lowongan selama 15 hari.');
@@ -127,7 +178,7 @@ class AdminTrialAndJobModerationTest extends TestCase
             $subscription = DB::table('company_subscriptions')->where('company_id', $companyId)->first();
             $this->assertSame($days * 86400, strtotime($subscription->expires_at) - strtotime($subscription->starts_at));
             $this->actingAs($admin)->get("/admin/companies/{$companyId}")->assertOk()
-                ->assertSee('Berakhir '.Carbon::parse($subscription->expires_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i'));
+                ->assertSee('Berakhir ' . Carbon::parse($subscription->expires_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i'));
 
             $this->actingAs($employer)->get('/employer/dashboard')->assertOk()->assertSee('Trial aktif');
             $this->travel($days + 1)->days();
@@ -144,14 +195,18 @@ class AdminTrialAndJobModerationTest extends TestCase
         $companyId = $this->company($employer, 'PT Trial');
         $packageId = $this->package();
         $jobId = $this->actingAs($employer)->postJson('/api/employer/job-posts', [
-            'title' => 'Analis', 'location' => 'Jakarta', 'job_type' => 'Full-time',
-            'work_type' => 'Hybrid', 'expires_at' => now()->addDays(10)->toIso8601String(),
+            'title' => 'Analis',
+            'location' => 'Jakarta',
+            'job_type' => 'Full-time',
+            'work_type' => 'Hybrid',
+            'expires_at' => now()->addDays(10)->toIso8601String(),
         ])->assertCreated()->json('data.id');
 
         $this->putJson("/api/employer/job-posts/{$jobId}/status", ['status' => 'active'])->assertStatus(409);
         $this->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])->assertForbidden();
         $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/grant-trial", [
-            'package_id' => $packageId, 'expires_at' => now()->addYear()->toIso8601String(),
+            'package_id' => $packageId,
+            'expires_at' => now()->addYear()->toIso8601String(),
         ])->assertUnprocessable()->assertJsonValidationErrors('expires_at');
         $this->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])
             ->assertCreated()->assertJsonPath('data.source', 'admin_trial')
@@ -160,7 +215,8 @@ class AdminTrialAndJobModerationTest extends TestCase
         $this->assertEqualsWithDelta(15 * 86400, strtotime($subscription->expires_at) - strtotime($subscription->starts_at), 1);
         $this->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])->assertStatus(409);
         $adminCompanyId = $this->postJson('/api/admin/companies', [
-            'name' => 'Internal Admin', 'location' => 'Jakarta',
+            'name' => 'Internal Admin',
+            'location' => 'Jakarta',
         ])->assertCreated()->json('data.id');
         $this->postJson("/api/admin/companies/{$adminCompanyId}/grant-trial", ['package_id' => $packageId])->assertStatus(409);
 
@@ -170,8 +226,11 @@ class AdminTrialAndJobModerationTest extends TestCase
 
         $this->travel(16)->days();
         $laterJob = $this->postJson('/api/employer/job-posts', [
-            'title' => 'Desainer', 'location' => 'Jakarta', 'job_type' => 'Full-time',
-            'work_type' => 'Hybrid', 'expires_at' => now()->addDay()->toIso8601String(),
+            'title' => 'Desainer',
+            'location' => 'Jakarta',
+            'job_type' => 'Full-time',
+            'work_type' => 'Hybrid',
+            'expires_at' => now()->addDay()->toIso8601String(),
         ])->assertCreated()->json('data.id');
         $this->putJson("/api/employer/job-posts/{$laterJob}/status", ['status' => 'active'])->assertStatus(409);
         $this->assertDatabaseHas('job_posts', ['id' => $jobId, 'company_id' => $companyId]);
@@ -185,8 +244,11 @@ class AdminTrialAndJobModerationTest extends TestCase
         $seeker = User::factory()->create(['role' => 'jobseeker']);
         $companyId = $this->company($employer, 'PT Moderasi');
         $jobId = $this->actingAs($employer)->postJson('/api/employer/job-posts', [
-            'title' => 'Penulis', 'location' => 'Bandung', 'job_type' => 'Contract',
-            'work_type' => 'Remote', 'expires_at' => now()->addDays(5)->toIso8601String(),
+            'title' => 'Penulis',
+            'location' => 'Bandung',
+            'job_type' => 'Contract',
+            'work_type' => 'Remote',
+            'expires_at' => now()->addDays(5)->toIso8601String(),
         ])->assertCreated()->json('data.id');
 
         $this->actingAs($seeker)->putJson("/api/admin/job-posts/{$jobId}", ['title' => 'Salah'])->assertForbidden();
@@ -212,8 +274,10 @@ class AdminTrialAndJobModerationTest extends TestCase
         $employer = User::factory()->create(['role' => 'employer']);
         $companyId = $this->company($employer, 'PT Kanekin');
         $jobId = $this->postJson('/api/employer/job-posts', [
-            'title' => 'Content Specialist', 'location' => 'Jakarta',
-            'job_type' => 'Full-time', 'work_type' => 'Hybrid',
+            'title' => 'Content Specialist',
+            'location' => 'Jakarta',
+            'job_type' => 'Full-time',
+            'work_type' => 'Hybrid',
             'expires_at' => now()->addDays(7)->toIso8601String(),
         ])->assertCreated()->json('data.id');
 
@@ -234,8 +298,10 @@ class AdminTrialAndJobModerationTest extends TestCase
         $this->get("/employer/job-posts/{$jobId}")->assertOk()->assertDontSee('Terbitkan lowongan');
 
         $tooLongId = $this->postJson('/api/employer/job-posts', [
-            'title' => 'Designer', 'location' => 'Jakarta',
-            'job_type' => 'Full-time', 'work_type' => 'Hybrid',
+            'title' => 'Designer',
+            'location' => 'Jakarta',
+            'job_type' => 'Full-time',
+            'work_type' => 'Hybrid',
             'expires_at' => now()->addDays(40)->toIso8601String(),
         ])->assertCreated()->json('data.id');
         $this->get("/employer/job-posts/{$tooLongId}")->assertOk()
@@ -265,30 +331,42 @@ class AdminTrialAndJobModerationTest extends TestCase
         $this->actingAs($admin)->postJson("/api/admin/companies/{$companyId}/grant-trial", ['package_id' => $packageId])->assertCreated();
         $subscriptionId = DB::table('company_subscriptions')->where('company_id', $companyId)->value('id');
         $jobId = $this->actingAs($employer)->postJson('/api/employer/job-posts', [
-            'title' => 'Engineer', 'location' => 'Solo', 'job_type' => 'Full-time',
-            'work_type' => 'On-site', 'expires_at' => now()->addDays(5)->toIso8601String(),
+            'title' => 'Engineer',
+            'location' => 'Solo',
+            'job_type' => 'Full-time',
+            'work_type' => 'On-site',
+            'expires_at' => now()->addDays(5)->toIso8601String(),
         ])->assertCreated()->json('data.id');
         $this->putJson("/api/employer/job-posts/{$jobId}/status", ['status' => 'active'])->assertOk();
 
         $this->actingAs($admin)->deleteJson("/api/admin/job-posts/{$jobId}")->assertStatus(409);
         $this->putJson("/api/admin/job-posts/{$jobId}/status", [
-            'status' => 'inactive', 'inactive_reason' => 'Konten perlu diperbaiki',
+            'status' => 'inactive',
+            'inactive_reason' => 'Konten perlu diperbaiki',
         ])->assertOk()->assertJsonPath('data.status', 'inactive');
         $this->assertDatabaseHas('company_subscriptions', ['id' => $subscriptionId, 'quota_used' => 0]);
         $this->putJson("/api/admin/job-posts/{$jobId}/status", [
-            'status' => 'inactive', 'inactive_reason' => 'Masih ditutup',
+            'status' => 'inactive',
+            'inactive_reason' => 'Masih ditutup',
         ])->assertOk();
         $this->assertDatabaseHas('company_subscriptions', ['id' => $subscriptionId, 'quota_used' => 0]);
 
         $seeker = User::factory()->create(['role' => 'jobseeker']);
         $profileId = (string) Str::uuid();
         DB::table('jobseeker_profiles')->insert([
-            'id' => $profileId, 'user_id' => $seeker->id, 'full_name' => 'Pelamar',
-            'created_at' => now(), 'updated_at' => now(),
+            'id' => $profileId,
+            'user_id' => $seeker->id,
+            'full_name' => 'Pelamar',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
         DB::table('applications')->insert([
-            'id' => (string) Str::uuid(), 'job_posts_id' => $jobId, 'profile_id' => $profileId,
-            'status' => 'submitted', 'created_at' => now(), 'updated_at' => now(),
+            'id' => (string) Str::uuid(),
+            'job_posts_id' => $jobId,
+            'profile_id' => $profileId,
+            'status' => 'submitted',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
         $this->deleteJson("/api/admin/job-posts/{$jobId}")->assertStatus(409);
         $this->assertDatabaseHas('job_posts', ['id' => $jobId]);
@@ -306,20 +384,29 @@ class AdminTrialAndJobModerationTest extends TestCase
         $this->actingAs($employer);
 
         $first = $this->postJson('/api/employer/job-posts', [
-            'title' => 'Editor', 'location' => 'Jakarta', 'job_type' => 'Full-time',
-            'work_type' => 'Hybrid', 'expires_at' => now()->addDays(7)->toIso8601String(),
+            'title' => 'Editor',
+            'location' => 'Jakarta',
+            'job_type' => 'Full-time',
+            'work_type' => 'Hybrid',
+            'expires_at' => now()->addDays(7)->toIso8601String(),
         ])->assertCreated()->json('data.id');
         $this->putJson("/api/employer/job-posts/{$first}/status", ['status' => 'active'])->assertOk();
         for ($index = 2; $index <= 10; $index++) {
             $jobId = $this->postJson('/api/employer/job-posts', [
-                'title' => 'Editor '.$index, 'location' => 'Jakarta', 'job_type' => 'Full-time',
-                'work_type' => 'Hybrid', 'expires_at' => now()->addDays(7)->toIso8601String(),
+                'title' => 'Editor ' . $index,
+                'location' => 'Jakarta',
+                'job_type' => 'Full-time',
+                'work_type' => 'Hybrid',
+                'expires_at' => now()->addDays(7)->toIso8601String(),
             ])->assertCreated()->json('data.id');
             $this->putJson("/api/employer/job-posts/{$jobId}/status", ['status' => 'active'])->assertOk();
         }
         $second = $this->postJson('/api/employer/job-posts', [
-            'title' => 'Fotografer', 'location' => 'Jakarta', 'job_type' => 'Full-time',
-            'work_type' => 'Hybrid', 'expires_at' => now()->addDays(7)->toIso8601String(),
+            'title' => 'Fotografer',
+            'location' => 'Jakarta',
+            'job_type' => 'Full-time',
+            'work_type' => 'Hybrid',
+            'expires_at' => now()->addDays(7)->toIso8601String(),
         ])->assertCreated()->json('data.id');
         $this->get("/employer/job-posts/{$second}")->assertOk()->assertSee('Kuota lowongan aktif sudah penuh')
             ->assertDontSee('Terbitkan lowongan');
@@ -364,7 +451,8 @@ class AdminTrialAndJobModerationTest extends TestCase
     private function company(User $owner, string $name): string
     {
         return $this->actingAs($owner)->postJson('/api/employer/company', [
-            'name' => $name, 'location' => 'Jakarta',
+            'name' => $name,
+            'location' => 'Jakarta',
         ])->assertCreated()->json('data.id');
     }
 

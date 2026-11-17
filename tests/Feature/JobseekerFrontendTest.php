@@ -22,7 +22,9 @@ class JobseekerFrontendTest extends TestCase
         $this->travelTo(Carbon::parse('2026-11-13'));
         $seeker = User::factory()->create(['role' => 'jobseeker']);
         $profile = [
-            'full_name' => 'Pencari Kerja', 'domicile' => 'Bandung', 'gender' => 'female',
+            'full_name' => 'Pencari Kerja',
+            'domicile' => 'Bandung',
+            'gender' => 'female',
             'last_education' => 'S1',
         ];
 
@@ -42,11 +44,18 @@ class JobseekerFrontendTest extends TestCase
         DB::table('companies')->insert(['id' => $companyId, 'name' => 'PT Karier Nyata', 'location' => 'Bandung', 'logo' => 'logo.webp', 'created_at' => now(), 'updated_at' => now()]);
         foreach (['active', 'inactive'] as $status) {
             DB::table('job_posts')->insert([
-                'id' => (string) Str::uuid(), 'company_id' => $companyId, 'posted_by' => $admin->id,
-                'title' => "Posisi {$status}", 'description' => 'Kebutuhan khusus', 'location' => 'Bandung', 'category' => 'Technology / IT',
+                'id' => (string) Str::uuid(),
+                'company_id' => $companyId,
+                'posted_by' => $admin->id,
+                'title' => "Posisi {$status}",
+                'description' => 'Kebutuhan khusus',
+                'location' => 'Bandung',
+                'category' => 'Technology / IT',
                 'job_type' => $status === 'active' ? 'Full-time' : 'Contract',
-                'work_type' => $status === 'active' ? 'Remote' : 'On-site', 'status' => $status,
-                'created_at' => now(), 'updated_at' => now(),
+                'work_type' => $status === 'active' ? 'Remote' : 'On-site',
+                'status' => $status,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
 
@@ -55,11 +64,11 @@ class JobseekerFrontendTest extends TestCase
             ->assertSee('Temukan pekerjaan yang tepat, kenali perusahaan pilihanmu, dan mulai perjalanan kariermu bersama StartWork.')
             ->assertDontSee('konten promosi sementara')
             ->assertSee('Posisi active')->assertDontSee('Posisi inactive')
-            ->assertSee(url('/api/companies/'.$companyId.'/logo'))
-            ->assertSee('Data demo')->assertSee('Mitra Perusahaan')
-            ->assertDontSee('Perusahaan paling aktif')
+            ->assertSee(url('/api/companies/' . $companyId . '/logo'))
+            ->assertSee('Nabila Putri')->assertSee('Rizky Pratama')->assertSee('Dewi Anggraini')
+            ->assertSee('Mitra Perusahaan')->assertDontSee('Perusahaan paling aktif')
             ->assertSee('Nama lowongan')->assertSee('Kota atau lokasi')
-            ->assertSee('action="'.route('jobs.index').'"', false)
+            ->assertSee('action="' . route('jobs.index') . '"', false)
             ->assertSee('name="q"', false)->assertSee('name="location"', false)
             ->assertSee('Cari')
             ->assertSeeInOrder(['Posisi active', 'Bandung', 'Technology / IT', 'Full-time', 'Remote'])
@@ -70,8 +79,8 @@ class JobseekerFrontendTest extends TestCase
             ->assertDontSee('Log Out')
             ->assertDontSee('Asisten AI')->assertDontSee('Kategori lowongan aktif')
             ->assertDontSee('Perusahaan terdaftar');
-        $this->assertSame(1, substr_count($response->getContent(), url('/api/companies/'.$companyId.'/logo')));
-        $this->getJson('/api/job-posts?category='.urlencode('Technology / IT'))
+        $this->assertSame(1, substr_count($response->getContent(), url('/api/companies/' . $companyId . '/logo')));
+        $this->getJson('/api/job-posts?category=' . urlencode('Technology / IT'))
             ->assertOk()->assertJsonPath('total', 1);
         $this->getJson('/api/job-posts?category[]=Technology%20%2F%20IT&category[]=Others')
             ->assertOk()->assertJsonPath('total', 1);
@@ -103,9 +112,16 @@ class JobseekerFrontendTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         foreach ([['published', 'Panduan Lamaran', 'panduan-lamaran'], ['draft', 'Catatan Rahasia', 'catatan-rahasia']] as [$status, $title, $slug]) {
             DB::table('articles')->insert([
-                'id' => (string) Str::uuid(), 'author_id' => $admin->id, 'title' => $title,
-                'slug' => $slug, 'excerpt' => 'Ringkasan karier', 'content' => 'Isi artikel',
-                'status' => $status, 'published_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+                'id' => (string) Str::uuid(),
+                'author_id' => $admin->id,
+                'title' => $title,
+                'slug' => $slug,
+                'excerpt' => 'Ringkasan karier',
+                'content' => 'Isi artikel',
+                'status' => $status,
+                'published_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
 
@@ -113,19 +129,29 @@ class JobseekerFrontendTest extends TestCase
             ->assertSee('Panduan Lamaran')->assertSee('Ringkasan karier')
             ->assertSee(route('articles.show', 'panduan-lamaran'))
             ->assertDontSee('Catatan Rahasia')
-            ->assertSeeInOrder(['Lowongan terbaru', 'Mitra Perusahaan', 'Artikel Terbaru', 'Cerita pengguna']);
+            ->assertSeeInOrder([
+                'Lowongan terbaru',
+                'Mitra Perusahaan',
+                'Artikel Terbaru',
+                'Cerita dari Setiap Perjalanan Karier',
+            ]);
         $this->get('/articles')->assertOk()->assertSee('Panduan Lamaran')->assertDontSee('Catatan Rahasia');
     }
 
     public function test_registration_keeps_jobseeker_identity_and_phone(): void
     {
         $this->post('/register', [
-            'name' => 'Pencari Kerja', 'email' => 'pencari@example.test', 'phone' => '08123456789',
-            'password' => 'password123', 'password_confirmation' => 'password123',
+            'name' => 'Pencari Kerja',
+            'email' => 'pencari@example.test',
+            'phone' => '08123456789',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
         ])->assertRedirect('/loker');
 
         $this->assertDatabaseHas('users', [
-            'email' => 'pencari@example.test', 'phone' => '08123456789', 'role' => 'jobseeker',
+            'email' => 'pencari@example.test',
+            'phone' => '08123456789',
+            'role' => 'jobseeker',
         ]);
         $this->getJson('/api/me')->assertOk()->assertJsonPath('data.role', 'jobseeker');
     }
@@ -134,8 +160,11 @@ class JobseekerFrontendTest extends TestCase
     {
         $seeker = User::factory()->create(['role' => 'jobseeker']);
         $this->actingAs($seeker)->postJson('/api/jobseeker/profile', [
-            'full_name' => 'Pencari Kerja', 'domicile' => 'Bandung', 'birth_date' => '2000-01-01',
-            'gender' => 'female', 'last_education' => 'S1',
+            'full_name' => 'Pencari Kerja',
+            'domicile' => 'Bandung',
+            'birth_date' => '2000-01-01',
+            'gender' => 'female',
+            'last_education' => 'S1',
         ])->assertCreated();
 
         $details = [
@@ -247,11 +276,14 @@ class JobseekerFrontendTest extends TestCase
         Storage::fake('local');
         $seeker = User::factory()->create(['role' => 'jobseeker', 'name' => 'Nama Akun']);
         $this->actingAs($seeker)->postJson('/api/jobseeker/profile', [
-            'full_name' => 'Nama Profil', 'domicile' => 'Bandung', 'birth_date' => '2000-01-01',
-            'gender' => 'female', 'last_education' => 'S1',
+            'full_name' => 'Nama Profil',
+            'domicile' => 'Bandung',
+            'birth_date' => '2000-01-01',
+            'gender' => 'female',
+            'last_education' => 'S1',
         ])->assertCreated();
         $this->get('/loker')->assertOk()->assertSee('data-nav-photo-fallback', false)
-            ->assertDontSee('src="'.url('/api/jobseeker/profile/photo').'"', false);
+            ->assertDontSee('src="' . url('/api/jobseeker/profile/photo') . '"', false);
         $this->post('/api/jobseeker/profile/photo', [
             'photo' => UploadedFile::fake()->image('avatar.png'),
         ], ['Accept' => 'application/json'])->assertOk();
@@ -260,7 +292,7 @@ class JobseekerFrontendTest extends TestCase
             ->assertSee('data-nav-photo', false)
             ->assertSee(url('/api/jobseeker/profile/photo'))
             ->assertSee('Profil Saya')->assertSee('Lamaran Saya')->assertSee('Log Out')
-            ->assertSee('action="'.route('logout').'"', false);
+            ->assertSee('action="' . route('logout') . '"', false);
         $this->get('/api/jobseeker/profile/photo')->assertOk()->assertHeader('Content-Type', 'image/webp');
     }
 
@@ -269,20 +301,29 @@ class JobseekerFrontendTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $companyId = (string) Str::uuid();
         DB::table('companies')->insert([
-            'id' => $companyId, 'name' => 'PT Buka Lowongan', 'logo' => 'logo.webp',
-            'created_at' => now(), 'updated_at' => now(),
+            'id' => $companyId,
+            'name' => 'PT Buka Lowongan',
+            'logo' => 'logo.webp',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
         foreach (['active', 'inactive'] as $status) {
             DB::table('job_posts')->insert([
-                'id' => (string) Str::uuid(), 'company_id' => $companyId, 'posted_by' => $admin->id,
-                'title' => "Posisi {$status}", 'job_type' => 'Full-time', 'work_type' => 'Hybrid',
-                'status' => $status, 'created_at' => now(), 'updated_at' => now(),
+                'id' => (string) Str::uuid(),
+                'company_id' => $companyId,
+                'posted_by' => $admin->id,
+                'title' => "Posisi {$status}",
+                'job_type' => 'Full-time',
+                'work_type' => 'Hybrid',
+                'status' => $status,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
 
-        $this->get('/perusahaan/'.$companyId)->assertOk()
+        $this->get('/perusahaan/' . $companyId)->assertOk()
             ->assertSee('Lowongan Terbuka')->assertSee('company-open-job-card');
-        $this->getJson('/api/companies/'.$companyId)->assertOk()
+        $this->getJson('/api/companies/' . $companyId)->assertOk()
             ->assertJsonPath('data.name', 'PT Buka Lowongan')
             ->assertJsonPath('data.logo', 'logo.webp')
             ->assertJsonCount(1, 'open_positions')
@@ -298,13 +339,23 @@ class JobseekerFrontendTest extends TestCase
         DB::table('companies')->insert(['id' => $companyId, 'name' => 'PT Uji', 'logo' => 'logo.webp', 'created_at' => now(), 'updated_at' => now()]);
         for ($index = 0; $index < 17; $index++) {
             DB::table('job_posts')->insert([
-                'id' => (string) Str::uuid(), 'company_id' => $companyId, 'posted_by' => $admin->id,
-                'title' => "Posisi {$index}", 'status' => 'active', 'created_at' => now()->subMinutes($index), 'updated_at' => now(),
+                'id' => (string) Str::uuid(),
+                'company_id' => $companyId,
+                'posted_by' => $admin->id,
+                'title' => "Posisi {$index}",
+                'status' => 'active',
+                'created_at' => now()->subMinutes($index),
+                'updated_at' => now(),
             ]);
         }
         DB::table('job_posts')->insert([
-            'id' => (string) Str::uuid(), 'company_id' => $companyId, 'posted_by' => $admin->id,
-            'title' => 'Draf', 'status' => 'inactive', 'created_at' => now(), 'updated_at' => now(),
+            'id' => (string) Str::uuid(),
+            'company_id' => $companyId,
+            'posted_by' => $admin->id,
+            'title' => 'Draf',
+            'status' => 'inactive',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         $first = $this->getJson('/api/job-posts?limit=5&page=1')->assertOk()->assertJsonPath('total', 17)
@@ -327,9 +378,15 @@ class JobseekerFrontendTest extends TestCase
         DB::table('companies')->insert(['id' => $companyId, 'name' => 'PT Filter', 'created_at' => now(), 'updated_at' => now()]);
         foreach ([['Seasonal', 'Field', 'active'], ['Contract', 'Remote', 'inactive']] as [$jobType, $workType, $status]) {
             DB::table('job_posts')->insert([
-                'id' => (string) Str::uuid(), 'company_id' => $companyId, 'posted_by' => $admin->id,
-                'title' => $jobType, 'job_type' => $jobType, 'work_type' => $workType,
-                'status' => $status, 'created_at' => now(), 'updated_at' => now(),
+                'id' => (string) Str::uuid(),
+                'company_id' => $companyId,
+                'posted_by' => $admin->id,
+                'title' => $jobType,
+                'job_type' => $jobType,
+                'work_type' => $workType,
+                'status' => $status,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
 
@@ -355,24 +412,39 @@ class JobseekerFrontendTest extends TestCase
         DB::table('companies')->insert(['id' => $companyId, 'name' => 'PT Lamaran', 'created_at' => now(), 'updated_at' => now()]);
         foreach ([[$profileId, $seeker->id], [$otherProfileId, $other->id]] as [$id, $userId]) {
             DB::table('jobseeker_profiles')->insert([
-                'id' => $id, 'user_id' => $userId, 'full_name' => 'Pelamar',
-                'created_at' => now(), 'updated_at' => now(),
+                'id' => $id,
+                'user_id' => $userId,
+                'full_name' => 'Pelamar',
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
         for ($index = 0; $index < 15; $index++) {
             $jobId = (string) Str::uuid();
             DB::table('job_posts')->insert([
-                'id' => $jobId, 'company_id' => $companyId, 'posted_by' => $admin->id,
-                'title' => "Posisi {$index}", 'created_at' => now(), 'updated_at' => now(),
+                'id' => $jobId,
+                'company_id' => $companyId,
+                'posted_by' => $admin->id,
+                'title' => "Posisi {$index}",
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
             DB::table('applications')->insert([
-                'id' => (string) Str::uuid(), 'job_posts_id' => $jobId, 'profile_id' => $profileId,
-                'applied_at' => now()->subMinutes($index), 'created_at' => now(), 'updated_at' => now(),
+                'id' => (string) Str::uuid(),
+                'job_posts_id' => $jobId,
+                'profile_id' => $profileId,
+                'applied_at' => now()->subMinutes($index),
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
             if ($index === 0) {
                 DB::table('applications')->insert([
-                    'id' => (string) Str::uuid(), 'job_posts_id' => $jobId, 'profile_id' => $otherProfileId,
-                    'applied_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+                    'id' => (string) Str::uuid(),
+                    'job_posts_id' => $jobId,
+                    'profile_id' => $otherProfileId,
+                    'applied_at' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
                 $filteredJobId = $jobId;
             }
@@ -384,7 +456,7 @@ class JobseekerFrontendTest extends TestCase
             ->assertOk()->assertJsonPath('total', 15)->assertJsonCount(12, 'data');
         $this->getJson('/api/jobseeker/my-applications?page=2&limit=12')
             ->assertOk()->assertJsonPath('total', 15)->assertJsonCount(3, 'data');
-        $this->getJson('/api/jobseeker/my-applications?job_id='.$filteredJobId.'&limit=1')
+        $this->getJson('/api/jobseeker/my-applications?job_id=' . $filteredJobId . '&limit=1')
             ->assertOk()->assertJsonPath('total', 1)->assertJsonPath('data.0.job_id', $filteredJobId);
         $this->getJson('/api/jobseeker/my-applications')->assertOk()->assertJsonCount(15, 'data');
         $this->getJson('/api/jobseeker/my-applications?page=0')->assertUnprocessable();
@@ -404,19 +476,27 @@ class JobseekerFrontendTest extends TestCase
             ['Paruh Waktu', 'Bandung', 'Part-time', 'Remote', $firstDay->copy()->addDays(2)],
         ] as [$title, $location, $jobType, $workType, $createdAt]) {
             DB::table('job_posts')->insert([
-                'id' => (string) Str::uuid(), 'company_id' => $companyId, 'posted_by' => $admin->id,
-                'title' => $title, 'location' => $location, 'job_type' => $jobType,
-                'work_type' => $workType, 'status' => 'active', 'created_at' => $createdAt, 'updated_at' => now(),
+                'id' => (string) Str::uuid(),
+                'company_id' => $companyId,
+                'posted_by' => $admin->id,
+                'title' => $title,
+                'location' => $location,
+                'job_type' => $jobType,
+                'work_type' => $workType,
+                'status' => 'active',
+                'created_at' => $createdAt,
+                'updated_at' => now(),
             ]);
         }
 
         $query = http_build_query([
-            'job_type' => ['Full-time', 'Contract'], 'work_type' => ['Hybrid', 'Remote'],
+            'job_type' => ['Full-time', 'Contract'],
+            'work_type' => ['Hybrid', 'Remote'],
             'created_from' => $firstDay->toDateString(),
             'created_to' => $firstDay->copy()->addDay()->toDateString(),
             'sort' => 'oldest',
         ]);
-        $this->getJson('/api/job-posts?'.$query)->assertOk()->assertJsonPath('total', 2)
+        $this->getJson('/api/job-posts?' . $query)->assertOk()->assertJsonPath('total', 2)
             ->assertJsonPath('data.0.title', 'Analis')->assertJsonPath('data.1.title', 'Editor');
         $this->getJson('/api/job-posts?job_type=Full-time&location=Bandung')->assertOk()
             ->assertJsonPath('total', 1)->assertJsonPath('data.0.title', 'Analis');
@@ -426,19 +506,21 @@ class JobseekerFrontendTest extends TestCase
             ->assertJsonPath('total', 1)->assertJsonPath('data.0.title', 'Magang');
         $this->getJson('/api/job-posts?work_type=On-site')->assertOk()
             ->assertJsonPath('total', 1)->assertJsonPath('data.0.title', 'Magang');
-        $this->getJson('/api/job-posts?created_to='.$firstDay->toDateString())->assertOk()
+        $this->getJson('/api/job-posts?created_to=' . $firstDay->toDateString())->assertOk()
             ->assertJsonPath('total', 1);
-        $this->getJson('/api/job-posts?created_from='.$firstDay->copy()->addDay()->toDateString()
-            .'&created_to='.$firstDay->toDateString())->assertUnprocessable();
+        $this->getJson('/api/job-posts?created_from=' . $firstDay->copy()->addDay()->toDateString()
+            . '&created_to=' . $firstDay->toDateString())->assertUnprocessable();
     }
 
     public function test_company_filters_and_pagination_keep_full_total(): void
     {
         foreach (['PT Bandung Satu', 'PT Bandung Dua', 'PT Bandung Tiga', 'PT Jakarta'] as $name) {
             DB::table('companies')->insert([
-                'id' => (string) Str::uuid(), 'name' => $name,
+                'id' => (string) Str::uuid(),
+                'name' => $name,
                 'location' => str_contains($name, 'Bandung') ? 'Bandung' : 'Jakarta',
-                'created_at' => now(), 'updated_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
 
@@ -454,11 +536,15 @@ class JobseekerFrontendTest extends TestCase
         $owner = User::factory()->create(['role' => 'jobseeker']);
         $other = User::factory()->create(['role' => 'jobseeker']);
         $employer = User::factory()->create(['role' => 'employer']);
-        $path = 'cvs/'.$owner->id.'/'.Str::uuid().'.pdf';
+        $path = 'cvs/' . $owner->id . '/' . Str::uuid() . '.pdf';
         Storage::disk('local')->put($path, '%PDF-1.4 test');
         DB::table('jobseeker_profiles')->insert([
-            'id' => (string) Str::uuid(), 'user_id' => $owner->id, 'cv_file' => $path,
-            'cv_filename' => 'resume.pdf', 'created_at' => now(), 'updated_at' => now(),
+            'id' => (string) Str::uuid(),
+            'user_id' => $owner->id,
+            'cv_file' => $path,
+            'cv_filename' => 'resume.pdf',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         $this->getJson('/api/jobseeker/profile/cv')->assertUnauthorized();
@@ -472,12 +558,15 @@ class JobseekerFrontendTest extends TestCase
         Storage::fake('local');
         $seeker = User::factory()->create(['role' => 'jobseeker']);
         $profileId = (string) Str::uuid();
-        $oldName = Str::uuid().'.jpeg';
+        $oldName = Str::uuid() . '.jpeg';
         $oldPath = "profile-photos/{$seeker->id}/{$oldName}";
         Storage::disk('local')->put($oldPath, 'legacy photo');
         DB::table('jobseeker_profiles')->insert([
-            'id' => $profileId, 'user_id' => $seeker->id, 'profile_photo' => $oldName,
-            'created_at' => now(), 'updated_at' => now(),
+            'id' => $profileId,
+            'user_id' => $seeker->id,
+            'profile_photo' => $oldName,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
         $this->actingAs($seeker);
 
@@ -515,8 +604,13 @@ class JobseekerFrontendTest extends TestCase
         $jobId = (string) Str::uuid();
         DB::table('companies')->insert(['id' => $companyId, 'name' => 'Perusahaan Uji', 'created_at' => now(), 'updated_at' => now()]);
         DB::table('job_posts')->insert([
-            'id' => $jobId, 'company_id' => $companyId, 'posted_by' => $admin->id,
-            'title' => 'Posisi Tersimpan', 'status' => 'active', 'created_at' => now(), 'updated_at' => now(),
+            'id' => $jobId,
+            'company_id' => $companyId,
+            'posted_by' => $admin->id,
+            'title' => 'Posisi Tersimpan',
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         $this->postJson("/api/jobseeker/saved-jobs/{$jobId}")->assertUnauthorized();
@@ -554,21 +648,29 @@ class JobseekerFrontendTest extends TestCase
         $this->assertSame(1, substr_count($page->getContent(), 'value="SD/Sederajat"'));
 
         $this->postJson('/api/jobseeker/profile', [
-            'full_name' => 'Rina', 'domicile' => 'Bandung', 'birth_date' => '2000-01-01',
-            'gender' => 'Laki-laki', 'last_education' => 'S1 Teknik Informatika',
+            'full_name' => 'Rina',
+            'domicile' => 'Bandung',
+            'birth_date' => '2000-01-01',
+            'gender' => 'Laki-laki',
+            'last_education' => 'S1 Teknik Informatika',
         ])->assertCreated();
         $this->getJson('/api/jobseeker/profile')->assertOk()
             ->assertJsonPath('data.gender', 'Laki-laki')
             ->assertJsonPath('data.last_education', 'S1 Teknik Informatika');
         $this->postJson('/api/jobseeker/profile', [
-            'full_name' => 'Rina', 'domicile' => 'Bandung', 'birth_date' => '2000-01-01',
-            'gender' => 'Perempuan', 'last_education' => 'D4/Sarjana Terapan',
+            'full_name' => 'Rina',
+            'domicile' => 'Bandung',
+            'birth_date' => '2000-01-01',
+            'gender' => 'Perempuan',
+            'last_education' => 'D4/Sarjana Terapan',
         ])->assertOk()->assertJsonPath('data.gender', 'Perempuan')->assertJsonPath('data.last_education', 'D4/Sarjana Terapan');
         $this->postJson('/api/jobseeker/profile/details', [
-            'skills' => ['SQL'], 'education_histories' => [['level' => 'S1', 'institution' => 'Universitas A']],
+            'skills' => ['SQL'],
+            'education_histories' => [['level' => 'S1', 'institution' => 'Universitas A']],
         ])->assertOk();
         $this->putJson('/api/jobseeker/profile/details', [
-            'skills' => ['SQL'], 'education_histories' => [['level' => 'SMK/Sederajat', 'institution' => 'Sekolah B']],
+            'skills' => ['SQL'],
+            'education_histories' => [['level' => 'SMK/Sederajat', 'institution' => 'Sekolah B']],
         ])->assertOk();
         $this->getJson('/api/jobseeker/profile/details')->assertOk()
             ->assertJsonPath('data.education_histories.0.level', 'SMK/Sederajat')
@@ -586,7 +688,7 @@ class JobseekerFrontendTest extends TestCase
 
         foreach (['pdf', 'jpg', 'jpeg', 'png'] as $extension) {
             $file = $extension === 'pdf'
-                ? UploadedFile::fake()->createWithContent('resume.pdf', "%PDF-1.4\n".str_repeat(' ', 2 * 1024 * 1024)."\n%%EOF\n")
+                ? UploadedFile::fake()->createWithContent('resume.pdf', "%PDF-1.4\n" . str_repeat(' ', 2 * 1024 * 1024) . "\n%%EOF\n")
                 : UploadedFile::fake()->image("resume.{$extension}")->size($extension === 'jpg' ? 2048 : 100);
             $this->post('/api/jobseeker/profile/cv', ['cv' => $file], ['Accept' => 'application/json'])->assertOk();
             $path = DB::table('jobseeker_profiles')->where('id', $profileId)->value('cv_file');
@@ -644,14 +746,15 @@ class JobseekerFrontendTest extends TestCase
         $this->postJson('/api/jobseeker/profile/details', ['skills' => ['SQL']])->assertOk();
         $this->assertDatabaseHas('certificates', ['id' => $legacyId, 'file_url' => 'https://example.test/legacy']);
 
-        $pdf = UploadedFile::fake()->createWithContent('certificate.pdf', "%PDF-1.4\n".str_repeat(' ', 2 * 1024 * 1024)."\n%%EOF\n");
+        $pdf = UploadedFile::fake()->createWithContent('certificate.pdf', "%PDF-1.4\n" . str_repeat(' ', 2 * 1024 * 1024) . "\n%%EOF\n");
         $this->post('/api/jobseeker/profile/certificates', ['name' => 'Sertifikat Baru', 'file' => $pdf], ['Accept' => 'application/json'])->assertOk();
         $certificate = DB::table('certificates')->where('name', 'Sertifikat Baru')->first();
         $this->assertNull($certificate->file_url);
         Storage::disk('local')->assertExists($certificate->file_path);
         foreach (['jpg', 'jpeg'] as $extension) {
             $this->post('/api/jobseeker/profile/certificates', [
-                'name' => "Sertifikat {$extension}", 'file' => UploadedFile::fake()->image("certificate.{$extension}"),
+                'name' => "Sertifikat {$extension}",
+                'file' => UploadedFile::fake()->image("certificate.{$extension}"),
             ], ['Accept' => 'application/json'])->assertOk();
             $otherCertificate = DB::table('certificates')->where('name', "Sertifikat {$extension}")->first();
             Storage::disk('local')->assertExists($otherCertificate->file_path);
@@ -667,14 +770,17 @@ class JobseekerFrontendTest extends TestCase
         $this->actingAs($owner);
 
         $this->post("/api/jobseeker/profile/certificates/{$certificate->id}", [
-            'name' => 'Sertifikat Baru', 'file' => UploadedFile::fake()->image('large.jpg')->size(2049),
+            'name' => 'Sertifikat Baru',
+            'file' => UploadedFile::fake()->image('large.jpg')->size(2049),
         ], ['Accept' => 'application/json'])->assertUnprocessable()->assertJsonValidationErrors('file');
         $this->post("/api/jobseeker/profile/certificates/{$certificate->id}", [
-            'name' => 'Sertifikat Baru', 'file' => UploadedFile::fake()->createWithContent('fake.png', 'invalid'),
+            'name' => 'Sertifikat Baru',
+            'file' => UploadedFile::fake()->createWithContent('fake.png', 'invalid'),
         ], ['Accept' => 'application/json'])->assertUnprocessable()->assertJsonValidationErrors('file');
         Storage::disk('local')->assertExists($certificate->file_path);
         $this->post("/api/jobseeker/profile/certificates/{$certificate->id}", [
-            'name' => 'Sertifikat Baru', 'file' => UploadedFile::fake()->image('replacement.png'),
+            'name' => 'Sertifikat Baru',
+            'file' => UploadedFile::fake()->image('replacement.png'),
         ], ['Accept' => 'application/json'])->assertOk();
         Storage::disk('local')->assertMissing($certificate->file_path);
         $replacement = DB::table('certificates')->where('id', $certificate->id)->first();
