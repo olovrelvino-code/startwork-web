@@ -27,6 +27,8 @@
     }
 
     .admin-sheet { @apply bg-white lg:rounded-2xl lg:border lg:border-slate-200; }
+    .admin-sidebar-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+    .admin-sidebar-scroll::-webkit-scrollbar { display: none; }
     .admin-panel { @apply rounded-xl border border-slate-200 bg-white; }
     .auth-card { @apply rounded-2xl bg-white p-6 sm:rounded-3xl sm:p-8; overflow: hidden; border: 1px solid #D7E3E8; background-clip: padding-box; box-shadow: 0 20px 55px -28px rgb(23 57 75 / 40%); }
     .auth-role-switch { display: flex; gap: .25rem; position: relative; border: 1px solid #D8E2E7; background: #fff; box-shadow: 0 2px 8px rgb(23 57 75 / 8%); }

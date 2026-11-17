@@ -83,6 +83,8 @@
                         <li><a href="{{ route('about') }}">Tentang StartWork</a></li>
                         <li><a href="{{ route('faqs') }}">FAQs</a></li>
                         <li><a href="{{ route('articles.index') }}">Blog</a></li>
+                        <li><a href="{{ route('employer.register') }}">Registrasi Perusahaan</a></li>
+                        <li><a href="{{ route('employer.login') }}">Untuk Perusahaan</a></li>
                     </ul>
                 </nav>
                 <div>

@@ -298,7 +298,7 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function (): void 
             $activeCount = DB::table('job_posts')
                 ->where('company_id', $company->id)
                 ->where('status', 'active')
-                ->whereNotNull('subscription_id')
+                ->where('subscription_id', $subscription->id)
                 ->count();
             abort_if(
                 $subscription->quota_total === null

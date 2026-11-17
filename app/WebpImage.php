@@ -13,7 +13,7 @@ class WebpImage
     /** @return array<int, string> */
     public static function rules(): array
     {
-        return ['file', 'image', 'mimes:jpg,jpeg,png', 'extensions:jpg,jpeg,png', 'max:2048'];
+        return ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'extensions:jpg,jpeg,png,webp', 'max:2048'];
     }
 
     public static function store(
@@ -29,10 +29,18 @@ class WebpImage
 
         $source = $file->getRealPath();
         $details = $source ? @getimagesize($source) : false;
-        if (! $details || ! in_array($details[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG], true)
-            || $details[0] < 1 || $details[1] < 1 || $details[0] > 5000 || $details[1] > 5000
-            || $details[0] * $details[1] > 12000000) {
-            throw ValidationException::withMessages([$field => 'Gambar tidak valid atau dimensinya terlalu besar.']);
+        $allowedTypes = [IMAGETYPE_JPEG, IMAGETYPE_PNG];
+        if (defined('IMAGETYPE_WEBP')) {
+            $allowedTypes[] = IMAGETYPE_WEBP;
+        }
+
+        if (! $details || ! in_array($details[2], $allowedTypes, true)
+            || $details[0] < 1 || $details[1] < 1
+            || $details[0] > 5000 || $details[1] > 5000
+            || $details[0] * $details[1] > 35000000) {
+            throw ValidationException::withMessages([
+                $field => 'Gambar tidak valid atau dimensinya terlalu besar.',
+            ]);
         }
 
         $contents = @file_get_contents($source);
@@ -45,7 +53,7 @@ class WebpImage
             imagedestroy($image);
             throw ValidationException::withMessages([$field => 'Gambar tidak dapat diproses.']);
         }
-        if ($details[2] === IMAGETYPE_PNG) {
+        if ($details[2] === IMAGETYPE_PNG || (defined('IMAGETYPE_WEBP') && $details[2] === IMAGETYPE_WEBP)) {
             imagealphablending($image, false);
             imagesavealpha($image, true);
         }
