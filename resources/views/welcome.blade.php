@@ -121,25 +121,112 @@
         </div>
     </section>
 
-    <section class="bg-white py-14 sm:py-16" aria-labelledby="testimonials-title">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-wrap items-end justify-between gap-4"><div><h2 id="testimonials-title" class="text-2xl font-bold tracking-tight">Cerita pengguna</h2><p class="mt-2 text-sm text-slate-600">Contoh tampilan — seluruh cerita di bawah adalah data demo, bukan ulasan pengguna nyata.</p></div><a href="{{ route('jobs.index') }}" class="text-sm font-semibold text-blue-700 hover:underline">Jelajahi lowongan →</a></div>
-            @php
-                $demoTestimonials = [
-                    ['name' => 'Nabila Putri', 'role' => 'Pencari kerja', 'quote' => 'Saya bisa membandingkan posisi dan lokasi lowongan dari satu halaman.'],
-                    ['name' => 'Rizky Pratama', 'role' => 'Lulusan baru', 'quote' => 'Informasi perusahaan membantu saya mengenali tempat kerja sebelum melamar.'],
-                    ['name' => 'Dewi Anggraini', 'role' => 'Pencari kerja', 'quote' => 'Status lamaran yang tersimpan memudahkan saya mengikuti proses berikutnya.'],
-                ];
-            @endphp
-            <div class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                @foreach ($demoTestimonials as $testimonial)
-                    <figure class="jobseeker-testimonial flex h-full flex-col rounded-xl border border-slate-200 border-t-4 bg-white p-6 shadow-sm sm:p-7">
-                        <blockquote class="flex-1 text-base leading-7 text-slate-700"><span aria-hidden="true" class="mr-1 text-3xl font-bold leading-none text-[var(--jobseeker-accent)]">“</span>{{ $testimonial['quote'] }}”</blockquote>
-                        <figcaption class="mt-6 flex items-center gap-3 border-t border-slate-200 pt-4"><span aria-hidden="true" class="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-blue-600 text-white"><svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 21c.5-4 3-6 7.5-6s7 2 7.5 6"/></svg></span><span class="min-w-0"><strong class="block text-sm text-slate-900">{{ $testimonial['name'] }}</strong><span class="block text-xs text-slate-600">{{ $testimonial['role'] }} · Data demo</span></span></figcaption>
-                    </figure>
-                @endforeach
+
+<section class="sw-reviews-section" aria-labelledby="testimonials-title">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+
+        <div class="sw-reviews-heading">
+            <div>
+                <span class="sw-reviews-eyebrow">
+                    PENGALAMAN BERSAMA STARTWORK
+                </span>
+
+                <h2 id="testimonials-title">
+                    Cerita dari Setiap Perjalanan Karier
+                </h2>
+
+                <p>
+                    Setiap perjalanan karier punya cerita.
+                    Kenali berbagai pengalaman menggunakan
+                    StartWork untuk menjelajahi peluang kerja.
+                </p>
             </div>
+
+            <a href="{{ route('jobs.index') }}"
+               class="sw-reviews-link">
+                Jelajahi lowongan
+                <span aria-hidden="true">&rarr;</span>
+            </a>
         </div>
-    </section>
+
+        @php
+            // Konten demonstrasi, bukan testimoni terverifikasi.
+            $demoTestimonials = [
+                [
+                    'name' => 'Nabila Putri',
+                    'role' => 'Pencari Kerja',
+                    'quote' => 'Saya bisa membandingkan posisi dan lokasi lowongan dari satu halaman.',
+                    'photo' => 'nabila.png',
+                ],
+                [
+                    'name' => 'Rizky Pratama',
+                    'role' => 'Fresh Graduate',
+                    'quote' => 'Informasi perusahaan membantu saya mengenali tempat kerja sebelum melamar.',
+                    'photo' => 'rizky.jpg',
+                ],
+                [
+                    'name' => 'Dewi Anggraini',
+                    'role' => 'Pencari Kerja',
+                    'quote' => 'Status lamaran yang tersimpan memudahkan saya mengikuti proses berikutnya.',
+                    'photo' => 'dewi.jpg',
+                ],
+            ];
+        @endphp
+
+        <div class="sw-reviews-grid">
+            @foreach ($demoTestimonials as $testimonial)
+                <figure class="sw-review-card">
+
+                    <div class="sw-review-top">
+                        <div class="sw-review-user">
+                            <span class="sw-review-avatar"
+                                  aria-hidden="true">
+                                @if (is_file(public_path('images/testimonials/'.$testimonial['photo'])))
+                                    <img
+                                        src="{{ asset('images/testimonials/'.$testimonial['photo']) }}"
+                                        alt=""
+                                        loading="lazy"
+                                        decoding="async"
+                                        width="58"
+                                        height="58"
+                                    >
+                                @else
+                                    <svg viewBox="0 0 64 64"
+                                         fill="none"
+                                         aria-hidden="true">
+                                        <circle cx="32" cy="24"
+                                                r="12"
+                                                fill="#7293A3"/>
+                                        <path d="M9 62c0-15 9-24 23-24s23 9 23 24"
+                                              fill="#7293A3"/>
+                                    </svg>
+                                @endif
+                            </span>
+
+                            <figcaption class="sw-review-identity">
+                                <strong>{{ $testimonial['name'] }}</strong>
+                                <span>{{ $testimonial['role'] }}</span>
+                            </figcaption>
+                        </div>
+
+                        <span class="sw-review-quote-icon"
+                              aria-hidden="true">
+                            &ldquo;
+                        </span>
+                    </div>
+
+                    <blockquote class="sw-review-quote">
+                        {{ $testimonial['quote'] }}
+                    </blockquote>
+
+                    <div class="sw-review-bottom">
+                        <span>Pengalaman menggunakan StartWork</span>
+                    </div>
+
+                </figure>
+            @endforeach
+        </div>
+    </div>
+</section>
 
 @endsection
