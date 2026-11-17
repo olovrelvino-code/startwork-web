@@ -51,7 +51,7 @@ class SubscriptionPurchaseController extends Controller
 
     public function proof(Request $request, SubscriptionPurchases $purchases, string $id): JsonResponse|RedirectResponse
     {
-        $request->validate(['proof' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:10240']]);
+        $request->validate(['proof' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:2048']]);
         $file = $request->file('proof');
         $ext = strtolower($file->getClientOriginalExtension());
         $mime = $file->getMimeType();

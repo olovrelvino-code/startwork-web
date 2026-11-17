@@ -13,7 +13,7 @@ class WebpImage
     /** @return array<int, string> */
     public static function rules(): array
     {
-        return ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'extensions:jpg,jpeg,png,webp', 'max:10240'];
+        return ['file', 'image', 'mimes:jpg,jpeg,png,webp', 'extensions:jpg,jpeg,png,webp', 'max:2048'];
     }
 
     public static function store(
@@ -35,9 +35,12 @@ class WebpImage
         }
 
         if (! $details || ! in_array($details[2], $allowedTypes, true)
-            || $details[0] < 1 || $details[1] < 1 || $details[0] > 7000 || $details[1] > 7000
+            || $details[0] < 1 || $details[1] < 1
+            || $details[0] > 5000 || $details[1] > 5000
             || $details[0] * $details[1] > 35000000) {
-            throw ValidationException::withMessages([$field => 'Gambar tidak valid atau dimensinya terlalu besar.']);
+            throw ValidationException::withMessages([
+                $field => 'Gambar tidak valid atau dimensinya terlalu besar.',
+            ]);
         }
 
         $contents = @file_get_contents($source);

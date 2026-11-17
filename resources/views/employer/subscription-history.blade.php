@@ -52,7 +52,7 @@
                     <div class="mt-5 flex flex-wrap items-end gap-4 border-t border-slate-100 pt-5">
                         <form method="POST" action="{{ route('employer.subscription.purchases.proof', $purchase->id) }}" enctype="multipart/form-data" class="flex flex-1 flex-wrap items-end gap-3">
                             @csrf
-                            <div class="min-w-[200px] flex-1"><label class="admin-label" for="proof-{{ $purchase->id }}">Bukti pembayaran (JPG, PNG, WebP, PDF; maks. 10 MB)</label><input id="proof-{{ $purchase->id }}" name="proof" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required class="admin-input w-full"></div>
+                            <div class="min-w-[200px] flex-1"><label class="admin-label" for="proof-{{ $purchase->id }}">Bukti pembayaran (JPG, PNG, WebP, PDF; maks. 2 MB)</label><input id="proof-{{ $purchase->id }}" name="proof" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required class="admin-input w-full"></div>
                             <button type="submit" class="rounded-lg bg-[#B85B12] px-4 py-3 text-sm font-semibold text-white hover:bg-[#95420D]">Kirim bukti</button>
                         </form>
                         <form method="POST" action="{{ route('employer.subscription.purchases.cancel', $purchase->id) }}">@csrf<button type="submit" class="admin-button-quiet">Batalkan pesanan</button></form>

@@ -324,6 +324,7 @@ class StartWorkSearchAndPaginationTest extends TestCase
     public function test_admin_package_list_paginates_ten_and_keeps_sequence(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
+        DB::table('packages')->where('is_active', true)->update(['is_active' => false]);
         foreach (range(1, 11) as $number) {
             DB::table('packages')->insert([
                 'id' => (string) Str::uuid(), 'name' => 'Paket '.$number,
