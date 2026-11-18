@@ -9,20 +9,27 @@
     </x-admin.page-header>
 
     @if ($trial)
-        @php($trialIsActive = $trial->status === 'active' && \Illuminate\Support\Carbon::parse($trial->starts_at)->lessThanOrEqualTo(now()) && \Illuminate\Support\Carbon::parse($trial->expires_at)->isFuture())
         <section class="mb-9 grid gap-3 border-l-[3px] border-[#B85B12] bg-slate-50 px-5 py-4 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center" aria-label="Akses trial">
             <div>
                 <h2 class="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#8F460F]">Akses trial</h2>
                 @if ($trialIsActive)
                     <p class="leading-relaxed text-slate-700"><strong class="text-slate-900">Trial aktif.</strong> Terbitkan draft hingga {{ \Illuminate\Support\Carbon::parse($trial->expires_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i') }} WIB, sesuai kuota paket.</p>
+                @elseif ($activePackageName !== null)
+                    <p class="leading-relaxed text-slate-700"><strong class="text-slate-900">Trial telah selesai.</strong> Paket {{ $activePackageName }} Anda sudah aktif.</p>
+                @elseif ($hasOpenPurchase)
+                    <p class="leading-relaxed text-slate-700"><strong class="text-slate-900">Trial telah selesai.</strong> Pembelian paket Anda masih dalam proses. Cek statusnya di Riwayat Pembelian.</p>
                 @elseif ($trial->status === 'revoked')
-                    <p class="leading-relaxed text-slate-700"><strong class="text-slate-900">Trial telah diakhiri oleh admin.</strong> Draft dan riwayat lowongan tetap tersedia; publikasi baru memerlukan akses aktif.</p>
+                    <p class="leading-relaxed text-slate-700"><strong class="text-slate-900">Trial telah diakhiri oleh admin.</strong> Pilih paket langganan untuk melanjutkan publikasi lowongan.</p>
                 @else
-                    <p class="leading-relaxed text-slate-700"><strong class="text-slate-900">Trial telah berakhir.</strong> Draft dan riwayat lowongan tetap tersedia; publikasi baru memerlukan akses aktif.</p>
+                    <p class="leading-relaxed text-slate-700"><strong class="text-slate-900">Trial telah berakhir.</strong> Pilih paket langganan untuk melanjutkan publikasi lowongan.</p>
                 @endif
             </div>
             @if ($trialIsActive)
                 <a class="admin-link whitespace-nowrap text-sm" href="{{ route('employer.job-posts.index') }}">Lihat draft lowongan</a>
+            @elseif ($hasOpenPurchase)
+                <a class="admin-link whitespace-nowrap text-sm" href="{{ route('employer.subscription.history') }}">Lihat Riwayat Pembelian</a>
+            @elseif ($activePackageName === null)
+                <a class="admin-button-primary whitespace-nowrap" href="{{ route('employer.subscription') }}">Pilih Paket</a>
             @endif
         </section>
     @endif

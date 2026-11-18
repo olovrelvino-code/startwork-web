@@ -38,7 +38,12 @@
                         <h2 class="text-lg font-semibold text-[#17394B]">Paket {{ $purchase->package_name }}</h2>
                         <p class="mt-1 text-sm text-slate-500">{{ \Illuminate\Support\Carbon::parse($purchase->created_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i') }} WIB · ID {{ $purchase->id }}</p>
                     </div>
-                    <span class="rounded-full bg-[#F3F7F8] px-3 py-1 text-xs font-semibold text-[#17394B]">{{ $status }}</span>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="rounded-full bg-[#F3F7F8] px-3 py-1 text-xs font-semibold text-[#17394B]">{{ $status }}</span>
+                        @if ($purchase->status === 'paid')
+                            <span @class(['rounded-full px-3 py-1 text-xs font-semibold', 'bg-emerald-50 text-emerald-800' => $purchase->subscription_status === 'active', 'bg-amber-50 text-amber-800' => $purchase->subscription_status === 'pending_activation', 'bg-slate-100 text-slate-600' => ! in_array($purchase->subscription_status, ['active', 'pending_activation'])])>{{ match ($purchase->subscription_status) { 'active' => 'Aktif', 'pending_activation' => 'Menunggu aktivasi', 'expired' => 'Berakhir', default => ucfirst($purchase->subscription_status) } }}</span>
+                        @endif
+                    </div>
                 </div>
                 <div class="mt-4 flex flex-wrap gap-x-6 gap-y-2 border-t border-slate-100 pt-4 text-sm text-slate-700">
                     <span class="font-semibold text-[#17394B]">Rp {{ number_format($purchase->amount, 0, ',', '.') }}</span>
@@ -50,9 +55,9 @@
                 @endif
                 @if ($purchase->status === 'pending_payment')
                     <div class="mt-5 flex flex-wrap items-end gap-4 border-t border-slate-100 pt-5">
-                        <form method="POST" action="{{ route('employer.subscription.purchases.proof', $purchase->id) }}" enctype="multipart/form-data" class="flex flex-1 flex-wrap items-end gap-3">
+                        <form data-proof-form method="POST" action="{{ route('employer.subscription.purchases.proof', $purchase->id) }}" enctype="multipart/form-data" class="flex flex-1 flex-wrap items-end gap-3">
                             @csrf
-                            <div class="min-w-[200px] flex-1"><label class="admin-label" for="proof-{{ $purchase->id }}">Bukti pembayaran (JPG, PNG, WebP, PDF; maks. 2 MB)</label><input id="proof-{{ $purchase->id }}" name="proof" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required class="admin-input w-full"></div>
+                            <div class="min-w-[200px] flex-1"><label class="admin-label" for="proof-{{ $purchase->id }}">Bukti pembayaran (gambar maks. 20 MB, otomatis jadi WebP maks. 2 MB; PDF maks. 2 MB)</label><input id="proof-{{ $purchase->id }}" name="proof" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required class="admin-input w-full"></div>
                             <button type="submit" class="rounded-lg bg-[#B85B12] px-4 py-3 text-sm font-semibold text-white hover:bg-[#95420D]">Kirim bukti</button>
                         </form>
                         <form method="POST" action="{{ route('employer.subscription.purchases.cancel', $purchase->id) }}">@csrf<button type="submit" class="admin-button-quiet">Batalkan pesanan</button></form>

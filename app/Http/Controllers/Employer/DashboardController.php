@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Employer;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -23,6 +24,23 @@ class DashboardController extends Controller
         }
         $trial = DB::table('company_subscriptions')->where('company_id', $company->id)
             ->where('source', 'admin_trial')->orderByDesc('starts_at')->first();
+        $trialIsActive = $trial !== null && $trial->status === 'active'
+            && Carbon::parse($trial->starts_at)->lessThanOrEqualTo(now()) && Carbon::parse($trial->expires_at)->isFuture();
+        $activePackageName = null;
+        $hasOpenPurchase = false;
+        if ($trial !== null && ! $trialIsActive) {
+            $activePackageName = DB::table('company_subscriptions')
+                ->join('payment_transactions', 'payment_transactions.subscription_id', '=', 'company_subscriptions.id')
+                ->join('packages', 'packages.id', '=', 'company_subscriptions.package_id')
+                ->where('company_subscriptions.company_id', $company->id)->where('company_subscriptions.source', 'purchase')
+                ->where('company_subscriptions.status', 'active')->where('company_subscriptions.starts_at', '<=', now())
+                ->where('company_subscriptions.expires_at', '>', now())->where('payment_transactions.status', 'paid')
+                ->value('packages.name');
+            if ($activePackageName === null) {
+                $hasOpenPurchase = DB::table('company_subscriptions')->where('company_id', $company->id)
+                    ->where('source', 'purchase')->whereIn('status', ['pending', 'scheduled', 'pending_activation'])->exists();
+            }
+        }
 
         $ownJobs = DB::table('job_posts')->where('company_id', $company->id)
             ->where('posted_by', $request->user()->id);
@@ -58,6 +76,6 @@ class DashboardController extends Controller
             ->orderByDesc('applications.applied_at')->orderByDesc('applications.id')
             ->paginate(10, ['*'], 'applications_page')->withQueryString();
 
-        return view('employer.dashboard', compact('company', 'trial', 'counts', 'jobs', 'applications', 'search', 'filterJobs', 'filterApplications'));
+        return view('employer.dashboard', compact('company', 'trial', 'trialIsActive', 'activePackageName', 'hasOpenPurchase', 'counts', 'jobs', 'applications', 'search', 'filterJobs', 'filterApplications'));
     }
 }

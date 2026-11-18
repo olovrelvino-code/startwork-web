@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class SubscriptionPurchaseController extends Controller
@@ -26,6 +27,7 @@ class SubscriptionPurchaseController extends Controller
             ->select(
                 'payment_transactions.*',
                 'packages.name as package_name',
+                'company_subscriptions.status as subscription_status',
                 'company_subscriptions.quota_total',
                 'company_subscriptions.duration_days'
             )
@@ -49,17 +51,28 @@ class SubscriptionPurchaseController extends Controller
         return response()->json(['transaction_id' => $transaction->id, 'whatsapp_url' => 'https://wa.me/628977772099?text='.rawurlencode($message)]);
     }
 
+    public function availability(Request $request, SubscriptionPurchases $purchases): JsonResponse
+    {
+        $companyId = DB::table('companies')->where('owner_user_id', $request->user()->id)->value('id');
+        abort_if($companyId === null, 404);
+        $message = $purchases->purchaseBlockMessage($companyId);
+
+        return response()->json(['allowed' => $message === null, 'message' => $message]);
+    }
+
     public function proof(Request $request, SubscriptionPurchases $purchases, string $id): JsonResponse|RedirectResponse
     {
-        $request->validate(['proof' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:2048']]);
+        $request->validate(['proof' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:20480']]);
         $file = $request->file('proof');
-        $ext = strtolower($file->getClientOriginalExtension());
         $mime = $file->getMimeType();
 
-        if ($ext === 'pdf' || $mime === 'application/pdf') {
+        if ($mime === 'application/pdf') {
+            if ($file->getSize() > 2 * 1024 * 1024) {
+                throw ValidationException::withMessages(['proof' => 'Bukti PDF maksimal 2 MB.']);
+            }
             $path = $file->store('payment-proofs', 'local');
         } else {
-            $path = WebpImage::store($file, 'payment-proofs', 'proof', 'local', 2048);
+            $path = WebpImage::store($file, 'payment-proofs', 'proof', 'local', 2048, 2 * 1024 * 1024);
         }
 
         try {

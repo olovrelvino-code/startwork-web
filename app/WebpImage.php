@@ -21,7 +21,8 @@ class WebpImage
         string $directory,
         string $field,
         string $disk = 'public',
-        ?int $maxDimension = null
+        ?int $maxDimension = null,
+        ?int $maxBytes = null
     ): string {
         if (! function_exists('imagewebp')) {
             throw new RuntimeException('Konversi WebP tidak tersedia pada PHP server.');
@@ -72,17 +73,34 @@ class WebpImage
             $image = $resized;
         }
 
-        ob_start();
         try {
-            $converted = @imagewebp($image, null, 82);
-            $webp = ob_get_contents();
+            do {
+                ob_start();
+                try {
+                    $converted = @imagewebp($image, null, 82);
+                    $webp = ob_get_contents();
+                } finally {
+                    ob_end_clean();
+                }
+                if (! $converted || ! is_string($webp)) {
+                    throw ValidationException::withMessages([$field => 'Konversi gambar gagal. Coba gambar lain.']);
+                }
+                if ($maxBytes === null || strlen($webp) <= $maxBytes) {
+                    break;
+                }
+                $resized = imagescale($image, max(1, (int) (imagesx($image) * 0.8)), max(1, (int) (imagesy($image) * 0.8)), IMG_BICUBIC_FIXED);
+                if ($resized === false) {
+                    throw ValidationException::withMessages([$field => 'Gambar tidak dapat dikompres.']);
+                }
+                imagedestroy($image);
+                $image = $resized;
+            } while (imagesx($image) > 1 || imagesy($image) > 1);
         } finally {
-            ob_end_clean();
             imagedestroy($image);
         }
 
         $result = is_string($webp) ? @getimagesizefromstring($webp) : false;
-        if (! $converted || ! $result || $result['mime'] !== 'image/webp') {
+        if (! $result || $result['mime'] !== 'image/webp' || ($maxBytes !== null && strlen($webp) > $maxBytes)) {
             throw ValidationException::withMessages([$field => 'Konversi gambar gagal. Coba gambar lain.']);
         }
 

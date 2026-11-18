@@ -77,6 +77,7 @@ class AdminTrialAndJobModerationTest extends TestCase
             'package_id' => $basicId,
         ])->assertStatus(409);
     }
+
     public function test_only_internal_admin_can_end_active_trial(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
@@ -127,7 +128,8 @@ class AdminTrialAndJobModerationTest extends TestCase
         $this->get('/admin/companies?filter=trial_active')->assertDontSee('PT Trial Revoked');
         $this->get('/admin/companies?filter=trial_expired')->assertSee('PT Trial Revoked');
         $this->postJson("/api/admin/companies/{$companyId}/revoke-trial", ['reason' => 'Alasan lain'])->assertStatus(409);
-        $this->actingAs($employer)->get('/employer/dashboard')->assertOk()->assertSee('Trial telah diakhiri oleh admin');
+        $this->actingAs($employer)->get('/employer/dashboard')->assertOk()->assertSee('Trial telah diakhiri oleh admin')
+            ->assertSee('Pilih Paket')->assertSee(route('employer.subscription'));
         $this->putJson("/api/employer/job-posts/{$jobId}/status", ['status' => 'active'])->assertStatus(409);
         $this->travel(2)->days();
         $this->assertDatabaseHas('company_subscriptions', ['id' => $trialId, 'status' => 'revoked']);
@@ -182,7 +184,8 @@ class AdminTrialAndJobModerationTest extends TestCase
 
             $this->actingAs($employer)->get('/employer/dashboard')->assertOk()->assertSee('Trial aktif');
             $this->travel($days + 1)->days();
-            $this->get('/employer/dashboard')->assertOk()->assertSee('Trial telah berakhir');
+            $this->get('/employer/dashboard')->assertOk()->assertSee('Trial telah berakhir')
+                ->assertSee('Pilih Paket')->assertSee(route('employer.subscription'));
             $this->travelBack();
         }
     }

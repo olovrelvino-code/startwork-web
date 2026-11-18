@@ -134,6 +134,7 @@ Route::middleware(['auth', 'employer'])->prefix('employer')->name('employer.')->
         return view('employer.subscription', ['companyName' => $company?->name]);
     })->name('subscription');
     Route::get('/subscription/history', [SubscriptionPurchaseController::class, 'history'])->name('subscription.history');
+    Route::get('/subscription/purchases/availability', [SubscriptionPurchaseController::class, 'availability'])->name('subscription.purchases.availability');
     Route::post('/subscription/purchases', [SubscriptionPurchaseController::class, 'store'])->name('subscription.purchases.store');
     Route::post('/subscription/purchases/{id}/proof', [SubscriptionPurchaseController::class, 'proof'])->name('subscription.purchases.proof');
     Route::post('/subscription/purchases/{id}/cancel', [SubscriptionPurchaseController::class, 'cancel'])->name('subscription.purchases.cancel');

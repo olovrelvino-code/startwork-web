@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -556,6 +557,9 @@ class JobseekerFrontendTest extends TestCase
     public function test_profile_photo_is_converted_to_private_webp_without_losing_old_photo_on_failure(): void
     {
         Storage::fake('local');
+
+        /** @var FilesystemAdapter $disk */
+        $disk = Storage::disk('local');
         $seeker = User::factory()->create(['role' => 'jobseeker']);
         $profileId = (string) Str::uuid();
         $oldName = Str::uuid() . '.jpeg';
@@ -574,7 +578,7 @@ class JobseekerFrontendTest extends TestCase
             ->assertUnprocessable()->assertJsonPath('errors.photo.0', 'Ukuran foto maksimal 2 MB.');
         $this->post('/api/jobseeker/profile/photo', ['photo' => UploadedFile::fake()->createWithContent('fake.jpg', 'invalid')], ['Accept' => 'application/json'])
             ->assertUnprocessable()->assertJsonValidationErrors('photo');
-        Storage::disk('local')->assertExists($oldPath);
+        $disk->assertExists($oldPath);
         $this->assertSame($oldName, DB::table('jobseeker_profiles')->where('id', $profileId)->value('profile_photo'));
 
         foreach (['jpg', 'jpeg', 'png'] as $extension) {
@@ -583,7 +587,7 @@ class JobseekerFrontendTest extends TestCase
             ], ['Accept' => 'application/json'])->assertOk()->json('filename');
             $this->assertStringEndsWith('.webp', $filename);
             $path = "profile-photos/{$seeker->id}/{$filename}";
-            Storage::disk('local')->assertExists($path);
+            $disk->assertExists($path);
             $this->assertSame('image/webp', getimagesizefromstring(Storage::disk('local')->get($path))['mime']);
         }
         $wideName = $this->post('/api/jobseeker/profile/photo', [
@@ -591,7 +595,7 @@ class JobseekerFrontendTest extends TestCase
         ], ['Accept' => 'application/json'])->assertOk()->json('filename');
         $dimensions = getimagesizefromstring(Storage::disk('local')->get("profile-photos/{$seeker->id}/{$wideName}"));
         $this->assertSame([1024, 576], [$dimensions[0], $dimensions[1]]);
-        Storage::disk('local')->assertMissing($oldPath);
+        $disk->assertMissing($oldPath);
         $this->get('/api/jobseeker/profile/photo')->assertOk()->assertHeader('Content-Type', 'image/webp');
     }
 
@@ -680,6 +684,9 @@ class JobseekerFrontendTest extends TestCase
     public function test_cv_upload_validates_documents_and_preserves_application_copies(): void
     {
         Storage::fake('local');
+
+        /** @var FilesystemAdapter $disk */
+        $disk = Storage::disk('local');
         $seeker = User::factory()->create(['role' => 'jobseeker']);
         $other = User::factory()->create(['role' => 'jobseeker']);
         $profileId = (string) Str::uuid();
@@ -692,7 +699,7 @@ class JobseekerFrontendTest extends TestCase
                 : UploadedFile::fake()->image("resume.{$extension}")->size($extension === 'jpg' ? 2048 : 100);
             $this->post('/api/jobseeker/profile/cv', ['cv' => $file], ['Accept' => 'application/json'])->assertOk();
             $path = DB::table('jobseeker_profiles')->where('id', $profileId)->value('cv_file');
-            Storage::disk('local')->assertExists($path);
+            $disk->assertExists($path);
             $this->get('/api/jobseeker/profile/cv')->assertOk();
             $preview = $this->get('/api/jobseeker/profile/cv?preview=1')->assertOk();
             $this->assertStringContainsString('inline', $preview->headers->get('Content-Disposition'));
@@ -706,7 +713,7 @@ class JobseekerFrontendTest extends TestCase
         $this->post('/api/jobseeker/profile/cv', ['cv' => UploadedFile::fake()->createWithContent('wrong.txt', "%PDF-1.4\n%%EOF")], ['Accept' => 'application/json'])
             ->assertUnprocessable()->assertJsonValidationErrors('cv');
         $this->assertSame($oldPath, DB::table('jobseeker_profiles')->where('id', $profileId)->value('cv_file'));
-        Storage::disk('local')->assertExists($oldPath);
+        $disk->assertExists($oldPath);
         $this->actingAs($other)->get('/api/jobseeker/profile/cv')->assertNotFound();
         $this->delete('/api/jobseeker/profile/cv')->assertNotFound();
         $this->actingAs($seeker);
@@ -719,11 +726,11 @@ class JobseekerFrontendTest extends TestCase
         DB::table('job_posts')->insert(['id' => $jobId, 'company_id' => $companyId, 'posted_by' => $employer->id, 'title' => 'Analis', 'status' => 'active']);
         DB::table('applications')->insert(['id' => $applicationId, 'job_posts_id' => $jobId, 'profile_id' => $profileId, 'cv_file' => $oldPath]);
         $this->post('/api/jobseeker/profile/cv', ['cv' => UploadedFile::fake()->image('replacement.jpg')], ['Accept' => 'application/json'])->assertOk();
-        Storage::disk('local')->assertExists($oldPath);
+        $disk->assertExists($oldPath);
         $newPath = DB::table('jobseeker_profiles')->where('id', $profileId)->value('cv_file');
         $this->delete('/api/jobseeker/profile/cv')->assertNoContent();
-        Storage::disk('local')->assertMissing($newPath);
-        Storage::disk('local')->assertExists($oldPath);
+        $disk->assertMissing($newPath);
+        $disk->assertExists($oldPath);
         $this->get('/api/jobseeker/profile/cv')->assertNotFound();
         $employerCv = $this->actingAs($employer)->get("/api/employer/applications/{$applicationId}/cv")->assertOk();
         $this->assertStringContainsString('CV.png', $employerCv->headers->get('Content-Disposition'));
@@ -734,6 +741,9 @@ class JobseekerFrontendTest extends TestCase
     public function test_certificate_upload_replacement_deletion_and_legacy_links_are_private(): void
     {
         Storage::fake('local');
+
+        /** @var FilesystemAdapter $disk */
+        $disk = Storage::disk('local');
         $owner = User::factory()->create(['role' => 'jobseeker']);
         $other = User::factory()->create(['role' => 'jobseeker']);
         $profileId = (string) Str::uuid();
@@ -750,21 +760,21 @@ class JobseekerFrontendTest extends TestCase
         $this->post('/api/jobseeker/profile/certificates', ['name' => 'Sertifikat Baru', 'file' => $pdf], ['Accept' => 'application/json'])->assertOk();
         $certificate = DB::table('certificates')->where('name', 'Sertifikat Baru')->first();
         $this->assertNull($certificate->file_url);
-        Storage::disk('local')->assertExists($certificate->file_path);
+        $disk->assertExists($certificate->file_path);
         foreach (['jpg', 'jpeg'] as $extension) {
             $this->post('/api/jobseeker/profile/certificates', [
                 'name' => "Sertifikat {$extension}",
                 'file' => UploadedFile::fake()->image("certificate.{$extension}"),
             ], ['Accept' => 'application/json'])->assertOk();
             $otherCertificate = DB::table('certificates')->where('name', "Sertifikat {$extension}")->first();
-            Storage::disk('local')->assertExists($otherCertificate->file_path);
+            $disk->assertExists($otherCertificate->file_path);
             $this->delete("/api/jobseeker/profile/certificates/{$otherCertificate->id}")->assertNoContent();
         }
         $this->get("/api/jobseeker/profile/certificates/{$certificate->id}/file")->assertOk();
         $preview = $this->get("/api/jobseeker/profile/certificates/{$certificate->id}/file?preview=1")->assertOk();
         $this->assertStringContainsString('inline', $preview->headers->get('Content-Disposition'));
         $this->postJson('/api/jobseeker/profile/details', ['skills' => ['SQL'], 'certificates' => [['name' => 'Tertimpa']]])->assertStatus(409);
-        Storage::disk('local')->assertExists($certificate->file_path);
+        $disk->assertExists($certificate->file_path);
         $this->actingAs($other)->get("/api/jobseeker/profile/certificates/{$certificate->id}/file")->assertNotFound();
         $this->delete("/api/jobseeker/profile/certificates/{$certificate->id}")->assertNotFound();
         $this->actingAs($owner);
@@ -777,18 +787,18 @@ class JobseekerFrontendTest extends TestCase
             'name' => 'Sertifikat Baru',
             'file' => UploadedFile::fake()->createWithContent('fake.png', 'invalid'),
         ], ['Accept' => 'application/json'])->assertUnprocessable()->assertJsonValidationErrors('file');
-        Storage::disk('local')->assertExists($certificate->file_path);
+        $disk->assertExists($certificate->file_path);
         $this->post("/api/jobseeker/profile/certificates/{$certificate->id}", [
             'name' => 'Sertifikat Baru',
             'file' => UploadedFile::fake()->image('replacement.png'),
         ], ['Accept' => 'application/json'])->assertOk();
-        Storage::disk('local')->assertMissing($certificate->file_path);
+        $disk->assertMissing($certificate->file_path);
         $replacement = DB::table('certificates')->where('id', $certificate->id)->first();
-        Storage::disk('local')->assertExists($replacement->file_path);
+        $disk->assertExists($replacement->file_path);
         $this->post("/api/jobseeker/profile/certificates/{$certificate->id}", ['name' => 'Sertifikat Diedit'], ['Accept' => 'application/json'])->assertOk();
         $this->assertDatabaseHas('certificates', ['id' => $certificate->id, 'name' => 'Sertifikat Diedit', 'file_path' => $replacement->file_path]);
         $this->delete("/api/jobseeker/profile/certificates/{$certificate->id}")->assertNoContent();
-        Storage::disk('local')->assertMissing($replacement->file_path);
+        $disk->assertMissing($replacement->file_path);
         $this->assertDatabaseHas('certificates', ['id' => $legacyId, 'file_url' => 'https://example.test/legacy']);
     }
 }

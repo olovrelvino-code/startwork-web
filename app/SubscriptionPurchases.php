@@ -20,7 +20,8 @@ class SubscriptionPurchases
             }
             $package = DB::table('packages')->where('id', $packageId)->where('is_active', true)->whereIn('name', ['Basic', 'Standard', 'Premium'])->first();
             abort_if($package === null, 422, 'Paket tidak tersedia');
-            abort_if(DB::table('company_subscriptions')->where('company_id', $company->id)->whereIn('status', ['pending', 'scheduled', 'pending_activation'])->exists(), 409, 'Selesaikan pembelian atau antrean sebelumnya');
+            $blockMessage = $this->purchaseBlockMessage($company->id);
+            abort_if($blockMessage !== null, 409, $blockMessage);
             $previous = DB::table('company_subscriptions')->where('company_id', $company->id)->whereIn('status', ['active', 'expired', 'revoked'])->orderByDesc('created_at')->first();
             $type = $previous === null ? 'new' : ($package->price > $previous->price_snapshot ? 'upgrade' : ($package->price < $previous->price_snapshot ? 'downgrade' : 'renewal'));
             $subscriptionId = (string) Str::uuid();
@@ -101,28 +102,54 @@ class SubscriptionPurchases
         $ids = DB::table('company_subscriptions')->whereIn('status', ['active', 'scheduled', 'pending_activation'])->distinct()->pluck('company_id');
         $count = 0;
         foreach ($ids as $id) {
-            $count += DB::transaction(function () use ($id): int {
-                DB::table('companies')->where('id', $id)->lockForUpdate()->first();
-                DB::table('company_subscriptions')->where('company_id', $id)->where('status', 'active')->where('expires_at', '<=', now())
-                    ->update(['status' => 'expired', 'ended_at' => now(), 'updated_at' => now()]);
-                if (DB::table('company_subscriptions')->where('company_id', $id)->where('status', 'active')->where('expires_at', '>', now())->exists()) {
-                    return 0;
-                }
-                $next = DB::table('company_subscriptions')->where('company_id', $id)->whereIn('status', ['scheduled', 'pending_activation'])->orderBy('created_at')->lockForUpdate()->first();
-                $transactionId = $next ? DB::table('payment_transactions')->where('subscription_id', $next->id)->where('status', 'paid')->value('id') : null;
-                if ($transactionId === null) {
-                    return 0;
-                }
-                DB::table('company_subscriptions')->where('id', $next->id)->update(['status' => 'active', 'starts_at' => now(),
-                    'expires_at' => now()->addDays($next->duration_days ?: DB::table('packages')->where('id', $next->package_id)->value('duration_days')),
-                    'updated_at' => now()]);
-                $this->event($transactionId, null, 'paid', 'paid', 'Subscription diaktifkan dari antrean');
-
-                return 1;
-            }, attempts: 3);
+            $count += $this->activateForCompany($id);
         }
 
         return $count;
+    }
+
+    public function activateForCompany(string $companyId): int
+    {
+        return DB::transaction(function () use ($companyId): int {
+            DB::table('companies')->where('id', $companyId)->lockForUpdate()->first();
+            DB::table('company_subscriptions')->where('company_id', $companyId)->where('status', 'active')->where('expires_at', '<=', now())
+                ->update(['status' => 'expired', 'ended_at' => now(), 'updated_at' => now()]);
+            if (DB::table('company_subscriptions')->where('company_id', $companyId)->where('status', 'active')->where('expires_at', '>', now())->exists()) {
+                return 0;
+            }
+            $next = DB::table('company_subscriptions')->where('company_id', $companyId)->whereIn('status', ['scheduled', 'pending_activation'])->orderBy('created_at')->lockForUpdate()->first();
+            $transactionId = $next ? DB::table('payment_transactions')->where('subscription_id', $next->id)->where('status', 'paid')->value('id') : null;
+            if ($transactionId === null) {
+                return 0;
+            }
+            DB::table('company_subscriptions')->where('id', $next->id)->update(['status' => 'active', 'starts_at' => now(),
+                'expires_at' => now()->addDays($next->duration_days ?: DB::table('packages')->where('id', $next->package_id)->value('duration_days')),
+                'updated_at' => now()]);
+            $this->event($transactionId, null, 'paid', 'paid', 'Subscription diaktifkan dari antrean');
+
+            return 1;
+        }, attempts: 3);
+    }
+
+    public function purchaseBlockMessage(string $companyId): ?string
+    {
+        $queue = DB::table('company_subscriptions')->join('packages', 'packages.id', '=', 'company_subscriptions.package_id')
+            ->where('company_subscriptions.company_id', $companyId)
+            ->whereIn('company_subscriptions.status', ['pending', 'scheduled', 'pending_activation'])
+            ->get(['company_subscriptions.status', 'packages.name as package_name']);
+        $pendingActivation = $queue->firstWhere('status', 'pending_activation');
+        if ($pendingActivation !== null) {
+            $trialActive = DB::table('company_subscriptions')->where('company_id', $companyId)->where('source', 'admin_trial')
+                ->where('status', 'active')->where('starts_at', '<=', now())->where('expires_at', '>', now())->exists();
+
+            return $trialActive
+                ? "Trial Anda masih aktif dan paket {$pendingActivation->package_name} sedang menunggu aktivasi. Pembelian berikutnya dapat dilakukan setelah trial berakhir dan paket {$pendingActivation->package_name} aktif."
+                : 'Anda masih memiliki antrean subscription yang menunggu aktivasi. Selesaikan antrean tersebut sebelum membeli paket berikutnya.';
+        }
+
+        return $queue->contains('status', 'scheduled')
+            ? 'Anda masih memiliki antrean subscription yang menunggu aktivasi. Selesaikan antrean tersebut sebelum membeli paket berikutnya.'
+            : ($queue->contains('status', 'pending') ? 'Selesaikan pembelian sebelumnya sebelum membeli paket berikutnya.' : null);
     }
 
     private function event(string $transactionId, ?string $actorId, ?string $from, string $to, ?string $note = null): void
