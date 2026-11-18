@@ -23,7 +23,7 @@
             <p class="px-6 pb-5 text-xs font-medium text-white/65">Ruang kerja Employer</p>
             <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3" aria-label="Menu utama">
                 @foreach ([
-                    ['employer.dashboard', 'Dashboard', 'M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z'],
+                    ['employer.dashboard', 'Dashboard', 'M3 10.5 12 3l9 7.5M5 9v11h14V9M9 20v-7h6v7'],
                     ['employer.company', 'Perusahaan', 'M4 21V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v16M4 21h16M17 9h1a2 2 0 0 1 2 2v10M8 8h.01M12 8h.01M8 12h.01M12 12h.01'],
                     ['employer.job-posts.*', 'Lowongan kerja', 'M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8ZM8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18'],
                     ['employer.applications.*', 'Pelamar & CV', 'M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8M18 8a3 3 0 0 1 0 6M22 20v-2a4 4 0 0 0-3-3.87'],
@@ -34,7 +34,7 @@
                         'flex items-center gap-3 rounded-lg border-l-2 px-4 py-2.5 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#B85B12]',
                         'border-[#DE7C23] bg-white/10 font-semibold text-white' => request()->routeIs($routeName),
                         'border-transparent text-white/75 hover:bg-white/10 hover:text-white' => ! request()->routeIs($routeName),
-                    ]) @if (request()->routeIs($routeName)) aria-current="page" @endif><svg aria-hidden="true" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{ $icon }}" /></svg><span>{{ $label }}</span></a>
+                    ]) @if (request()->routeIs($routeName)) aria-current="page" @endif><svg aria-hidden="true" class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{ $icon }}" /></svg><span>{{ $label }}</span></a>
                 @endforeach
             </nav>
             <x-account-menu />

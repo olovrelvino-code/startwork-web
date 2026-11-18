@@ -134,6 +134,7 @@ Route::middleware(['auth', 'employer'])->prefix('employer')->name('employer.')->
         return view('employer.subscription', ['companyName' => $company?->name]);
     })->name('subscription');
     Route::get('/subscription/history', [SubscriptionPurchaseController::class, 'history'])->name('subscription.history');
+    Route::get('/subscription/purchases/availability', [SubscriptionPurchaseController::class, 'availability'])->name('subscription.purchases.availability');
     Route::post('/subscription/purchases', [SubscriptionPurchaseController::class, 'store'])->name('subscription.purchases.store');
     Route::post('/subscription/purchases/{id}/proof', [SubscriptionPurchaseController::class, 'proof'])->name('subscription.purchases.proof');
     Route::post('/subscription/purchases/{id}/cancel', [SubscriptionPurchaseController::class, 'cancel'])->name('subscription.purchases.cancel');
@@ -170,6 +171,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/articles/{id}/edit', [AdminArticleController::class, 'edit'])->name('articles.edit');
 
     Route::get('/packages', AdminPackageController::class)->name('packages.index');
+    Route::post('/packages', [AdminPackageController::class, 'store'])->name('packages.store');
+    Route::put('/packages/{id}', [AdminPackageController::class, 'update'])->name('packages.update');
+    Route::patch('/packages/{id}/status', [AdminPackageController::class, 'toggle'])->name('packages.toggle');
+    Route::delete('/packages/{id}', [AdminPackageController::class, 'destroy'])->name('packages.destroy');
     Route::get('/transactions', [AdminTransactionController::class, 'dashboard'])->name('transactions.dashboard');
     Route::get('/transactions/requests', [AdminTransactionController::class, 'requests'])->name('transactions.requests');
     Route::get('/transactions/history', [AdminTransactionController::class, 'history'])->name('transactions.history');

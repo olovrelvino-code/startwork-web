@@ -3,58 +3,141 @@
 @section('title', 'Temukan pekerjaan yang tepat')
 @section('description', 'Cari lowongan aktif dan temukan perusahaan di StartWork.')
 @section('content')
-    <section class="jobseeker-home-hero relative isolate overflow-hidden bg-slate-950 text-white" aria-labelledby="home-title">
-        <div class="relative z-10 mx-auto flex min-h-[28rem] max-w-7xl flex-col justify-center px-4 py-16 sm:min-h-[31rem] sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+    <section class="jobseeker-home-hero relative isolate overflow-hidden bg-slate-950 text-white"
+        aria-labelledby="home-title">
+        <div
+            class="relative z-10 mx-auto flex min-h-[28rem] max-w-7xl flex-col justify-center px-4 py-16 sm:min-h-[31rem] sm:px-6 sm:py-20 lg:px-8 lg:py-24">
             <div class="mx-auto w-full max-w-6xl text-center">
-                <h1 id="home-title" class="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:whitespace-nowrap lg:text-[clamp(2.25rem,3.1vw,3rem)]"><span class="jobseeker-hero-count text-[var(--jobseeker-accent)]" data-hero-count aria-hidden="true">89,95%</span><span class="sr-only">89,95%</span> Peluang Menuju Karier Impianmu!</h1>
-                <p class="jobseeker-hero-description mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-200 sm:text-lg">Temukan pekerjaan yang tepat, kenali perusahaan pilihanmu, dan mulai perjalanan kariermu bersama StartWork.</p>
+                <h1 id="home-title"
+                    class="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:whitespace-nowrap lg:text-[clamp(2.25rem,3.1vw,3rem)]">
+                    <span class="jobseeker-hero-count text-[var(--jobseeker-accent)]" data-hero-count
+                        aria-hidden="true">89,95%</span><span class="sr-only">89,95%</span> Peluang Menuju Karier Impianmu!
+                </h1>
+                <p class="jobseeker-hero-description mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-200 sm:text-lg">
+                    Temukan pekerjaan yang tepat, kenali perusahaan pilihanmu, dan mulai perjalanan kariermu bersama StartWork.</p>
             </div>
-            <form action="{{ route('jobs.index') }}" method="GET" role="search" aria-label="Cari lowongan" class="mx-auto mt-10 flex w-full max-w-4xl flex-col items-stretch gap-2 rounded-xl bg-white p-2 sm:flex-row sm:items-center">
+            <form action="{{ route('jobs.index') }}" method="GET" role="search" aria-label="Cari lowongan"
+                class="mx-auto mt-10 flex w-full max-w-4xl flex-col items-stretch gap-2 rounded-xl bg-white p-2 sm:flex-row sm:items-center">
                 <div class="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center">
-                    <div class="flex min-w-0 flex-1 items-center"><svg aria-hidden="true" class="ml-2 h-5 w-5 shrink-0 text-blue-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg><label for="home-search" class="sr-only">Nama lowongan</label><input id="home-search" name="q" type="search" maxlength="255" placeholder="Nama lowongan" class="min-h-11 w-full min-w-0 border-0 bg-white px-2 text-sm text-slate-900 placeholder:text-slate-500 focus:ring-0 sm:text-base"></div>
-                    <div class="flex min-w-0 flex-1 items-center border-t border-slate-200 sm:border-l sm:border-t-0"><svg aria-hidden="true" class="ml-2 h-5 w-5 shrink-0 text-blue-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg><label for="home-location" class="sr-only">Lokasi</label><input id="home-location" name="location" type="search" maxlength="255" placeholder="Kota atau lokasi" class="min-h-11 w-full min-w-0 border-0 bg-white px-2 text-sm text-slate-900 placeholder:text-slate-500 focus:ring-0 sm:text-base"></div>
+                    <div class="flex min-w-0 flex-1 items-center"><svg aria-hidden="true"
+                            class="ml-2 h-5 w-5 shrink-0 text-blue-700" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="7" />
+                            <path d="m20 20-4-4" />
+                        </svg><label for="home-search" class="sr-only">Nama lowongan</label><input id="home-search" name="q"
+                            type="search" maxlength="255" placeholder="Nama lowongan"
+                            class="min-h-11 w-full min-w-0 border-0 bg-white px-2 text-sm text-slate-900 placeholder:text-slate-500 focus:ring-0 sm:text-base">
+                    </div>
+                    <div class="flex min-w-0 flex-1 items-center border-t border-slate-200 sm:border-l sm:border-t-0"><svg
+                            aria-hidden="true" class="ml-2 h-5 w-5 shrink-0 text-blue-700" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
+                            <circle cx="12" cy="10" r="2.5" />
+                        </svg><label for="home-location" class="sr-only">Lokasi</label><input id="home-location"
+                            name="location" type="search" maxlength="255" placeholder="Kota atau lokasi"
+                            class="min-h-11 w-full min-w-0 border-0 bg-white px-2 text-sm text-slate-900 placeholder:text-slate-500 focus:ring-0 sm:text-base">
+                    </div>
                 </div>
-                <button type="submit" class="jobseeker-home-search-button min-h-12 w-full shrink-0 rounded-lg px-6 py-3 text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto sm:min-w-28 sm:px-8">Cari</button>
+                <button type="submit"
+                    class="jobseeker-home-search-button min-h-12 w-full shrink-0 rounded-lg px-6 py-3 text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-auto sm:min-w-28 sm:px-8">Cari</button>
             </form>
         </div>
     </section>
 
     <section class="bg-white py-16 sm:py-20" aria-labelledby="home-features-title">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div class="max-w-2xl"><h2 id="home-features-title" class="text-3xl font-bold tracking-tight">Dari pencarian hingga lamaran.</h2><p class="mt-3 text-slate-600">Tiga langkah yang sudah tersedia di StartWork untuk membantu Anda bergerak maju.</p></div>
+            <div class="max-w-2xl">
+                <h2 id="home-features-title" class="text-3xl font-bold tracking-tight">Dari pencarian hingga lamaran.</h2>
+                <p class="mt-3 text-slate-600">Tiga langkah yang sudah tersedia di StartWork untuk membantu Anda bergerak
+                    maju.</p>
+            </div>
             <div class="mt-9 grid gap-4 md:grid-cols-3">
-                <a href="{{ route('jobs.index') }}" class="group flex flex-col items-center rounded-xl border border-slate-200 bg-white p-6 text-center transition-colors hover:border-blue-300 hover:bg-blue-50/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><span class="jobseeker-step-art grid place-items-center"><img src="{{ asset('images/jobseeker/search-3d.svg') }}" alt="" width="80" height="80"></span><h3 class="mt-5 text-xl font-semibold group-hover:text-blue-700">Cari lowongan aktif</h3><p class="mt-3 text-sm leading-6 text-slate-600">Saring posisi berdasarkan kata kunci, lokasi, dan kategori yang tersedia.</p></a>
-                <a href="{{ route('jobseeker.profile') }}" class="group flex flex-col items-center rounded-xl border border-slate-200 bg-white p-6 text-center transition-colors hover:border-blue-300 hover:bg-blue-50/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><span class="jobseeker-step-art grid place-items-center"><img src="{{ asset('images/jobseeker/profile-3d.svg') }}" alt="" width="80" height="80"></span><h3 class="mt-5 text-xl font-semibold group-hover:text-blue-700">Lengkapi profil &amp; CV</h3><p class="mt-3 text-sm leading-6 text-slate-600">Simpan data diri, keahlian, dan CV sebelum mengirim lamaran internal.</p></a>
-                <a href="{{ route('jobseeker.applications') }}" class="group flex flex-col items-center rounded-xl border border-slate-200 bg-white p-6 text-center transition-colors hover:border-blue-300 hover:bg-blue-50/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><span class="jobseeker-step-art grid place-items-center"><img src="{{ asset('images/jobseeker/status-3d.svg') }}" alt="" width="80" height="80"></span><h3 class="mt-5 text-xl font-semibold group-hover:text-blue-700">Ikuti status lamaran</h3><p class="mt-3 text-sm leading-6 text-slate-600">Lihat perkembangan lamaran yang Anda kirim melalui StartWork.</p></a>
+                <a href="{{ route('jobs.index') }}"
+                    class="group flex flex-col items-center rounded-xl border border-slate-200 bg-white p-6 text-center transition-colors hover:border-blue-300 hover:bg-blue-50/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><span
+                        class="jobseeker-step-art grid place-items-center"><img
+                            src="{{ asset('images/jobseeker/search-3d.svg') }}" alt="" width="80" height="80"></span>
+                    <h3 class="mt-5 text-xl font-semibold group-hover:text-blue-700">Cari lowongan aktif</h3>
+                    <p class="mt-3 text-sm leading-6 text-slate-600">Saring posisi berdasarkan kata kunci, lokasi, dan
+                        kategori yang tersedia.</p>
+                </a>
+                <a href="{{ route('jobseeker.profile') }}"
+                    class="group flex flex-col items-center rounded-xl border border-slate-200 bg-white p-6 text-center transition-colors hover:border-blue-300 hover:bg-blue-50/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><span
+                        class="jobseeker-step-art grid place-items-center"><img
+                            src="{{ asset('images/jobseeker/profile-3d.svg') }}" alt="" width="80" height="80"></span>
+                    <h3 class="mt-5 text-xl font-semibold group-hover:text-blue-700">Lengkapi profil &amp; CV</h3>
+                    <p class="mt-3 text-sm leading-6 text-slate-600">Simpan data diri, keahlian, dan CV sebelum mengirim
+                        lamaran internal.</p>
+                </a>
+                <a href="{{ route('jobseeker.applications') }}"
+                    class="group flex flex-col items-center rounded-xl border border-slate-200 bg-white p-6 text-center transition-colors hover:border-blue-300 hover:bg-blue-50/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"><span
+                        class="jobseeker-step-art grid place-items-center"><img
+                            src="{{ asset('images/jobseeker/status-3d.svg') }}" alt="" width="80" height="80"></span>
+                    <h3 class="mt-5 text-xl font-semibold group-hover:text-blue-700">Ikuti status lamaran</h3>
+                    <p class="mt-3 text-sm leading-6 text-slate-600">Lihat perkembangan lamaran yang Anda kirim melalui
+                        StartWork.</p>
+                </a>
             </div>
         </div>
     </section>
 
     <section class="bg-slate-100 py-16 sm:py-20" aria-labelledby="latest-jobs-title">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div class="mb-6 flex flex-wrap items-end justify-between gap-4"><div><h2 id="latest-jobs-title" class="text-2xl font-bold tracking-tight">Lowongan terbaru</h2><p class="mt-2 text-sm text-slate-600">Peluang aktif yang baru ditambahkan.</p></div><a href="{{ route('jobs.index') }}" class="text-sm font-semibold text-blue-700 hover:underline">Lihat daftar lengkap →</a></div>
+            <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <h2 id="latest-jobs-title" class="text-2xl font-bold tracking-tight">Lowongan terbaru</h2>
+                    <p class="mt-2 text-sm text-slate-600">Peluang aktif yang baru ditambahkan.</p>
+                </div><a href="{{ route('jobs.index') }}" class="text-sm font-semibold text-blue-700 hover:underline">Lihat
+                    daftar lengkap →</a>
+            </div>
             @if ($jobs->isEmpty())
                 <p class="rounded-xl border border-slate-200 bg-white p-6 text-slate-600">Belum ada lowongan aktif saat ini.</p>
             @else
                 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     @foreach ($jobs as $job)
-                        <article class="relative min-w-0 rounded-xl border border-slate-200 bg-white transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:border-blue-300 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none">
-                        <div class="absolute right-3 top-3 z-10 flex gap-1"><button type="button" data-save-job="{{ $job->id }}" aria-label="Simpan {{ $job->title }}" title="Simpan lowongan" class="jobseeker-save-button rounded-full p-2 focus-visible:outline focus-visible:outline-2"><svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3.5h12v17l-6-4-6 4z"/></svg></button><button type="button" data-share-job="{{ $job->id }}" data-share-url="{{ route('jobs.show', $job->id) }}" aria-label="Bagikan {{ $job->title }}" title="Bagikan lowongan" class="rounded-full p-2 text-blue-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2"><svg aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.3 10.7 7.4-4.4M8.3 13.3l7.4 4.4"/></svg></button></div>
-                        <a href="{{ route('jobs.show', $job->id) }}" class="group flex h-full min-w-0 flex-col p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
-                            <div class="flex items-center gap-3">
-                                <div class="relative grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-100 text-2xl font-bold text-slate-700"><span>{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($job->company_name, 0, 1)) }}</span>@if ($job->company_logo)<img src="{{ url('/api/companies/'.$job->company_id.'/logo') }}" alt="" loading="lazy" class="absolute inset-0 h-full w-full bg-white object-contain p-1" @@error="$el.remove()">@endif</div>
-                                <p class="min-w-0 break-words text-sm font-semibold text-blue-700">{{ $job->company_name }}</p>
-                            </div>
-                            <h3 class="mt-4 text-lg font-semibold leading-snug group-hover:text-blue-700">{{ $job->title }}</h3>
-                            <p class="mt-3 text-sm text-slate-600">{{ $job->location ?: 'Lokasi tidak dicantumkan' }}</p>
-                            @if ($job->category || $job->job_type || $job->work_type)
-                                <div class="mt-4 flex flex-wrap gap-2 text-xs font-medium leading-5">
-                                    @if ($job->category)<span class="jobseeker-job-chip" data-kind="category">{{ $job->category }}</span>@endif
-                                    @if ($job->job_type)<span class="jobseeker-job-chip" data-kind="job-type">{{ $job->job_type }}</span>@endif
-                                    @if ($job->work_type)<span class="jobseeker-job-chip" data-kind="work-type">{{ $job->work_type }}</span>@endif
+                        <article
+                            class="relative min-w-0 rounded-xl border border-slate-200 bg-white transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1 hover:border-blue-300 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none">
+                            <div class="absolute right-3 top-3 z-10 flex gap-1"><button type="button" data-save-job="{{ $job->id }}"
+                                    aria-label="Simpan {{ $job->title }}" title="Simpan lowongan"
+                                    class="jobseeker-save-button rounded-full p-2 focus-visible:outline focus-visible:outline-2"><svg
+                                        aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="1.8" stroke-linejoin="round">
+                                        <path d="M6 3.5h12v17l-6-4-6 4z" />
+                                    </svg></button><button type="button" data-share-job="{{ $job->id }}"
+                                    data-share-url="{{ route('jobs.show', $job->id) }}" aria-label="Bagikan {{ $job->title }}"
+                                    title="Bagikan lowongan"
+                                    class="rounded-full p-2 text-blue-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2"><svg
+                                        aria-hidden="true" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="18" cy="5" r="2.5" />
+                                        <circle cx="6" cy="12" r="2.5" />
+                                        <circle cx="18" cy="19" r="2.5" />
+                                        <path d="m8.3 10.7 7.4-4.4M8.3 13.3l7.4 4.4" />
+                                    </svg></button></div>
+                            <a href="{{ route('jobs.show', $job->id) }}"
+                                class="group flex h-full min-w-0 flex-col p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="relative grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-lg bg-slate-100 text-2xl font-bold text-slate-700">
+                                        <span>{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($job->company_name, 0, 1)) }}</span>@if ($job->company_logo)<img
+                                            src="{{ url('/api/companies/' . $job->company_id . '/logo') }}" alt="" loading="lazy"
+                                            class="absolute inset-0 h-full w-full bg-white object-contain p-1"
+                                        @@error="$el.remove()">@endif
+                                    </div>
+                                    <p class="min-w-0 break-words text-sm font-semibold text-blue-700">{{ $job->company_name }}</p>
                                 </div>
-                            @endif
-                        </a>
+                                <h3 class="mt-4 text-lg font-semibold leading-snug group-hover:text-blue-700">{{ $job->title }}</h3>
+                                <p class="mt-3 text-sm text-slate-600">{{ $job->location ?: 'Lokasi tidak dicantumkan' }}</p>
+                                @if ($job->category || $job->job_type || $job->work_type)
+                                    <div class="mt-4 flex flex-wrap gap-2 text-xs font-medium leading-5">
+                                        @if ($job->category)<span class="jobseeker-job-chip"
+                                        data-kind="category">{{ $job->category }}</span>@endif
+                                        @if ($job->job_type)<span class="jobseeker-job-chip"
+                                        data-kind="job-type">{{ $job->job_type }}</span>@endif
+                                        @if ($job->work_type)<span class="jobseeker-job-chip"
+                                        data-kind="work-type">{{ $job->work_type }}</span>@endif
+                                    </div>
+                                @endif
+                            </a>
                         </article>
                     @endforeach
                 </div>
@@ -67,15 +150,15 @@
             <h2 id="partners-title" class="text-2xl font-bold tracking-tight">Mitra Perusahaan</h2>
             @php
                 $partnerLogos = [
-                    'Alanadiva Dental Care' => 'Alanadiva Dental Care.png',
-                    'Kimaya Spa & Beauty Experience' => 'Kimaya Spa & Beauty Experience.png',
-                    'Kotty Kosmetik' => 'Kotty Kosmetik.png',
-                    'Trimurti' => 'Logo Trimurti.png',
-                    'Start Friday Asia' => 'Logo_Start_Friday_Asia_Brand_&_Business_Strategy_Consulting_Logogram.png',
-                    'Mayang' => 'MAYANG - Logo Vertikal.png',
-                    'Oodside' => 'OODSIDE - Logo Vertikal Transparent.png',
-                    'Rakken' => 'Rakken_Logo Horizontal (2) A4.png',
-                    'Surabaya European School' => 'SES LOGO HITAM.png',
+                    'Alanadiva Dental Care' => 'Alanadiva Dental Care.webp',
+                    'Kimaya Spa & Beauty Experience' => 'Kimaya Spa & Beauty Experience.webp',
+                    'Kotty Kosmetik' => 'Kotty Kosmetik.webp',
+                    'Trimurti' => 'Logo Trimurti.webp',
+                    'Start Friday Asia' => 'Logo_Start_Friday_Asia_Brand_&_Business_Strategy_Consulting_Logogram.webp',
+                    'Mayang' => 'MAYANG - Logo Vertikal.webp',
+                    'Oodside' => 'OODSIDE - Logo Vertikal Transparent.webp',
+                    'Rakken' => 'Rakken_Logo Horizontal (2) A4.webp',
+                    'Surabaya European School' => 'SES LOGO HITAM.webp',
                 ];
             @endphp
             <div class="jobseeker-partners-window mt-8" aria-label="Logo mitra perusahaan">
@@ -83,8 +166,10 @@
                     @foreach ([false, true] as $duplicate)
                         <div class="jobseeker-partners-group" @if ($duplicate) aria-hidden="true" @endif>
                             @foreach ($partnerLogos as $name => $file)
-                                <div class="flex h-24 w-44 shrink-0 items-center justify-center rounded-xl bg-white p-3 sm:h-28 sm:w-52">
-                                    <img src="{{ asset('images/logo/'.$file) }}" alt="{{ $duplicate ? '' : $name }}" width="208" height="96" loading="lazy" decoding="async" class="h-full w-full object-contain">
+                                <div
+                                    class="flex h-24 w-44 shrink-0 items-center justify-center rounded-xl bg-white p-3 sm:h-28 sm:w-52">
+                                    <img src="{{ asset('images/logo/' . $file) }}" alt="{{ $duplicate ? '' : $name }}" width="208"
+                                        height="96" loading="lazy" decoding="async" class="h-full w-full object-contain">
                                 </div>
                             @endforeach
                         </div>
@@ -96,23 +181,38 @@
 
     <section class="bg-slate-100 py-14 sm:py-16" aria-labelledby="latest-articles-title">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div class="mb-6 flex flex-wrap items-end justify-between gap-4"><div><h2 id="latest-articles-title" class="text-2xl font-bold tracking-tight">Artikel Terbaru</h2><p class="mt-2 text-sm text-slate-600">Wawasan karier yang baru diterbitkan.</p></div><a href="{{ route('articles.index') }}" class="text-sm font-semibold text-blue-700 hover:underline">Lihat semua artikel <span aria-hidden="true">→</span></a></div>
+            <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <h2 id="latest-articles-title" class="text-2xl font-bold tracking-tight">Artikel Terbaru</h2>
+                    <p class="mt-2 text-sm text-slate-600">Wawasan karier yang baru diterbitkan.</p>
+                </div><a href="{{ route('articles.index') }}"
+                    class="text-sm font-semibold text-blue-700 hover:underline">Lihat semua artikel <span
+                        aria-hidden="true">→</span></a>
+            </div>
             @if ($articles->isEmpty())
-                <p class="rounded-xl border border-slate-200 bg-white p-6 text-slate-600">Belum ada artikel yang diterbitkan.</p>
+                <p class="rounded-xl border border-slate-200 bg-white p-6 text-slate-600">Belum ada artikel yang diterbitkan.
+                </p>
             @else
                 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     @foreach ($articles as $article)
-                        <a href="{{ route('articles.show', $article->slug) }}" class="jobseeker-article-card group flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
-                            <div class="relative flex aspect-[12/7] items-center justify-center overflow-hidden bg-slate-50 text-sm font-semibold text-slate-500">
+                        <a href="{{ route('articles.show', $article->slug) }}"
+                            class="jobseeker-article-card group flex min-w-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+                            <div
+                                class="relative flex aspect-[12/7] items-center justify-center overflow-hidden bg-slate-50 text-sm font-semibold text-slate-500">
                                 <span>Artikel</span>
                                 @if ($article->cover_image)
-                                    <img src="{{ route('articles.cover', $article->slug) }}" alt="" loading="lazy" width="720" height="420" class="jobseeker-card-image absolute inset-0 h-full w-full object-cover" @@error="$el.remove()">
+                                    <img src="{{ route('articles.cover', $article->slug) }}" alt="" loading="lazy" width="720"
+                                        height="420" class="jobseeker-card-image absolute inset-0 h-full w-full object-cover"
+                                        @@error="$el.remove()">
                                 @endif
                             </div>
                             <div class="flex flex-1 flex-col p-5">
-                                @if ($article->published_at)<time class="text-xs font-semibold uppercase tracking-wider text-slate-500" datetime="{{ \Illuminate\Support\Carbon::parse($article->published_at)->toDateString() }}">{{ \Illuminate\Support\Carbon::parse($article->published_at)->translatedFormat('d F Y') }}</time>@endif
+                                @if ($article->published_at)<time
+                                    class="text-xs font-semibold uppercase tracking-wider text-slate-500"
+                                datetime="{{ \Illuminate\Support\Carbon::parse($article->published_at)->toDateString() }}">{{ \Illuminate\Support\Carbon::parse($article->published_at)->translatedFormat('d F Y') }}</time>@endif
                                 <h3 class="mt-3 text-lg font-bold leading-snug group-hover:text-blue-700">{{ $article->title }}</h3>
-                                @if ($article->excerpt)<p class="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">{{ $article->excerpt }}</p>@endif
+                                @if ($article->excerpt)
+                                <p class="mt-3 line-clamp-3 text-sm leading-6 text-slate-600">{{ $article->excerpt }}</p>@endif
                             </div>
                         </a>
                     @endforeach
@@ -122,111 +222,97 @@
     </section>
 
 
-<section class="sw-reviews-section" aria-labelledby="testimonials-title">
-    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section class="sw-reviews-section" aria-labelledby="testimonials-title">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
-        <div class="sw-reviews-heading">
-            <div>
-                <span class="sw-reviews-eyebrow">
-                    PENGALAMAN BERSAMA STARTWORK
-                </span>
+            <div class="sw-reviews-heading">
+                <div>
+                    <span class="sw-reviews-eyebrow">
+                        PENGALAMAN BERSAMA STARTWORK
+                    </span>
 
-                <h2 id="testimonials-title">
-                    Cerita dari Setiap Perjalanan Karier
-                </h2>
+                    <h2 id="testimonials-title">
+                        Cerita dari Setiap Perjalanan Karier
+                    </h2>
 
-                <p>
-                    Setiap perjalanan karier punya cerita.
-                    Kenali berbagai pengalaman menggunakan
-                    StartWork untuk menjelajahi peluang kerja.
-                </p>
+                    <p>
+                        Setiap perjalanan karier punya cerita.
+                        Kenali berbagai pengalaman menggunakan
+                        StartWork untuk menjelajahi peluang kerja.
+                    </p>
+                </div>
+
+                <a href="{{ route('jobs.index') }}" class="sw-reviews-link">
+                    Jelajahi lowongan
+                    <span aria-hidden="true">&rarr;</span>
+                </a>
             </div>
 
-            <a href="{{ route('jobs.index') }}"
-               class="sw-reviews-link">
-                Jelajahi lowongan
-                <span aria-hidden="true">&rarr;</span>
-            </a>
-        </div>
+            @php
+                // Konten demonstrasi, bukan testimoni terverifikasi.
+                $demoTestimonials = [
+                    [
+                        'name' => 'Nabila Putri',
+                        'role' => 'Pencari Kerja',
+                        'quote' => 'Saya bisa membandingkan posisi dan lokasi lowongan dari satu halaman.',
+                        'photo' => 'nabila.webp',
+                    ],
+                    [
+                        'name' => 'Rizky Pratama',
+                        'role' => 'Fresh Graduate',
+                        'quote' => 'Informasi perusahaan membantu saya mengenali tempat kerja sebelum melamar.',
+                        'photo' => 'rizky.webp',
+                    ],
+                    [
+                        'name' => 'Dewi Anggraini',
+                        'role' => 'Pencari Kerja',
+                        'quote' => 'Status lamaran yang tersimpan memudahkan saya mengikuti proses berikutnya.',
+                        'photo' => 'dewi.webp',
+                    ],
+                ];
+            @endphp
 
-        @php
-            // Konten demonstrasi, bukan testimoni terverifikasi.
-            $demoTestimonials = [
-                [
-                    'name' => 'Nabila Putri',
-                    'role' => 'Pencari Kerja',
-                    'quote' => 'Saya bisa membandingkan posisi dan lokasi lowongan dari satu halaman.',
-                    'photo' => 'nabila.png',
-                ],
-                [
-                    'name' => 'Rizky Pratama',
-                    'role' => 'Fresh Graduate',
-                    'quote' => 'Informasi perusahaan membantu saya mengenali tempat kerja sebelum melamar.',
-                    'photo' => 'rizky.jpg',
-                ],
-                [
-                    'name' => 'Dewi Anggraini',
-                    'role' => 'Pencari Kerja',
-                    'quote' => 'Status lamaran yang tersimpan memudahkan saya mengikuti proses berikutnya.',
-                    'photo' => 'dewi.jpg',
-                ],
-            ];
-        @endphp
+            <div class="sw-reviews-grid">
+                @foreach ($demoTestimonials as $testimonial)
+                    <figure class="sw-review-card">
 
-        <div class="sw-reviews-grid">
-            @foreach ($demoTestimonials as $testimonial)
-                <figure class="sw-review-card">
+                        <div class="sw-review-top">
+                            <div class="sw-review-user">
+                                <span class="sw-review-avatar" aria-hidden="true">
+                                    @if (is_file(public_path('images/testimonials/' . $testimonial['photo'])))
+                                        <img src="{{ asset('images/testimonials/' . $testimonial['photo']) }}" alt="" loading="lazy"
+                                            decoding="async" width="58" height="58">
+                                    @else
+                                        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                                            <circle cx="32" cy="24" r="12" fill="#7293A3" />
+                                            <path d="M9 62c0-15 9-24 23-24s23 9 23 24" fill="#7293A3" />
+                                        </svg>
+                                    @endif
+                                </span>
 
-                    <div class="sw-review-top">
-                        <div class="sw-review-user">
-                            <span class="sw-review-avatar"
-                                  aria-hidden="true">
-                                @if (is_file(public_path('images/testimonials/'.$testimonial['photo'])))
-                                    <img
-                                        src="{{ asset('images/testimonials/'.$testimonial['photo']) }}"
-                                        alt=""
-                                        loading="lazy"
-                                        decoding="async"
-                                        width="58"
-                                        height="58"
-                                    >
-                                @else
-                                    <svg viewBox="0 0 64 64"
-                                         fill="none"
-                                         aria-hidden="true">
-                                        <circle cx="32" cy="24"
-                                                r="12"
-                                                fill="#7293A3"/>
-                                        <path d="M9 62c0-15 9-24 23-24s23 9 23 24"
-                                              fill="#7293A3"/>
-                                    </svg>
-                                @endif
+                                <figcaption class="sw-review-identity">
+                                    <strong>{{ $testimonial['name'] }}</strong>
+                                    <span>{{ $testimonial['role'] }}</span>
+                                </figcaption>
+                            </div>
+
+                            <span class="sw-review-quote-icon" aria-hidden="true">
+                                &ldquo;
                             </span>
-
-                            <figcaption class="sw-review-identity">
-                                <strong>{{ $testimonial['name'] }}</strong>
-                                <span>{{ $testimonial['role'] }}</span>
-                            </figcaption>
                         </div>
 
-                        <span class="sw-review-quote-icon"
-                              aria-hidden="true">
-                            &ldquo;
-                        </span>
-                    </div>
+                        <blockquote class="sw-review-quote">
+                            {{ $testimonial['quote'] }}
+                        </blockquote>
 
-                    <blockquote class="sw-review-quote">
-                        {{ $testimonial['quote'] }}
-                    </blockquote>
+                        <div class="sw-review-bottom">
+                            <span>Cerita ilustrasi penggunaan StartWork</span>
+                        </div>
 
-                    <div class="sw-review-bottom">
-                        <span>Pengalaman menggunakan StartWork</span>
-                    </div>
-
-                </figure>
-            @endforeach
+                    </figure>
+                @endforeach
+            </div>
         </div>
-    </div>
-</section>
+    </section>
 
 @endsection

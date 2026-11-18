@@ -8,13 +8,24 @@ if (subscription) {
     const status = subscription.querySelector('[data-package-status]');
     const template = subscription.querySelector('[data-package-template]');
     const dialog = document.querySelector('[data-package-dialog]');
+    const trialQueueDialog = document.querySelector('[data-trial-queue-dialog]');
     const benefits = { Basic: ['Tayang di website (15 hari)', '1x Instagram Story', '1x Feed (Simple Design)'], Standard: ['Tayang di website (30 hari)', '1x Feed (Excellent Design)', '2x Instagram Story', 'Featured Lowongan di Website (1 hari)'], Premium: ['Tayang di website (45 hari)', '1x Reels (Video)', '1x Feed', '3x Instagram Story', 'Featured Lowongan di Website (3 hari)'] };
     const currency = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
     let selectedButton;
     let selectedPackage;
+    let checkingAvailability = false;
+    const showQueueDialog = (message) => {
+        if (dialog.open) dialog.close();
+        trialQueueDialog.querySelector('[data-trial-queue-message]').textContent = message;
+        trialQueueDialog.showModal();
+    };
     fetch(subscription.dataset.packagesUrl, { headers: { Accept: 'application/json' }, credentials: 'same-origin' }).then((response) => response.json()).then(({ data }) => {
         const plans = ['Basic', 'Standard', 'Premium'];
-        const packages = data.filter((item) => plans.includes(item.name) && item.currency === 'IDR' && item.is_active).sort((a, b) => plans.indexOf(a.name) - plans.indexOf(b.name));
+        const packages = data.filter((item) => item.currency === 'IDR' && item.is_active).sort((a, b) => {
+            const first = plans.indexOf(a.name);
+            const second = plans.indexOf(b.name);
+            return (first === -1 ? plans.length : first) - (second === -1 ? plans.length : second) || Number(a.price) - Number(b.price);
+        });
         if (!packages.length) { status.textContent = 'Belum ada paket aktif yang tersedia.'; return; }
         packages.forEach((item) => {
             const card = template.content.firstElementChild.cloneNode(true);
@@ -25,24 +36,42 @@ if (subscription) {
             card.querySelector('[data-package-price]').textContent = price;
             card.querySelector('[data-package-quota]').textContent = quota;
             card.querySelector('[data-package-duration]').textContent = duration;
-            benefits[item.name].forEach((text) => { const row = document.createElement('li'); row.textContent = text; card.querySelector('[data-package-benefits]').append(row); });
+            const packageBenefits = item.benefits?.trim() ? item.benefits.split(/\r?\n/).map((line) => line.trim()).filter(Boolean) : (benefits[item.name] || []);
+            packageBenefits.forEach((text) => { const row = document.createElement('li'); row.textContent = text; card.querySelector('[data-package-benefits]').append(row); });
             const button = card.querySelector('[data-select-package]');
-            button.addEventListener('click', () => {
+            button.addEventListener('click', async () => {
+                if (checkingAvailability) return;
+                checkingAvailability = true;
                 selectedButton = button;
                 selectedPackage = item;
-                dialog.querySelector('[data-confirm-name]').textContent = item.name;
-                dialog.querySelector('[data-confirm-price]').textContent = price;
-                dialog.querySelector('[data-confirm-quota]').textContent = quota;
-                dialog.querySelector('[data-confirm-duration]').textContent = duration;
-                const benefitList = dialog.querySelector('[data-confirm-benefits]');
-                benefitList.replaceChildren(...benefits[item.name].map((benefit) => { const row = document.createElement('li'); row.textContent = benefit; return row; }));
-                const confirmBtn = dialog.querySelector('[data-package-confirm]');
-                if (confirmBtn) {
-                    confirmBtn.disabled = false;
-                    confirmBtn.textContent = 'Konfirmasi';
-                    delete confirmBtn.dataset.submitting;
+                button.disabled = true;
+                try {
+                    const response = await fetch(subscription.dataset.availabilityUrl, { headers: { Accept: 'application/json' }, credentials: 'same-origin', cache: 'no-store' });
+                    const availability = await response.json().catch(() => ({}));
+                    if (!response.ok) throw new Error(availability.message || 'Status antrean gagal diperiksa.');
+                    if (!availability.allowed) {
+                        showQueueDialog(availability.message);
+                        return;
+                    }
+                    dialog.querySelector('[data-confirm-name]').textContent = item.name;
+                    dialog.querySelector('[data-confirm-price]').textContent = price;
+                    dialog.querySelector('[data-confirm-quota]').textContent = quota;
+                    dialog.querySelector('[data-confirm-duration]').textContent = duration;
+                    const benefitList = dialog.querySelector('[data-confirm-benefits]');
+                    benefitList.replaceChildren(...packageBenefits.map((benefit) => { const row = document.createElement('li'); row.textContent = benefit; return row; }));
+                    const confirmBtn = dialog.querySelector('[data-package-confirm]');
+                    if (confirmBtn) {
+                        confirmBtn.disabled = false;
+                        confirmBtn.textContent = 'Konfirmasi';
+                        delete confirmBtn.dataset.submitting;
+                    }
+                    dialog.showModal();
+                } catch (error) {
+                    showFeedback(error.message);
+                } finally {
+                    button.disabled = false;
+                    checkingAvailability = false;
                 }
-                dialog.showModal();
             });
             list.append(card);
         });
@@ -71,6 +100,11 @@ if (subscription) {
                 }),
             });
             const data = await response.json();
+            if (response.status === 409) {
+                popup?.close();
+                showQueueDialog(data.message || 'Status antrean berubah. Periksa kembali sebelum membeli paket.');
+                return;
+            }
             if (!response.ok) throw new Error(data.message || 'Permintaan pembelian gagal.');
             if (popup) {
                 popup.location.href = data.whatsapp_url;
@@ -86,14 +120,7 @@ if (subscription) {
             delete confirmButton.dataset.submitting;
         }
     });
-    document.querySelectorAll('[data-proof-form]').forEach((form) => form.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        try {
-            const response = await fetch(form.action, { method: 'POST', credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }, body: new FormData(form) });
-            if (response.ok) window.location.reload();
-            else showFeedback((await response.json()).message || 'Bukti pembayaran gagal dikirim.');
-        } catch { showFeedback('Koneksi terputus. Periksa status transaksi sebelum mengirim ulang.'); }
-    }));
+    trialQueueDialog.querySelector('[data-trial-queue-close]').addEventListener('click', () => trialQueueDialog.close());
     dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
     dialog.addEventListener('close', () => {
         if (confirmButton) {
@@ -103,6 +130,57 @@ if (subscription) {
         }
         selectedButton?.focus();
     });
+}
+
+document.querySelectorAll('[data-proof-form]').forEach((form) => form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const file = form.elements.namedItem('proof')?.files?.[0];
+    const status = form.querySelector('[data-proof-status]');
+    if (file?.size > 20 * 1024 * 1024) {
+        if (status) status.textContent = `${file.name}: ukuran melebihi 20 MB.`;
+        showFeedback('Ukuran gambar maksimal 20 MB. Pilih berkas yang lebih kecil.');
+        return;
+    }
+    if (file?.type === 'application/pdf' && file.size > 2 * 1024 * 1024) {
+        if (status) status.textContent = `${file.name}: ukuran PDF melebihi 2 MB.`;
+        showFeedback('Bukti PDF maksimal 2 MB.');
+        return;
+    }
+    const button = form.querySelector('[type="submit"]');
+    button.disabled = true;
+    if (status && file) status.textContent = `Mengunggah ${file.name}…`;
+    try {
+        const response = await fetch(form.action, { method: 'POST', credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }, body: new FormData(form) });
+        if (response.ok) {
+            if (status) status.textContent = `${file.name}: bukti berhasil dikirim.`;
+            sessionStorage.setItem('employer-proof-success', 'true');
+            window.location.reload();
+            return;
+        }
+        const result = await response.json().catch(() => ({}));
+        if (status) status.textContent = `${file.name}: unggahan gagal. Coba lagi.`;
+        showFeedback(response.status === 413 ? 'Ukuran berkas melebihi batas server. Pilih gambar yang lebih kecil.' : result.errors?.proof?.[0] || result.message || 'Bukti pembayaran gagal dikirim.');
+    } catch {
+        if (status) status.textContent = `${file.name}: koneksi terputus. Periksa status transaksi.`;
+        showFeedback('Koneksi terputus. Periksa status transaksi sebelum mengirim ulang.');
+    } finally {
+        button.disabled = false;
+    }
+}));
+
+document.querySelectorAll('[data-proof-form] input[name="proof"]').forEach((input) => input.addEventListener('change', () => {
+    const status = input.form.querySelector('[data-proof-status]');
+    if (status) status.textContent = input.files?.[0] ? `Berkas: ${input.files[0].name}` : 'Belum ada berkas dipilih.';
+}));
+
+if (sessionStorage.getItem('employer-proof-success') === 'true') {
+    sessionStorage.removeItem('employer-proof-success');
+    const toast = document.querySelector('[data-proof-toast]');
+    if (toast) {
+        toast.classList.remove('hidden');
+        toast.classList.add('flex');
+        setTimeout(() => toast.classList.add('hidden'), 5000);
+    }
 }
 
 function generateUuid() {

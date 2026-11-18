@@ -4,7 +4,7 @@
 @section('section_label', 'Langganan')
 
 @section('content')
-    <section data-subscription data-packages-url="{{ url('/api/packages') }}" data-purchase-url="{{ route('employer.subscription.purchases.store') }}" data-company-name="{{ $companyName }}" aria-labelledby="subscription-title">
+    <section data-subscription data-packages-url="{{ url('/api/packages') }}" data-availability-url="{{ route('employer.subscription.purchases.availability') }}" data-purchase-url="{{ route('employer.subscription.purchases.store') }}" data-company-name="{{ $companyName }}" aria-labelledby="subscription-title">
         <div class="mb-8 max-w-2xl">
             <p class="text-sm font-semibold text-[#B85B12]">Paket StartWork</p>
             <h1 id="subscription-title" class="mt-2 text-2xl font-semibold tracking-tight text-[#17394B] sm:text-3xl">Pilihan Paket Langganan</h1>
@@ -73,6 +73,14 @@
             <p class="mt-6 text-sm font-semibold">Benefit paket</p><ul data-confirm-benefits class="mt-3 space-y-2 text-sm leading-relaxed text-slate-700"></ul>
             <p id="package-dialog-note" class="mt-5 text-sm leading-relaxed text-slate-600">Tim StartWork akan membantu proses langganan melalui WhatsApp. Aktivasi dilakukan manual oleh admin.</p>
             <div class="mt-6 flex gap-3"><button type="button" data-package-close class="flex-1 rounded-lg border border-slate-300 px-4 py-3 text-sm font-semibold hover:bg-slate-50">Batal</button><button data-package-confirm type="button" class="flex-1 rounded-lg bg-[#B85B12] px-4 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-[#95420D] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B85B12]">Konfirmasi</button></div>
+        </div>
+    </dialog>
+    <dialog data-trial-queue-dialog aria-labelledby="trial-queue-title" aria-describedby="trial-queue-message" class="w-[min(92vw,30rem)] rounded-xl border border-slate-200 bg-white p-0 text-[#17394B] shadow-xl backdrop:bg-slate-950/60">
+        <div class="p-6 sm:p-8">
+            <div class="mb-5 flex h-11 w-11 items-center justify-center rounded-full bg-amber-50 text-[#B85B12]"><svg aria-hidden="true" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></div>
+            <h2 id="trial-queue-title" class="text-xl font-semibold">Pembelian Belum Dapat Dilanjutkan</h2>
+            <p id="trial-queue-message" data-trial-queue-message class="mt-4 text-sm leading-relaxed text-slate-700"></p>
+            <button type="button" data-trial-queue-close class="mt-6 w-full rounded-lg bg-[#B85B12] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#95420D] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B85B12]">Mengerti</button>
         </div>
     </dialog>
 @endsection

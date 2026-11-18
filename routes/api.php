@@ -4,6 +4,7 @@ use App\GoogleRegistration;
 use App\JobCategory;
 use App\JobseekerDocument;
 use App\Models\User;
+use App\SubscriptionPurchases;
 use App\WebpImage;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
@@ -808,11 +809,12 @@ Route::post('/admin/companies/{companyId}/grant-trial', function (Request $reque
     });
 })->middleware(['web', 'auth']);
 
-Route::post('/admin/companies/{companyId}/revoke-trial', function (Request $request, string $companyId) {
+Route::post('/admin/companies/{companyId}/revoke-trial', function (Request $request, string $companyId, SubscriptionPurchases $purchases) {
     abort_unless($request->user()->role === 'admin', 403);
     $input = $request->validate(['reason' => ['required', 'string', 'max:500']]);
 
-    return DB::transaction(function () use ($request, $companyId, $input) {
+    return DB::transaction(function () use ($request, $companyId, $input, $purchases) {
+        DB::table('companies')->where('id', $companyId)->lockForUpdate()->first();
         $trial = DB::table('company_subscriptions')->where('company_id', $companyId)
             ->where('source', 'admin_trial')->lockForUpdate()->first();
         abort_if($trial === null, 404, 'Trial tidak ditemukan');
@@ -826,6 +828,7 @@ Route::post('/admin/companies/{companyId}/revoke-trial', function (Request $requ
         DB::table('job_posts')->where('subscription_id', $trial->id)->where('status', 'active')->update([
             'status' => 'inactive', 'inactive_reason' => 'Trial diakhiri oleh admin', 'updated_at' => now(),
         ]);
+        $purchases->activateForCompany($companyId);
 
         return response()->json(['message' => 'Trial berhasil diakhiri']);
     });
