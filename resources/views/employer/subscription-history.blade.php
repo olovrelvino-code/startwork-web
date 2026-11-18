@@ -54,13 +54,19 @@
                     <p class="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">Catatan admin: {{ $purchase->verification_note }}</p>
                 @endif
                 @if ($purchase->status === 'pending_payment')
-                    <div class="mt-5 flex flex-wrap items-end gap-4 border-t border-slate-100 pt-5">
-                        <form data-proof-form method="POST" action="{{ route('employer.subscription.purchases.proof', $purchase->id) }}" enctype="multipart/form-data" class="flex flex-1 flex-wrap items-end gap-3">
+                    <div class="mt-5 border-t border-slate-100 pt-5">
+                        <form id="proof-form-{{ $purchase->id }}" data-proof-form method="POST" action="{{ route('employer.subscription.purchases.proof', $purchase->id) }}" enctype="multipart/form-data">
                             @csrf
-                            <div class="min-w-[200px] flex-1"><label class="admin-label" for="proof-{{ $purchase->id }}">Bukti pembayaran (gambar maks. 20 MB, otomatis jadi WebP maks. 2 MB; PDF maks. 2 MB)</label><input id="proof-{{ $purchase->id }}" name="proof" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required class="admin-input w-full"></div>
-                            <button type="submit" class="rounded-lg bg-[#B85B12] px-4 py-3 text-sm font-semibold text-white hover:bg-[#95420D]">Kirim bukti</button>
+                            <label class="admin-label" for="proof-{{ $purchase->id }}">Bukti pembayaran</label>
+                            <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+                                <input id="proof-{{ $purchase->id }}" name="proof" type="file" accept=".jpg,.jpeg,.png,.webp,.pdf" required aria-describedby="proof-help-{{ $purchase->id }} proof-status-{{ $purchase->id }}" class="admin-input min-w-0 flex-1 p-0 file:mr-3 file:border-0 file:bg-[#F3F7F8] file:px-3 file:py-3 file:text-sm file:font-semibold file:text-[#17394B]">
+                                <button type="submit" class="admin-button-primary w-full shrink-0 sm:w-auto">Kirim bukti</button>
+                                <button type="submit" form="cancel-form-{{ $purchase->id }}" class="admin-button-quiet w-full shrink-0 sm:w-auto">Batalkan pesanan</button>
+                            </div>
+                            <p id="proof-help-{{ $purchase->id }}" class="mt-2 text-xs text-slate-600">JPG, JPEG, PNG, WEBP maks. 20 MB; PDF maks. 2 MB.</p>
+                            <p id="proof-status-{{ $purchase->id }}" data-proof-status role="status" aria-live="polite" class="mt-1 break-all text-xs text-slate-700">Belum ada berkas dipilih.</p>
                         </form>
-                        <form method="POST" action="{{ route('employer.subscription.purchases.cancel', $purchase->id) }}">@csrf<button type="submit" class="admin-button-quiet">Batalkan pesanan</button></form>
+                        <form id="cancel-form-{{ $purchase->id }}" method="POST" action="{{ route('employer.subscription.purchases.cancel', $purchase->id) }}">@csrf</form>
                     </div>
                 @endif
             </article>
@@ -69,4 +75,8 @@
         @endforelse
     </div>
     <div class="mt-6"><x-admin.pagination :paginator="$purchases" :numbered="true" /></div>
+    <div data-proof-toast role="status" aria-live="polite" class="fixed bottom-4 right-4 z-50 hidden max-w-[calc(100vw-2rem)] items-center gap-3 rounded-lg border border-emerald-300 bg-white px-4 py-3 text-sm text-emerald-900 shadow-lg sm:bottom-6 sm:right-6">
+        <span aria-hidden="true" class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-100 font-bold">✓</span>
+        <span>Bukti pembayaran berhasil dikirim untuk verifikasi admin.</span>
+    </div>
 @endsection

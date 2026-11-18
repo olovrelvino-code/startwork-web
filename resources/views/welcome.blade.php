@@ -14,8 +14,7 @@
                         aria-hidden="true">89,95%</span><span class="sr-only">89,95%</span> Peluang Menuju Karier Impianmu!
                 </h1>
                 <p class="jobseeker-hero-description mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-200 sm:text-lg">
-                    Temukan pekerjaan yang tepat, kenali perusahaan pilihanmu, dan mulai perjalanan kariermu bersama
-                    StartWork.</p>
+                    Temukan pekerjaan yang tepat, kenali perusahaan pilihanmu, dan mulai perjalanan kariermu bersama StartWork.</p>
             </div>
             <form action="{{ route('jobs.index') }}" method="GET" role="search" aria-label="Cari lowongan"
                 class="mx-auto mt-10 flex w-full max-w-4xl flex-col items-stretch gap-2 rounded-xl bg-white p-2 sm:flex-row sm:items-center">
@@ -307,7 +306,7 @@
                         </blockquote>
 
                         <div class="sw-review-bottom">
-                            <span>Pengalaman menggunakan StartWork</span>
+                            <span>Cerita ilustrasi penggunaan StartWork</span>
                         </div>
 
                     </figure>

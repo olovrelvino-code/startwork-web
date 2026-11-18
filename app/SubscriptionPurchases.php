@@ -18,7 +18,7 @@ class SubscriptionPurchases
 
                 return $existing;
             }
-            $package = DB::table('packages')->where('id', $packageId)->where('is_active', true)->whereIn('name', ['Basic', 'Standard', 'Premium'])->first();
+            $package = DB::table('packages')->where('id', $packageId)->where('is_active', true)->first();
             abort_if($package === null, 422, 'Paket tidak tersedia');
             $blockMessage = $this->purchaseBlockMessage($company->id);
             abort_if($blockMessage !== null, 409, $blockMessage);

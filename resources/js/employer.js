@@ -21,7 +21,11 @@ if (subscription) {
     };
     fetch(subscription.dataset.packagesUrl, { headers: { Accept: 'application/json' }, credentials: 'same-origin' }).then((response) => response.json()).then(({ data }) => {
         const plans = ['Basic', 'Standard', 'Premium'];
-        const packages = data.filter((item) => plans.includes(item.name) && item.currency === 'IDR' && item.is_active).sort((a, b) => plans.indexOf(a.name) - plans.indexOf(b.name));
+        const packages = data.filter((item) => item.currency === 'IDR' && item.is_active).sort((a, b) => {
+            const first = plans.indexOf(a.name);
+            const second = plans.indexOf(b.name);
+            return (first === -1 ? plans.length : first) - (second === -1 ? plans.length : second) || Number(a.price) - Number(b.price);
+        });
         if (!packages.length) { status.textContent = 'Belum ada paket aktif yang tersedia.'; return; }
         packages.forEach((item) => {
             const card = template.content.firstElementChild.cloneNode(true);
@@ -32,7 +36,8 @@ if (subscription) {
             card.querySelector('[data-package-price]').textContent = price;
             card.querySelector('[data-package-quota]').textContent = quota;
             card.querySelector('[data-package-duration]').textContent = duration;
-            benefits[item.name].forEach((text) => { const row = document.createElement('li'); row.textContent = text; card.querySelector('[data-package-benefits]').append(row); });
+            const packageBenefits = item.benefits?.trim() ? item.benefits.split(/\r?\n/).map((line) => line.trim()).filter(Boolean) : (benefits[item.name] || []);
+            packageBenefits.forEach((text) => { const row = document.createElement('li'); row.textContent = text; card.querySelector('[data-package-benefits]').append(row); });
             const button = card.querySelector('[data-select-package]');
             button.addEventListener('click', async () => {
                 if (checkingAvailability) return;
@@ -53,7 +58,7 @@ if (subscription) {
                     dialog.querySelector('[data-confirm-quota]').textContent = quota;
                     dialog.querySelector('[data-confirm-duration]').textContent = duration;
                     const benefitList = dialog.querySelector('[data-confirm-benefits]');
-                    benefitList.replaceChildren(...benefits[item.name].map((benefit) => { const row = document.createElement('li'); row.textContent = benefit; return row; }));
+                    benefitList.replaceChildren(...packageBenefits.map((benefit) => { const row = document.createElement('li'); row.textContent = benefit; return row; }));
                     const confirmBtn = dialog.querySelector('[data-package-confirm]');
                     if (confirmBtn) {
                         confirmBtn.disabled = false;
@@ -130,30 +135,53 @@ if (subscription) {
 document.querySelectorAll('[data-proof-form]').forEach((form) => form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const file = form.elements.namedItem('proof')?.files?.[0];
+    const status = form.querySelector('[data-proof-status]');
     if (file?.size > 20 * 1024 * 1024) {
+        if (status) status.textContent = `${file.name}: ukuran melebihi 20 MB.`;
         showFeedback('Ukuran gambar maksimal 20 MB. Pilih berkas yang lebih kecil.');
         return;
     }
     if (file?.type === 'application/pdf' && file.size > 2 * 1024 * 1024) {
+        if (status) status.textContent = `${file.name}: ukuran PDF melebihi 2 MB.`;
         showFeedback('Bukti PDF maksimal 2 MB.');
         return;
     }
     const button = form.querySelector('[type="submit"]');
     button.disabled = true;
+    if (status && file) status.textContent = `Mengunggah ${file.name}…`;
     try {
         const response = await fetch(form.action, { method: 'POST', credentials: 'same-origin', headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content }, body: new FormData(form) });
         if (response.ok) {
+            if (status) status.textContent = `${file.name}: bukti berhasil dikirim.`;
+            sessionStorage.setItem('employer-proof-success', 'true');
             window.location.reload();
             return;
         }
         const result = await response.json().catch(() => ({}));
+        if (status) status.textContent = `${file.name}: unggahan gagal. Coba lagi.`;
         showFeedback(response.status === 413 ? 'Ukuran berkas melebihi batas server. Pilih gambar yang lebih kecil.' : result.errors?.proof?.[0] || result.message || 'Bukti pembayaran gagal dikirim.');
     } catch {
+        if (status) status.textContent = `${file.name}: koneksi terputus. Periksa status transaksi.`;
         showFeedback('Koneksi terputus. Periksa status transaksi sebelum mengirim ulang.');
     } finally {
         button.disabled = false;
     }
 }));
+
+document.querySelectorAll('[data-proof-form] input[name="proof"]').forEach((input) => input.addEventListener('change', () => {
+    const status = input.form.querySelector('[data-proof-status]');
+    if (status) status.textContent = input.files?.[0] ? `Berkas: ${input.files[0].name}` : 'Belum ada berkas dipilih.';
+}));
+
+if (sessionStorage.getItem('employer-proof-success') === 'true') {
+    sessionStorage.removeItem('employer-proof-success');
+    const toast = document.querySelector('[data-proof-toast]');
+    if (toast) {
+        toast.classList.remove('hidden');
+        toast.classList.add('flex');
+        setTimeout(() => toast.classList.add('hidden'), 5000);
+    }
+}
 
 function generateUuid() {
     if (typeof crypto !== 'undefined') {

@@ -27,7 +27,9 @@ class AuthenticationTest extends TestCase
             ->assertSee('auth-card', false)
             ->assertSee('data-auth-error="password"', false)
             ->assertSee('Jelajahi Lowongan');
-        $this->get('/admin/login')->assertOk()->assertSee('Admin Internal');
+        $this->get('/admin/login')->assertOk()->assertSee('Admin Internal')
+            ->assertSee('x-bind:type="passwordVisible ?', false)
+            ->assertSee('aria-label="Tampilkan kata sandi"', false);
     }
 
     public function test_employer_auth_pages_offer_only_email_and_password(): void
@@ -83,6 +85,18 @@ class AuthenticationTest extends TestCase
             $wrongPassword->assertUnprocessable()->assertJsonValidationErrors('email');
             $this->assertSame($unknownEmail->json('errors.email'), $wrongPassword->json('errors.email'));
         }
+    }
+
+    public function test_admin_login_explains_invalid_credentials_without_revealing_which_field_is_wrong(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $message = 'Email atau password yang Anda masukkan salah.';
+
+        $this->post('/admin/login', ['email' => 'missing@example.test', 'password' => 'password'])
+            ->assertSessionHasErrors(['email' => $message]);
+        $this->post('/admin/login', ['email' => $admin->email, 'password' => 'wrong-password'])
+            ->assertSessionHasErrors(['email' => $message]);
+        $this->assertGuest();
     }
 
     public function test_each_login_route_accepts_only_its_role(): void

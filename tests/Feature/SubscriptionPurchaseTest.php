@@ -28,6 +28,11 @@ class SubscriptionPurchaseTest extends TestCase
         $this->actingAs($employer)->get(route('employer.subscription.history'))
             ->assertOk()->assertSee($ownId)->assertDontSee($otherId)
             ->assertSee('data-proof-form', false)
+            ->assertSee('JPG, JPEG, PNG, WEBP maks. 20 MB; PDF maks. 2 MB.')
+            ->assertSee('Belum ada berkas dipilih.')
+            ->assertSee('form="cancel-form-'.$ownId.'"', false)
+            ->assertSee('data-proof-toast', false)
+            ->assertSee('Bukti pembayaran berhasil dikirim untuk verifikasi admin.')
             ->assertSee(route('employer.subscription.purchases.proof', $ownId))
             ->assertSee(route('employer.subscription.purchases.cancel', $ownId));
         $this->actingAs(User::factory()->create(['role' => 'jobseeker']))
