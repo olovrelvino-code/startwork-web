@@ -51,3 +51,4 @@ startwork-login-after-reset.txt
 
 # Generated visual testing reports
 .taste-skill/
+/graphify-out/ 

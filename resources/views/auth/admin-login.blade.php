@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Masuk Admin Internal · Start Work</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/asset/Logo Start Work favicon.png') }}">
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -11,12 +12,12 @@
 <body class="admin-shell admin-internal-shell min-h-screen bg-white antialiased">
     <div class="min-h-screen lg:grid lg:grid-cols-2">
         <aside class="auth-visual auth-visual--admin hidden flex-col justify-between px-10 py-10 lg:flex xl:px-16" aria-label="Portal internal Start Work">
-            <a href="{{ url('/') }}" class="w-fit text-xl font-bold tracking-tight text-white" aria-label="Start Work, halaman utama">startwork<span class="text-[#E6A16D]">.</span></a>
+            <a href="{{ url('/') }}" class="w-fit" aria-label="Start Work, halaman utama"><img src="{{ asset('images/asset/Logo Start Work D putih.webp') }}" alt="" class="block h-auto w-44 max-w-full xl:w-48"></a>
             <p class="max-w-md text-3xl font-semibold leading-tight tracking-tight text-white">Ruang kerja operasional Start Work.</p>
         </aside>
         <main class="flex min-h-screen items-center px-5 py-10 sm:px-10 lg:px-16">
         <div class="mx-auto w-full max-w-[420px]">
-            <a href="{{ url('/') }}" class="text-xl font-bold tracking-tight text-slate-900 lg:hidden" aria-label="Start Work, halaman utama">startwork<span class="text-[#B85B12]">.</span></a>
+            <a href="{{ url('/') }}" class="inline-block w-fit rounded-sm px-3 py-2 lg:hidden" style="background-color: #203c4a" aria-label="Start Work, halaman utama"><img src="{{ asset('images/asset/Logo Start Work D putih.webp') }}" alt="" class="block h-auto max-w-full" style="width: 160px"></a>
             <h1 class="mt-10 text-3xl font-semibold tracking-tight text-slate-900 lg:mt-0">Admin Internal</h1>
             <p class="mt-3 text-sm leading-relaxed text-slate-600">Masuk untuk mengelola operasional Start Work.</p>
             <div class="mt-6"><x-auth-session-status :status="session('status')" /></div>
