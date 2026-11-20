@@ -4,7 +4,7 @@
 @section('description', $article->excerpt ?: \Illuminate\Support\Str::limit(strip_tags($article->content), 160))
 
 @section('content')
-    <article class="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-14">
+    <article class="mx-auto max-w-5xl px-5 py-10 sm:px-8 sm:py-14">
         <a href="{{ route('articles.index') }}" class="text-sm font-semibold text-[var(--jobseeker-primary)] underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--jobseeker-accent)]">← Kembali ke artikel</a>
         <header class="mt-8 border-b border-slate-200 pb-8">
             <time class="text-xs font-bold uppercase tracking-wider text-[var(--jobseeker-primary)]" datetime="{{ \Illuminate\Support\Carbon::parse($article->published_at)->toDateString() }}">{{ \Illuminate\Support\Carbon::parse($article->published_at)->translatedFormat('d F Y') }}</time>

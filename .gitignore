@@ -51,4 +51,7 @@ startwork-login-after-reset.txt
 
 # Generated visual testing reports
 .taste-skill/
-/graphify-out/ 
+/graphify-out/
+
+# Understand-Anything knowledge graph
+.ua/

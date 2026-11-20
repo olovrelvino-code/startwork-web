@@ -306,7 +306,7 @@
                         </blockquote>
 
                         <div class="sw-review-bottom">
-                            <span>Cerita ilustrasi penggunaan StartWork</span>
+                            <span>Cerita penggunaan StartWork</span>
                         </div>
 
                     </figure>
