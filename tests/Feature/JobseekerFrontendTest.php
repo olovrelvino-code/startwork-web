@@ -67,7 +67,7 @@ class JobseekerFrontendTest extends TestCase
             ->assertSee('Posisi active')->assertDontSee('Posisi inactive')
             ->assertSee(url('/api/companies/' . $companyId . '/logo'))
             ->assertSee('Nabila Putri')->assertSee('Rizky Pratama')->assertSee('Dewi Anggraini')
-            ->assertSee('Cerita ilustrasi penggunaan StartWork')
+            ->assertSee('Cerita penggunaan StartWork')
             ->assertSee('Mitra Perusahaan')->assertDontSee('Perusahaan paling aktif')
             ->assertSee('Nama lowongan')->assertSee('Kota atau lokasi')
             ->assertSee('action="' . route('jobs.index') . '"', false)
