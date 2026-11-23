@@ -13,6 +13,74 @@ class StartWorkRoleSecurityTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_public_pages_and_api_report_candidate_csp_and_send_security_headers(): void
+    {
+        foreach (['/about-us', '/api/packages', '/missing-page'] as $path) {
+            $response = $this->get($path);
+            $response->assertStatus($path === '/missing-page' ? 404 : 200)
+                ->assertHeaderMissing('Content-Security-Policy');
+            $policy = $response->headers->get('Content-Security-Policy-Report-Only');
+
+            $this->assertStringContainsString("script-src 'self'", $policy);
+            $this->assertStringContainsString("'unsafe-inline'", $policy);
+            $this->assertStringNotContainsString("'unsafe-eval'", $policy);
+            $this->assertStringContainsString("style-src 'self' 'unsafe-inline' https://fonts.bunny.net", $policy);
+            $this->assertStringContainsString("font-src 'self' https://fonts.bunny.net", $policy);
+            $this->assertStringContainsString("img-src 'self' data: blob:", $policy);
+            $this->assertStringContainsString("connect-src 'self'", $policy);
+            $this->assertStringContainsString("frame-src 'none'", $policy);
+            $this->assertStringContainsString("object-src 'none'", $policy);
+            $this->assertStringContainsString("base-uri 'self'", $policy);
+            $response->assertHeader('X-Content-Type-Options', 'nosniff')
+                ->assertHeader('X-Frame-Options', 'DENY')
+                ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+                ->assertHeader('Permissions-Policy', 'camera=(), geolocation=(), microphone=()');
+        }
+    }
+
+    public function test_security_headers_cover_authenticated_role_pages_and_uploads(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $employer = User::factory()->create(['role' => 'employer']);
+        $jobseeker = User::factory()->create(['role' => 'jobseeker']);
+
+        $this->get('/login')->assertOk()->assertHeader('Content-Security-Policy-Report-Only');
+
+        foreach ([
+            [$admin, '/admin/dashboard'],
+            [$employer, '/employer/setup'],
+            [$jobseeker, '/profil'],
+        ] as [$user, $path]) {
+            $this->actingAs($user)->get($path)
+                ->assertOk()
+                ->assertHeader('X-Content-Type-Options', 'nosniff')
+                ->assertHeader('X-Frame-Options', 'DENY')
+                ->assertHeader('Content-Security-Policy-Report-Only')
+                ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+                ->assertHeader('Permissions-Policy', 'camera=(), geolocation=(), microphone=()');
+        }
+    }
+
+    public function test_hsts_is_sent_only_for_secure_production_requests(): void
+    {
+        config(['app.env' => 'production']);
+
+        $this->get('/about-us')->assertOk()->assertHeaderMissing('Strict-Transport-Security');
+        $this->withHeader('X-Forwarded-Proto', 'https')->get('/about-us')
+            ->assertOk()->assertHeaderMissing('Strict-Transport-Security');
+        $this->get('https://localhost/about-us')
+            ->assertOk()
+            ->assertHeader('Strict-Transport-Security', 'max-age=31536000');
+        $this->get('https://localhost/api/packages')
+            ->assertOk()
+            ->assertHeader('Strict-Transport-Security', 'max-age=31536000');
+    }
+
+    public function test_hsts_is_not_sent_for_secure_testing_requests(): void
+    {
+        $this->get('https://localhost/about-us')->assertOk()->assertHeaderMissing('Strict-Transport-Security');
+    }
+
     public function test_admin_owns_multiple_companies_and_employer_cannot_claim_them(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
@@ -75,7 +143,7 @@ class StartWorkRoleSecurityTest extends TestCase
         $this->postJson("/api/job-posts/{$jobId}/apply", [])->assertStatus(422);
         $this->post('/api/jobseeker/profile/cv', [
             'cv' => UploadedFile::fake()->createWithContent('cv.pdf', "%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF\n"),
-        ], ['Accept' => 'application/json'])->assertOk();
+        ], ['Accept' => 'application/json'])->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
         $this->postJson("/api/job-posts/{$jobId}/apply", [])->assertCreated()->assertJsonPath('status', 'submitted');
         $this->postJson("/api/job-posts/{$jobId}/apply", [])->assertStatus(409);
 
