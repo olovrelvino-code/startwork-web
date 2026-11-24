@@ -60,6 +60,8 @@ class SubscriptionPurchaseTest extends TestCase
         $this->actingAs($admin)->post(route('admin.transactions.decide', $id), ['decision' => 'approve'])->assertRedirect();
         $this->assertDatabaseHas('payment_transactions', ['id' => $id, 'status' => 'paid', 'verified_by' => $admin->id]);
         $this->assertDatabaseHas('company_subscriptions', ['company_id' => $companyId, 'status' => 'active', 'quota_total' => 20]);
+        $this->actingAs($employer)->get(route('employer.dashboard'))->assertOk()->assertSee('Paket Standard Anda sudah aktif. Berlaku hingga');
+        $this->actingAs($admin);
         $this->post(route('admin.transactions.decide', $id), ['decision' => 'approve'])->assertStatus(409);
         $this->assertSame(3, DB::table('payment_transaction_events')->where('transaction_id', $id)->count());
         $this->get(route('admin.transactions.proof', $id))->assertOk();
@@ -155,14 +157,78 @@ class SubscriptionPurchaseTest extends TestCase
         $this->get(route('employer.subscription'))->assertOk()->assertSee('Pembelian Belum Dapat Dilanjutkan')
             ->assertSee('data-trial-queue-close', false)->assertSee('data-availability-url', false);
         $this->travel(2)->days();
-        $this->artisan('subscriptions:activate-due')->assertExitCode(0);
-        $this->artisan('subscriptions:activate-due')->assertExitCode(0);
+        $this->actingAs($employer)->get(route('employer.dashboard'))->assertOk()
+            ->assertSee("Paket {$name} Anda sudah aktif.")
+            ->assertDontSee('Pembelian paket Anda masih dalam proses.');
+        $this->get(route('employer.subscription.history'))->assertOk()->assertSee('>Aktif<', false);
         $this->assertDatabaseHas('company_subscriptions', ['id' => $oldId, 'status' => 'expired', 'quota_used' => 2]);
         $this->assertDatabaseHas('company_subscriptions', ['id' => $newId, 'package_id' => $selectedPackage, 'status' => 'active', 'quota_total' => $quota, 'quota_used' => 0]);
+        $this->assertSame(0, DB::table('company_subscriptions')->where('company_id', $companyId)->where('status', 'pending_activation')->count());
+        $this->assertSame(1, DB::table('payment_transaction_events')->where('transaction_id', $id)
+            ->where('note', 'Subscription diaktifkan dari antrean')->count());
         $this->assertSame($jobExpiry, DB::table('job_posts')->where('id', $jobId)->value('expires_at'));
         $this->assertSame($days * 86400, strtotime(DB::table('company_subscriptions')->where('id', $newId)->value('expires_at')) - strtotime(DB::table('company_subscriptions')->where('id', $newId)->value('starts_at')));
-        $this->get(route('employer.dashboard'))->assertOk()->assertSee("Paket {$name} Anda sudah aktif.")->assertDontSee('Pilih Paket');
-        $this->get(route('employer.subscription.purchases.availability'))->assertOk()->assertJsonPath('allowed', true);
+        $this->get(route('employer.dashboard'))->assertOk()->assertSee("Paket {$name} Anda sudah aktif.")
+            ->assertSee(now()->addDays($days)->setTimezone('Asia/Jakarta')->format('d M Y, H:i').' WIB')
+            ->assertDontSee('Pilih Paket');
+        $this->actingAs($admin)->get(route('admin.transactions.subscriptions', ['status' => 'active']))->assertOk()
+            ->assertSee($name)->assertSee(now()->addDays($days)->setTimezone('Asia/Jakarta')->format('d M Y, H:i').' WIB');
+        $this->get(route('admin.transactions.subscriptions', ['status' => 'pending_activation']))->assertOk()
+            ->assertDontSee('PT Contoh');
+        $this->actingAs($employer)->get(route('employer.subscription.purchases.availability'))->assertOk()->assertJsonPath('allowed', true);
+    }
+
+    public function test_verification_after_trial_expiry_expires_trial_and_activates_purchase_once(): void
+    {
+        Storage::fake('local');
+        $this->travelTo(now()->startOfSecond());
+        $employer = User::factory()->create(['role' => 'employer']);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $companyId = $this->company($employer);
+        $basic = $this->package('Basic', 99000, 10, 15);
+        $standard = $this->package('Standard', 149000, 20, 30);
+        $trialId = (string) Str::uuid();
+        DB::table('company_subscriptions')->insert(['id' => $trialId, 'company_id' => $companyId, 'package_id' => $basic,
+            'source' => 'admin_trial', 'change_type' => 'trial', 'status' => 'active', 'quota_total' => 10,
+            'starts_at' => now()->subDays(15), 'expires_at' => now()->subMinute(), 'created_at' => now(), 'updated_at' => now()]);
+
+        $id = $this->actingAs($employer)->postJson(route('employer.subscription.purchases.store'),
+            ['package_id' => $standard, 'idempotency_key' => (string) Str::uuid()])->assertOk()->json('transaction_id');
+        $this->postJson(route('employer.subscription.purchases.proof', $id), ['proof' => UploadedFile::fake()->image('paid.png')])->assertOk();
+        $this->actingAs($admin)->post(route('admin.transactions.decide', $id), ['decision' => 'approve'])->assertRedirect();
+        $this->post(route('admin.transactions.decide', $id), ['decision' => 'approve'])->assertStatus(409);
+        $this->actingAs($employer)->get(route('employer.dashboard'))->assertOk();
+
+        $subscriptionId = DB::table('payment_transactions')->where('id', $id)->value('subscription_id');
+        $this->assertDatabaseHas('company_subscriptions', ['id' => $trialId, 'status' => 'expired']);
+        $this->assertDatabaseHas('company_subscriptions', ['id' => $subscriptionId, 'status' => 'active',
+            'starts_at' => now()->toDateTimeString(), 'expires_at' => now()->addDays(30)->toDateTimeString()]);
+        $this->assertSame(1, DB::table('company_subscriptions')->where('company_id', $companyId)->where('status', 'active')->count());
+        $this->actingAs($employer)->get(route('employer.dashboard'))->assertOk()->assertSee('Paket Standard Anda sudah aktif. Berlaku hingga')
+            ->assertDontSee('menunggu verifikasi');
+        $this->actingAs($admin)->get(route('admin.transactions.subscriptions', ['status' => 'expired']))->assertOk()->assertSee('PT Contoh');
+    }
+
+    public function test_unverified_payment_stays_pending_after_trial_expires(): void
+    {
+        $employer = User::factory()->create(['role' => 'employer']);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $companyId = $this->company($employer);
+        $basic = $this->package('Basic', 99000, 10, 15);
+        DB::table('company_subscriptions')->insert(['id' => (string) Str::uuid(), 'company_id' => $companyId,
+            'package_id' => $basic, 'source' => 'admin_trial', 'change_type' => 'trial', 'status' => 'active',
+            'quota_total' => 10, 'starts_at' => now()->subDays(15), 'expires_at' => now()->subMinute(),
+            'created_at' => now(), 'updated_at' => now()]);
+
+        $id = $this->actingAs($employer)->postJson(route('employer.subscription.purchases.store'),
+            ['package_id' => $basic, 'idempotency_key' => (string) Str::uuid()])->assertOk()->json('transaction_id');
+        $this->actingAs($employer)->get(route('employer.dashboard'))->assertOk();
+
+        $this->assertDatabaseHas('payment_transactions', ['id' => $id, 'status' => 'pending_payment']);
+        $this->assertSame(0, DB::table('company_subscriptions')->where('company_id', $companyId)->where('status', 'active')->count());
+        $this->actingAs($employer)->get(route('employer.dashboard'))->assertOk()->assertSee('Pembelian paket Anda masih dalam proses.')
+            ->assertDontSee('Paket terverifikasi Anda menunggu aktivasi.');
+        $this->actingAs($admin)->get(route('admin.transactions.dashboard'))->assertOk();
     }
 
     /** @return array<string, array{string, int, int, int}> */
@@ -307,6 +373,173 @@ class SubscriptionPurchaseTest extends TestCase
             ->assertOk()
             ->assertSee('PT Alpha Solusi')
             ->assertDontSee('CV Beta Maju');
+    }
+
+    #[DataProvider('queuedPackages')]
+    public function test_active_paid_package_expiry_automatically_activates_queued_package(string $name, int $price, int $quota, int $days): void
+    {
+        Storage::fake('local');
+        $this->travelTo(now()->startOfSecond());
+        $employer = User::factory()->create(['role' => 'employer']);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $companyId = $this->company($employer);
+        $basic = $this->package('Basic', 99000, 10, 15);
+        $queuedPackage = $this->package($name, $price, $quota, $days);
+
+        // First active paid subscription
+        $firstSubId = (string) Str::uuid();
+        $firstTxId = (string) Str::uuid();
+        DB::table('company_subscriptions')->insert([
+            'id' => $firstSubId, 'company_id' => $companyId, 'package_id' => $basic,
+            'source' => 'purchase', 'change_type' => 'new', 'status' => 'active', 'quota_total' => 10, 'quota_used' => 1,
+            'duration_days' => 15, 'price_snapshot' => 99000,
+            'starts_at' => now()->subDays(14), 'expires_at' => now()->addDay(),
+            'created_at' => now()->subDays(14), 'updated_at' => now()->subDays(14),
+        ]);
+        DB::table('payment_transactions')->insert([
+            'id' => $firstTxId, 'subscription_id' => $firstSubId, 'type' => 'purchase', 'amount' => 99000,
+            'credit_applied' => 0, 'currency' => 'IDR', 'status' => 'paid', 'provider' => 'whatsapp',
+            'paid_at' => now()->subDays(14), 'verified_by' => $admin->id, 'verified_at' => now()->subDays(14),
+            'idempotency_key' => (string) Str::uuid(), 'created_at' => now()->subDays(14), 'updated_at' => now()->subDays(14),
+        ]);
+
+        // Employer purchases second package into queue
+        $this->actingAs($employer);
+        $secondTxId = $this->postJson(route('employer.subscription.purchases.store'), ['package_id' => $queuedPackage, 'idempotency_key' => (string) Str::uuid()])
+            ->assertOk()->json('transaction_id');
+        $this->postJson(route('employer.subscription.purchases.proof', $secondTxId), ['proof' => UploadedFile::fake()->image('proof.png')])->assertOk();
+
+        // Admin approves -> status becomes pending_activation because first package is active
+        $this->actingAs($admin)->post(route('admin.transactions.decide', $secondTxId), ['decision' => 'approve'])->assertRedirect();
+        $secondSubId = DB::table('payment_transactions')->where('id', $secondTxId)->value('subscription_id');
+        $this->assertDatabaseHas('company_subscriptions', ['id' => $secondSubId, 'status' => 'pending_activation']);
+
+        // Third purchase attempt must be rejected by backend
+        $this->actingAs($employer)->postJson(route('employer.subscription.purchases.store'), ['package_id' => $basic, 'idempotency_key' => (string) Str::uuid()])
+            ->assertStatus(409);
+
+        // Advance time past first package's expires_at
+        $this->travel(2)->days();
+
+        // Employer accesses dashboard - transitions automatically without scheduler
+        $this->actingAs($employer)->get(route('employer.dashboard'))
+            ->assertOk()
+            ->assertSee("Paket {$name} Anda sudah aktif.")
+            ->assertDontSee('Pilih Paket');
+
+        // Verify database statuses
+        $this->assertDatabaseHas('company_subscriptions', ['id' => $firstSubId, 'status' => 'expired']);
+        $this->assertDatabaseHas('company_subscriptions', ['id' => $secondSubId, 'status' => 'active', 'quota_total' => $quota, 'quota_used' => 0]);
+        $this->assertSame(0, DB::table('company_subscriptions')->where('company_id', $companyId)->where('status', 'pending_activation')->count());
+
+        // Queue is now empty, so 1 more purchase into queue is allowed
+        $this->get(route('employer.subscription.purchases.availability'))->assertOk()->assertJsonPath('allowed', true);
+    }
+
+    public function test_expired_subscription_without_queue_blocks_job_publishing_and_directs_to_new_package(): void
+    {
+        $this->travelTo(now()->startOfSecond());
+        $employer = User::factory()->create(['role' => 'employer']);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $companyId = $this->company($employer);
+        $standard = $this->package('Standard', 149000, 20, 30);
+
+        $subId = (string) Str::uuid();
+        $txId = (string) Str::uuid();
+        DB::table('company_subscriptions')->insert([
+            'id' => $subId, 'company_id' => $companyId, 'package_id' => $standard,
+            'source' => 'purchase', 'change_type' => 'new', 'status' => 'active', 'quota_total' => 20, 'quota_used' => 0,
+            'duration_days' => 30, 'price_snapshot' => 149000,
+            'starts_at' => now()->subDays(31), 'expires_at' => now()->subDay(),
+            'created_at' => now()->subDays(31), 'updated_at' => now()->subDays(31),
+        ]);
+        DB::table('payment_transactions')->insert([
+            'id' => $txId, 'subscription_id' => $subId, 'type' => 'purchase', 'amount' => 149000,
+            'currency' => 'IDR', 'status' => 'paid', 'provider' => 'whatsapp', 'paid_at' => now()->subDays(31),
+            'idempotency_key' => (string) Str::uuid(), 'created_at' => now()->subDays(31), 'updated_at' => now()->subDays(31),
+        ]);
+
+        $jobId = (string) Str::uuid();
+        DB::table('job_posts')->insert([
+            'id' => $jobId, 'company_id' => $companyId, 'posted_by' => $employer->id,
+            'title' => 'Lowongan Draft', 'status' => 'inactive', 'location' => 'Jakarta',
+            'job_type' => 'Full-time', 'work_type' => 'WFO',
+            'expires_at' => now()->addDays(5)->toDateTimeString(),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($employer);
+
+        // Accessing dashboard marks subscription as expired and directs to buy new package
+        $this->get(route('employer.dashboard'))
+            ->assertOk()
+            ->assertSee('Paket langganan telah berakhir.')
+            ->assertSee('Pilih Paket')
+            ->assertSee(route('employer.subscription'));
+
+        $this->assertDatabaseHas('company_subscriptions', ['id' => $subId, 'status' => 'expired']);
+
+        // Attempting to publish job post without active subscription must be rejected
+        $this->putJson("/api/employer/job-posts/{$jobId}/status", ['status' => 'active'])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Subscription aktif tidak ditemukan');
+
+        // Job post create page indicates no active quota
+        $this->get(route('employer.job-posts.create'))
+            ->assertOk();
+    }
+
+    public function test_third_purchase_when_active_and_queue_exist_is_rejected_by_backend(): void
+    {
+        Storage::fake('local');
+        $employer = User::factory()->create(['role' => 'employer']);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $companyId = $this->company($employer);
+        $basic = $this->package('Basic', 99000, 10, 15);
+        $standard = $this->package('Standard', 149000, 20, 30);
+        $premium = $this->package('Premium', 239000, 30, 45);
+
+        // 1 Active subscription
+        $activeSubId = (string) Str::uuid();
+        DB::table('company_subscriptions')->insert([
+            'id' => $activeSubId, 'company_id' => $companyId, 'package_id' => $basic,
+            'source' => 'purchase', 'change_type' => 'new', 'status' => 'active', 'quota_total' => 10, 'quota_used' => 0,
+            'duration_days' => 15, 'price_snapshot' => 99000,
+            'starts_at' => now(), 'expires_at' => now()->addDays(15),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('payment_transactions')->insert([
+            'id' => (string) Str::uuid(), 'subscription_id' => $activeSubId, 'type' => 'purchase', 'amount' => 99000,
+            'currency' => 'IDR', 'status' => 'paid', 'provider' => 'whatsapp', 'paid_at' => now(),
+            'idempotency_key' => (string) Str::uuid(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($employer);
+
+        // Purchase 2 (In Queue)
+        $tx2 = $this->postJson(route('employer.subscription.purchases.store'), ['package_id' => $standard, 'idempotency_key' => (string) Str::uuid()])
+            ->assertOk()->json('transaction_id');
+
+        // While Purchase 2 is unverified (pending_payment), 3rd purchase is rejected
+        $this->postJson(route('employer.subscription.purchases.store'), ['package_id' => $premium, 'idempotency_key' => (string) Str::uuid()])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Selesaikan pembelian sebelumnya sebelum membeli paket berikutnya.');
+
+        // Send proof for Purchase 2
+        $this->postJson(route('employer.subscription.purchases.proof', $tx2), ['proof' => UploadedFile::fake()->image('proof.png')])->assertOk();
+
+        // Admin approves Purchase 2 -> moves to pending_activation
+        $this->actingAs($admin)->post(route('admin.transactions.decide', $tx2), ['decision' => 'approve'])->assertRedirect();
+
+        // Now with 1 Active + 1 In Queue (pending_activation), 3rd purchase must still be rejected
+        $this->actingAs($employer)->postJson(route('employer.subscription.purchases.store'), ['package_id' => $premium, 'idempotency_key' => (string) Str::uuid()])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Anda masih memiliki antrean subscription yang menunggu aktivasi. Selesaikan antrean tersebut sebelum membeli paket berikutnya.');
+
+        // Availability endpoint also reports false
+        $this->get(route('employer.subscription.purchases.availability'))
+            ->assertOk()
+            ->assertJsonPath('allowed', false);
     }
 
     private function company(User $owner): string

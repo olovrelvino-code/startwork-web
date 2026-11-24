@@ -170,7 +170,7 @@ class AdminTrialAndJobModerationTest extends TestCase
 
         foreach (['Basic' => 15] as $name => $days) {
             $employer = User::factory()->create(['role' => 'employer']);
-            $companyId = $this->company($employer, 'PT ' . $name);
+            $companyId = $this->company($employer, 'PT '.$name);
             $packageId = $this->package();
             $this->actingAs($admin)->get("/admin/companies/{$companyId}")->assertOk()
                 ->assertSee('Trial Basic dimulai saat diberikan: 10 lowongan selama 15 hari.');
@@ -180,7 +180,7 @@ class AdminTrialAndJobModerationTest extends TestCase
             $subscription = DB::table('company_subscriptions')->where('company_id', $companyId)->first();
             $this->assertSame($days * 86400, strtotime($subscription->expires_at) - strtotime($subscription->starts_at));
             $this->actingAs($admin)->get("/admin/companies/{$companyId}")->assertOk()
-                ->assertSee('Berakhir ' . Carbon::parse($subscription->expires_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i'));
+                ->assertSee('Berakhir '.Carbon::parse($subscription->expires_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i'));
 
             $this->actingAs($employer)->get('/employer/dashboard')->assertOk()->assertSee('Trial aktif');
             $this->travel($days + 1)->days();
@@ -396,7 +396,7 @@ class AdminTrialAndJobModerationTest extends TestCase
         $this->putJson("/api/employer/job-posts/{$first}/status", ['status' => 'active'])->assertOk();
         for ($index = 2; $index <= 10; $index++) {
             $jobId = $this->postJson('/api/employer/job-posts', [
-                'title' => 'Editor ' . $index,
+                'title' => 'Editor '.$index,
                 'location' => 'Jakarta',
                 'job_type' => 'Full-time',
                 'work_type' => 'Hybrid',

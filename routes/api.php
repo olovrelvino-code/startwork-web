@@ -1176,7 +1176,7 @@ Route::post('/employer/register', function (Request $request) {
     ], 201);
 })->middleware(['web', 'guest']);
 
-Route::middleware(['web', 'auth'])->prefix('employer')->group(function () {
+Route::middleware(['web', 'auth', 'employer'])->prefix('employer')->group(function () {
     Route::get('/company', function (Request $request) {
         abort_unless($request->user()->role === 'employer', 403);
 

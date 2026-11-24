@@ -3,14 +3,16 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\SubscriptionPurchases;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): View
+    public function __invoke(Request $request, SubscriptionPurchases $purchases): View
     {
+        $purchases->activateDue();
         $filters = $request->validate([
             'applicants_q' => ['nullable', 'string', 'max:255'],
             'jobs_q' => ['nullable', 'string', 'max:255'],

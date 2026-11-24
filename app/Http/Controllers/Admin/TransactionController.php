@@ -24,8 +24,9 @@ class TransactionController extends Controller
                 'companies.name as company_name', 'packages.name as package_name');
     }
 
-    public function dashboard(): View
+    public function dashboard(SubscriptionPurchases $purchases): View
     {
+        $purchases->activateDue();
         $counts = DB::table('payment_transactions')->select('status')->selectRaw('COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
         $subscriptions = DB::table('company_subscriptions')->select('status')->selectRaw('COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
         $recent = $this->query()->orderByDesc('transactions.created_at')->limit(8)->get();
@@ -33,8 +34,9 @@ class TransactionController extends Controller
         return view('admin.transactions.dashboard', compact('counts', 'subscriptions', 'recent'));
     }
 
-    public function requests(Request $request): View
+    public function requests(Request $request, SubscriptionPurchases $purchases): View
     {
+        $purchases->activateDue();
         $search = $request->validate(['search' => ['nullable', 'string', 'max:100']])['search'] ?? null;
         $transactions = $this->query()->where('transactions.status', 'waiting_verification')
             ->when($search, fn ($query) => $query->where('companies.name', 'like', '%'.$search.'%'))
@@ -43,8 +45,9 @@ class TransactionController extends Controller
         return view('admin.transactions.history', ['transactions' => $transactions, 'filters' => ['search' => $search]]);
     }
 
-    public function history(Request $request): View
+    public function history(Request $request, SubscriptionPurchases $purchases): View
     {
+        $purchases->activateDue();
         $filters = $request->validate(['search' => ['nullable', 'string', 'max:100'], 'status' => ['nullable', 'in:pending_payment,waiting_verification,paid,rejected,failed,cancelled']]);
         $transactions = $this->query()
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('transactions.status', $status))
@@ -54,8 +57,9 @@ class TransactionController extends Controller
         return view('admin.transactions.history', compact('transactions', 'filters'));
     }
 
-    public function show(string $id): View
+    public function show(string $id, SubscriptionPurchases $purchases): View
     {
+        $purchases->activateDue();
         $transaction = $this->query()->where('transactions.id', $id)->first();
         abort_if($transaction === null, 404);
         $events = DB::table('payment_transaction_events')->leftJoin('users', 'users.id', '=', 'payment_transaction_events.actor_id')
@@ -80,8 +84,9 @@ class TransactionController extends Controller
         return redirect()->route('admin.transactions.show', $id)->with('success', 'Keputusan pembayaran tersimpan.');
     }
 
-    public function subscriptions(Request $request): View
+    public function subscriptions(Request $request, SubscriptionPurchases $purchases): View
     {
+        $purchases->activateDue();
         $filters = $request->validate([
             'status' => ['nullable', 'in:active,pending_activation,expired,cancelled,revoked'],
             'search' => ['nullable', 'string', 'max:100'],

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
-Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
+Route::middleware(['web', 'auth', 'admin'])->prefix('admin')->group(function (): void {
     $manageableCompany = static function (Request $request, string $id, bool $lock = false): object {
         abort_unless($request->user()->role === 'admin', 403);
         $query = DB::table('companies')->leftJoin('users as owners', 'companies.owner_user_id', '=', 'owners.id')
@@ -126,7 +126,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
     });
 });
 
-Route::middleware(['web', 'auth'])->prefix('employer')->group(function (): void {
+Route::middleware(['web', 'auth', 'employer'])->prefix('employer')->group(function (): void {
     $ownCompany = static function (Request $request): object {
         abort_unless($request->user()->role === 'employer', 403);
         $company = DB::table('companies')->where('owner_user_id', $request->user()->id)->first();

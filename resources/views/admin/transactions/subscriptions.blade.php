@@ -72,7 +72,7 @@
                         </div>
                         <div>
                             <span class="text-slate-400 block text-[11px]">Berakhir</span>
-                            <span class="font-semibold text-slate-800">{{ $sub->expires_at ? \Carbon\Carbon::parse($sub->expires_at)->format('d M Y') : '—' }}</span>
+                            <span class="font-semibold text-slate-800">{{ $sub->expires_at ? \Carbon\Carbon::parse($sub->expires_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i').' WIB' : '—' }}</span>
                         </div>
                     </div>
                 </div>
@@ -117,8 +117,8 @@
                         </td>
                         <td>
                             <div class="text-xs text-slate-600">
-                                <div><span class="text-slate-400">Mulai:</span> {{ $sub->starts_at ? \Carbon\Carbon::parse($sub->starts_at)->format('d M Y') : 'Menunggu' }}</div>
-                                <div><span class="text-slate-400">Selesai:</span> {{ $sub->expires_at ? \Carbon\Carbon::parse($sub->expires_at)->format('d M Y') : '—' }}</div>
+                                <div><span class="text-slate-400">Mulai:</span> {{ $sub->starts_at ? \Carbon\Carbon::parse($sub->starts_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i').' WIB' : 'Menunggu' }}</div>
+                                <div><span class="text-slate-400">Selesai:</span> {{ $sub->expires_at ? \Carbon\Carbon::parse($sub->expires_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i').' WIB' : '—' }}</div>
                             </div>
                         </td>
                         <td class="text-right text-xs text-slate-500">

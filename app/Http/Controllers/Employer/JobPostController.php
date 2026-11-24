@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Employer;
 
 use App\Http\Controllers\Controller;
+use App\SubscriptionPurchases;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -11,6 +12,8 @@ use Illuminate\View\View;
 
 class JobPostController extends Controller
 {
+    public function __construct(private SubscriptionPurchases $purchases) {}
+
     public function index(Request $request): View
     {
         $filters = $request->validate(['q' => ['nullable', 'string', 'max:255']]);
@@ -72,6 +75,8 @@ class JobPostController extends Controller
 
     private function activeSubscription(string $companyId): ?object
     {
+        $this->purchases->activateForCompany($companyId);
+
         $subscription = DB::table('company_subscriptions')->where('company_id', $companyId)
             ->where('status', 'active')->where('starts_at', '<=', now())
             ->where('expires_at', '>', now())->orderByDesc('starts_at')->first();

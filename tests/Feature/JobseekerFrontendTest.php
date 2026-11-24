@@ -65,12 +65,12 @@ class JobseekerFrontendTest extends TestCase
             ->assertSee('Temukan pekerjaan yang tepat, kenali perusahaan pilihanmu, dan mulai perjalanan kariermu bersama StartWork.')
             ->assertDontSee('konten promosi sementara')
             ->assertSee('Posisi active')->assertDontSee('Posisi inactive')
-            ->assertSee(url('/api/companies/' . $companyId . '/logo'))
+            ->assertSee(url('/api/companies/'.$companyId.'/logo'))
             ->assertSee('Nabila Putri')->assertSee('Rizky Pratama')->assertSee('Dewi Anggraini')
             ->assertSee('Cerita ilustrasi penggunaan StartWork')
             ->assertSee('Mitra Perusahaan')->assertDontSee('Perusahaan paling aktif')
             ->assertSee('Nama lowongan')->assertSee('Kota atau lokasi')
-            ->assertSee('action="' . route('jobs.index') . '"', false)
+            ->assertSee('action="'.route('jobs.index').'"', false)
             ->assertSee('name="q"', false)->assertSee('name="location"', false)
             ->assertSee('Cari')
             ->assertSeeInOrder(['Posisi active', 'Bandung', 'Technology / IT', 'Full-time', 'Remote'])
@@ -81,8 +81,8 @@ class JobseekerFrontendTest extends TestCase
             ->assertDontSee('Log Out')
             ->assertDontSee('Asisten AI')->assertDontSee('Kategori lowongan aktif')
             ->assertDontSee('Perusahaan terdaftar');
-        $this->assertSame(1, substr_count($response->getContent(), url('/api/companies/' . $companyId . '/logo')));
-        $this->getJson('/api/job-posts?category=' . urlencode('Technology / IT'))
+        $this->assertSame(1, substr_count($response->getContent(), url('/api/companies/'.$companyId.'/logo')));
+        $this->getJson('/api/job-posts?category='.urlencode('Technology / IT'))
             ->assertOk()->assertJsonPath('total', 1);
         $this->getJson('/api/job-posts?category[]=Technology%20%2F%20IT&category[]=Others')
             ->assertOk()->assertJsonPath('total', 1);
@@ -285,7 +285,7 @@ class JobseekerFrontendTest extends TestCase
             'last_education' => 'S1',
         ])->assertCreated();
         $this->get('/loker')->assertOk()->assertSee('data-nav-photo-fallback', false)
-            ->assertDontSee('src="' . url('/api/jobseeker/profile/photo') . '"', false);
+            ->assertDontSee('src="'.url('/api/jobseeker/profile/photo').'"', false);
         $this->post('/api/jobseeker/profile/photo', [
             'photo' => UploadedFile::fake()->image('avatar.png'),
         ], ['Accept' => 'application/json'])->assertOk();
@@ -294,7 +294,7 @@ class JobseekerFrontendTest extends TestCase
             ->assertSee('data-nav-photo', false)
             ->assertSee(url('/api/jobseeker/profile/photo'))
             ->assertSee('Profil Saya')->assertSee('Lamaran Saya')->assertSee('Log Out')
-            ->assertSee('action="' . route('logout') . '"', false);
+            ->assertSee('action="'.route('logout').'"', false);
         $this->get('/api/jobseeker/profile/photo')->assertOk()->assertHeader('Content-Type', 'image/webp');
     }
 
@@ -323,9 +323,9 @@ class JobseekerFrontendTest extends TestCase
             ]);
         }
 
-        $this->get('/perusahaan/' . $companyId)->assertOk()
+        $this->get('/perusahaan/'.$companyId)->assertOk()
             ->assertSee('Lowongan Terbuka')->assertSee('company-open-job-card');
-        $this->getJson('/api/companies/' . $companyId)->assertOk()
+        $this->getJson('/api/companies/'.$companyId)->assertOk()
             ->assertJsonPath('data.name', 'PT Buka Lowongan')
             ->assertJsonPath('data.logo', 'logo.webp')
             ->assertJsonCount(1, 'open_positions')
@@ -458,7 +458,7 @@ class JobseekerFrontendTest extends TestCase
             ->assertOk()->assertJsonPath('total', 15)->assertJsonCount(12, 'data');
         $this->getJson('/api/jobseeker/my-applications?page=2&limit=12')
             ->assertOk()->assertJsonPath('total', 15)->assertJsonCount(3, 'data');
-        $this->getJson('/api/jobseeker/my-applications?job_id=' . $filteredJobId . '&limit=1')
+        $this->getJson('/api/jobseeker/my-applications?job_id='.$filteredJobId.'&limit=1')
             ->assertOk()->assertJsonPath('total', 1)->assertJsonPath('data.0.job_id', $filteredJobId);
         $this->getJson('/api/jobseeker/my-applications')->assertOk()->assertJsonCount(15, 'data');
         $this->getJson('/api/jobseeker/my-applications?page=0')->assertUnprocessable();
@@ -498,7 +498,7 @@ class JobseekerFrontendTest extends TestCase
             'created_to' => $firstDay->copy()->addDay()->toDateString(),
             'sort' => 'oldest',
         ]);
-        $this->getJson('/api/job-posts?' . $query)->assertOk()->assertJsonPath('total', 2)
+        $this->getJson('/api/job-posts?'.$query)->assertOk()->assertJsonPath('total', 2)
             ->assertJsonPath('data.0.title', 'Analis')->assertJsonPath('data.1.title', 'Editor');
         $this->getJson('/api/job-posts?job_type=Full-time&location=Bandung')->assertOk()
             ->assertJsonPath('total', 1)->assertJsonPath('data.0.title', 'Analis');
@@ -508,10 +508,10 @@ class JobseekerFrontendTest extends TestCase
             ->assertJsonPath('total', 1)->assertJsonPath('data.0.title', 'Magang');
         $this->getJson('/api/job-posts?work_type=On-site')->assertOk()
             ->assertJsonPath('total', 1)->assertJsonPath('data.0.title', 'Magang');
-        $this->getJson('/api/job-posts?created_to=' . $firstDay->toDateString())->assertOk()
+        $this->getJson('/api/job-posts?created_to='.$firstDay->toDateString())->assertOk()
             ->assertJsonPath('total', 1);
-        $this->getJson('/api/job-posts?created_from=' . $firstDay->copy()->addDay()->toDateString()
-            . '&created_to=' . $firstDay->toDateString())->assertUnprocessable();
+        $this->getJson('/api/job-posts?created_from='.$firstDay->copy()->addDay()->toDateString()
+            .'&created_to='.$firstDay->toDateString())->assertUnprocessable();
     }
 
     public function test_company_filters_and_pagination_keep_full_total(): void
@@ -538,7 +538,7 @@ class JobseekerFrontendTest extends TestCase
         $owner = User::factory()->create(['role' => 'jobseeker']);
         $other = User::factory()->create(['role' => 'jobseeker']);
         $employer = User::factory()->create(['role' => 'employer']);
-        $path = 'cvs/' . $owner->id . '/' . Str::uuid() . '.pdf';
+        $path = 'cvs/'.$owner->id.'/'.Str::uuid().'.pdf';
         Storage::disk('local')->put($path, '%PDF-1.4 test');
         DB::table('jobseeker_profiles')->insert([
             'id' => (string) Str::uuid(),
@@ -563,7 +563,7 @@ class JobseekerFrontendTest extends TestCase
         $disk = Storage::disk('local');
         $seeker = User::factory()->create(['role' => 'jobseeker']);
         $profileId = (string) Str::uuid();
-        $oldName = Str::uuid() . '.jpeg';
+        $oldName = Str::uuid().'.jpeg';
         $oldPath = "profile-photos/{$seeker->id}/{$oldName}";
         Storage::disk('local')->put($oldPath, 'legacy photo');
         DB::table('jobseeker_profiles')->insert([
@@ -696,7 +696,7 @@ class JobseekerFrontendTest extends TestCase
 
         foreach (['pdf', 'jpg', 'jpeg', 'png'] as $extension) {
             $file = $extension === 'pdf'
-                ? UploadedFile::fake()->createWithContent('resume.pdf', "%PDF-1.4\n" . str_repeat(' ', 2 * 1024 * 1024) . "\n%%EOF\n")
+                ? UploadedFile::fake()->createWithContent('resume.pdf', "%PDF-1.4\n".str_repeat(' ', 2 * 1024 * 1024)."\n%%EOF\n")
                 : UploadedFile::fake()->image("resume.{$extension}")->size($extension === 'jpg' ? 2048 : 100);
             $this->post('/api/jobseeker/profile/cv', ['cv' => $file], ['Accept' => 'application/json'])->assertOk();
             $path = DB::table('jobseeker_profiles')->where('id', $profileId)->value('cv_file');
@@ -757,7 +757,7 @@ class JobseekerFrontendTest extends TestCase
         $this->postJson('/api/jobseeker/profile/details', ['skills' => ['SQL']])->assertOk();
         $this->assertDatabaseHas('certificates', ['id' => $legacyId, 'file_url' => 'https://example.test/legacy']);
 
-        $pdf = UploadedFile::fake()->createWithContent('certificate.pdf', "%PDF-1.4\n" . str_repeat(' ', 2 * 1024 * 1024) . "\n%%EOF\n");
+        $pdf = UploadedFile::fake()->createWithContent('certificate.pdf', "%PDF-1.4\n".str_repeat(' ', 2 * 1024 * 1024)."\n%%EOF\n");
         $this->post('/api/jobseeker/profile/certificates', ['name' => 'Sertifikat Baru', 'file' => $pdf], ['Accept' => 'application/json'])->assertOk();
         $certificate = DB::table('certificates')->where('name', 'Sertifikat Baru')->first();
         $this->assertNull($certificate->file_url);

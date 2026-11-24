@@ -8,7 +8,7 @@
         <x-slot:actions><a href="{{ route('employer.job-posts.create') }}" class="admin-button-primary">Buat lowongan</a></x-slot:actions>
     </x-admin.page-header>
 
-    @if ($trial)
+    @if ($trial || $activePackage || $hasOpenPurchase || $hasPendingActivation || $latestEndedSubscription)
         <section class="relative isolate mb-9 flex flex-col gap-6 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-[#142B3D] via-[#1B3B50] to-[#294A5B] px-6 py-6 text-white shadow-[0_16px_40px_-24px_rgba(9,31,46,0.7)] sm:px-8 sm:py-8 lg:flex-row lg:items-center lg:justify-between lg:gap-8" aria-label="Status langganan">
             <div class="pointer-events-none absolute -right-16 -top-28 hidden h-80 w-80 rounded-full border border-white/10 sm:block" aria-hidden="true"></div>
             <div class="pointer-events-none absolute -right-4 -top-16 hidden h-60 w-60 rounded-full border border-white/10 sm:block" aria-hidden="true"></div>
@@ -16,7 +16,7 @@
             <div class="relative min-w-0 max-w-2xl">
                 <div class="mb-3 flex items-center gap-3">
                     <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-[#B8DCE0]" aria-hidden="true">
-                        @if ($activePackageName !== null)
+                        @if ($activePackage !== null)
                             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12 2.4 2.4 4.7-4.8"/></svg>
                         @else
                             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5l3.5 2"/></svg>
@@ -26,21 +26,23 @@
                 </div>
                 @if ($trialIsActive)
                     <p class="text-sm leading-relaxed text-white/80"><strong class="font-semibold text-white">Trial aktif.</strong> Terbitkan draft hingga {{ \Illuminate\Support\Carbon::parse($trial->expires_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i') }} WIB, sesuai kuota paket.</p>
-                @elseif ($activePackageName !== null)
-                    <p class="text-sm leading-relaxed text-white/80"><strong class="font-semibold text-white">Trial telah selesai.</strong> Paket {{ $activePackageName }} Anda sudah aktif.</p>
+                @elseif ($activePackage !== null)
+                    <p class="text-sm leading-relaxed text-white/80">@if ($trial)<strong class="font-semibold text-white">Trial telah selesai.</strong> @endif Paket {{ $activePackage->name }} Anda sudah aktif. Berlaku hingga {{ \Illuminate\Support\Carbon::parse($activePackage->expires_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i') }} WIB.</p>
                 @elseif ($hasOpenPurchase)
-                    <p class="text-sm leading-relaxed text-white/80"><strong class="font-semibold text-white">Trial telah selesai.</strong> Pembelian paket Anda masih dalam proses. Cek statusnya di Riwayat Pembelian.</p>
-                @elseif ($trial->status === 'revoked')
+                    <p class="text-sm leading-relaxed text-white/80">@if ($trial)<strong class="font-semibold text-white">Trial telah selesai.</strong> @endif Pembelian paket Anda masih dalam proses. Cek statusnya di Riwayat Pembelian.</p>
+                @elseif (($latestEndedSubscription?->source ?? ($trial ? 'admin_trial' : null)) === 'admin_trial' && ($latestEndedSubscription?->status ?? $trial?->status) === 'revoked')
                     <p class="text-sm leading-relaxed text-white/80"><strong class="font-semibold text-white">Trial telah diakhiri oleh admin.</strong> Pilih paket langganan untuk melanjutkan publikasi lowongan.</p>
-                @else
+                @elseif (($latestEndedSubscription?->source ?? ($trial ? 'admin_trial' : null)) === 'admin_trial')
                     <p class="text-sm leading-relaxed text-white/80"><strong class="font-semibold text-white">Trial telah berakhir.</strong> Pilih paket langganan untuk melanjutkan publikasi lowongan.</p>
+                @else
+                    <p class="text-sm leading-relaxed text-white/80"><strong class="font-semibold text-white">Paket langganan telah berakhir.</strong> Pilih paket langganan untuk melanjutkan publikasi lowongan.</p>
                 @endif
             </div>
             @if ($trialIsActive)
                 <a class="relative inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg border border-white/70 bg-white px-5 py-2 text-sm font-semibold text-[#17394B] shadow-sm transition-colors hover:bg-[#F3F7F8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:w-auto" href="{{ route('employer.job-posts.index') }}">Lihat draft lowongan</a>
-            @elseif ($hasOpenPurchase)
+            @elseif ($hasOpenPurchase || $hasPendingActivation)
                 <a class="relative inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg border border-white/70 bg-white px-5 py-2 text-sm font-semibold text-[#17394B] shadow-sm transition-colors hover:bg-[#F3F7F8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:w-auto" href="{{ route('employer.subscription.history') }}">Lihat Riwayat Pembelian</a>
-            @elseif ($activePackageName === null)
+            @elseif ($activePackage === null)
                 <a class="relative inline-flex min-h-11 w-full shrink-0 items-center justify-center rounded-lg border border-white/70 bg-white px-5 py-2 text-sm font-semibold text-[#17394B] shadow-sm transition-colors hover:bg-[#F3F7F8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:w-auto" href="{{ route('employer.subscription') }}">Pilih Paket</a>
             @endif
         </section>

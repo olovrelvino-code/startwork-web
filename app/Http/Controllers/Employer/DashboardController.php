@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Employer;
 
 use App\Http\Controllers\Controller;
+use App\SubscriptionPurchases;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -11,7 +12,7 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): View|RedirectResponse
+    public function __invoke(Request $request, SubscriptionPurchases $purchases): View|RedirectResponse
     {
         $filters = $request->validate(['q' => ['nullable', 'string', 'max:255']]);
         $search = trim($filters['q'] ?? '');
@@ -22,25 +23,39 @@ class DashboardController extends Controller
                 || ! filled(trim((string) $request->user()->phone))))) {
             return redirect()->route('employer.setup');
         }
+        $purchases->activateForCompany($company->id);
         $trial = DB::table('company_subscriptions')->where('company_id', $company->id)
             ->where('source', 'admin_trial')->orderByDesc('starts_at')->first();
         $trialIsActive = $trial !== null && $trial->status === 'active'
             && Carbon::parse($trial->starts_at)->lessThanOrEqualTo(now()) && Carbon::parse($trial->expires_at)->isFuture();
-        $activePackageName = null;
+        $activePackage = null;
         $hasOpenPurchase = false;
-        if ($trial !== null && ! $trialIsActive) {
-            $activePackageName = DB::table('company_subscriptions')
+        $hasPendingActivation = false;
+        if (! $trialIsActive) {
+            $activePackage = DB::table('company_subscriptions')
                 ->join('payment_transactions', 'payment_transactions.subscription_id', '=', 'company_subscriptions.id')
                 ->join('packages', 'packages.id', '=', 'company_subscriptions.package_id')
                 ->where('company_subscriptions.company_id', $company->id)->where('company_subscriptions.source', 'purchase')
                 ->where('company_subscriptions.status', 'active')->where('company_subscriptions.starts_at', '<=', now())
                 ->where('company_subscriptions.expires_at', '>', now())->where('payment_transactions.status', 'paid')
-                ->value('packages.name');
-            if ($activePackageName === null) {
-                $hasOpenPurchase = DB::table('company_subscriptions')->where('company_id', $company->id)
-                    ->where('source', 'purchase')->whereIn('status', ['pending', 'scheduled', 'pending_activation'])->exists();
+                ->first(['packages.name', 'company_subscriptions.expires_at']);
+            if ($activePackage === null) {
+                $hasPendingActivation = DB::table('company_subscriptions')->where('company_id', $company->id)
+                    ->where('source', 'purchase')->where('status', 'pending_activation')->exists();
+                $hasOpenPurchase = DB::table('company_subscriptions')
+                    ->join('payment_transactions', 'payment_transactions.subscription_id', '=', 'company_subscriptions.id')
+                    ->where('company_subscriptions.company_id', $company->id)->where('company_subscriptions.source', 'purchase')
+                    ->where('company_subscriptions.status', 'pending')
+                    ->whereIn('payment_transactions.status', ['pending_payment', 'waiting_verification'])->exists();
             }
         }
+
+        $latestEndedSubscription = DB::table('company_subscriptions')
+            ->where('company_id', $company->id)
+            ->whereIn('status', ['expired', 'revoked'])
+            ->orderByDesc('ended_at')
+            ->orderByDesc('expires_at')
+            ->first();
 
         $ownJobs = DB::table('job_posts')->where('company_id', $company->id)
             ->where('posted_by', $request->user()->id);
@@ -76,6 +91,6 @@ class DashboardController extends Controller
             ->orderByDesc('applications.applied_at')->orderByDesc('applications.id')
             ->paginate(10, ['*'], 'applications_page')->withQueryString();
 
-        return view('employer.dashboard', compact('company', 'trial', 'trialIsActive', 'activePackageName', 'hasOpenPurchase', 'counts', 'jobs', 'applications', 'search', 'filterJobs', 'filterApplications'));
+        return view('employer.dashboard', compact('company', 'trial', 'trialIsActive', 'activePackage', 'hasOpenPurchase', 'hasPendingActivation', 'latestEndedSubscription', 'counts', 'jobs', 'applications', 'search', 'filterJobs', 'filterApplications'));
     }
 }
