@@ -14,7 +14,8 @@
                         aria-hidden="true">89,95%</span><span class="sr-only">89,95%</span> Peluang Menuju Karier Impianmu!
                 </h1>
                 <p class="jobseeker-hero-description mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-200 sm:text-lg">
-                    Temukan pekerjaan yang tepat, kenali perusahaan pilihanmu, dan mulai perjalanan kariermu bersama StartWork.</p>
+                    Temukan pekerjaan yang tepat, kenali perusahaan pilihanmu, dan mulai perjalanan kariermu bersama
+                    StartWork.</p>
             </div>
             <form action="{{ route('jobs.index') }}" method="GET" role="search" aria-label="Cari lowongan"
                 class="mx-auto mt-10 flex w-full max-w-4xl flex-col items-stretch gap-2 rounded-xl bg-white p-2 sm:flex-row sm:items-center">
@@ -159,6 +160,10 @@
                     'Oodside' => 'OODSIDE - Logo Vertikal Transparent.webp',
                     'Rakken' => 'Rakken_Logo Horizontal (2) A4.webp',
                     'Surabaya European School' => 'SES LOGO HITAM.webp',
+                    'SMK Kesehatan Surabaya' => 'Logo SMK Kesehatan Surabaya copy.webp',
+                    'SMKN 8 Surabaya' => 'Logo SMKN 8 Surabaya.webp',
+                    'SMKN 12 Surabaya' => 'Logo SMKN 12 Surabaya copy.webp',
+                    'SMK Kartika IV-I Malang' => 'Logo_SMK_Kartika_IV-I_Malang.webp',
                 ];
             @endphp
             <div class="jobseeker-partners-window mt-8" aria-label="Logo mitra perusahaan">
