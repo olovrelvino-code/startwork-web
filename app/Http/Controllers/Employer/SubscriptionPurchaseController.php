@@ -15,10 +15,11 @@ use Illuminate\View\View;
 
 class SubscriptionPurchaseController extends Controller
 {
-    public function history(Request $request): View
+    public function history(Request $request, SubscriptionPurchases $purchases): View
     {
         $company = DB::table('companies')->where('owner_user_id', $request->user()->id)->first();
         abort_if($company === null, 404);
+        $purchases->activateForCompany($company->id);
 
         $purchases = DB::table('payment_transactions')
             ->join('company_subscriptions', 'company_subscriptions.id', '=', 'payment_transactions.subscription_id')

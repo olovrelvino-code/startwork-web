@@ -82,6 +82,8 @@ class SubscriptionPurchases
             abort_unless($transaction->status === 'waiting_verification', 409, 'Transaksi sudah diproses');
             $subscription = DB::table('company_subscriptions')->where('id', $transaction->subscription_id)->lockForUpdate()->first();
             abort_unless($subscription->status === 'pending', 409);
+            DB::table('company_subscriptions')->where('company_id', $subscription->company_id)->where('status', 'active')->where('expires_at', '<=', now())
+                ->update(['status' => 'expired', 'ended_at' => now(), 'updated_at' => now()]);
             $active = DB::table('company_subscriptions')->where('company_id', $subscription->company_id)->where('status', 'active')->where('expires_at', '>', now())->exists();
             if ($approve) {
                 abort_if(DB::table('company_subscriptions')->where('company_id', $subscription->company_id)->whereIn('status', ['scheduled', 'pending_activation'])->exists(), 409, 'Antrean sudah terisi');
@@ -99,7 +101,10 @@ class SubscriptionPurchases
 
     public function activateDue(): int
     {
-        $ids = DB::table('company_subscriptions')->whereIn('status', ['active', 'scheduled', 'pending_activation'])->distinct()->pluck('company_id');
+        $ids = DB::table('company_subscriptions')->where(function ($query): void {
+            $query->whereIn('status', ['scheduled', 'pending_activation'])
+                ->orWhere(fn ($active) => $active->where('status', 'active')->where('expires_at', '<=', now()));
+        })->distinct()->pluck('company_id');
         $count = 0;
         foreach ($ids as $id) {
             $count += $this->activateForCompany($id);
@@ -133,6 +138,8 @@ class SubscriptionPurchases
 
     public function purchaseBlockMessage(string $companyId): ?string
     {
+        $this->activateForCompany($companyId);
+
         $queue = DB::table('company_subscriptions')->join('packages', 'packages.id', '=', 'company_subscriptions.package_id')
             ->where('company_subscriptions.company_id', $companyId)
             ->whereIn('company_subscriptions.status', ['pending', 'scheduled', 'pending_activation'])

@@ -2,6 +2,7 @@
 
 use App\JobCategory;
 use App\JobPostLifecycle;
+use App\SubscriptionPurchases;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -97,7 +98,7 @@ Route::middleware(['web', 'auth'])->prefix('admin')->group(function (): void {
     });
 });
 
-Route::middleware(['web', 'auth'])->prefix('employer')->group(function (): void {
+Route::middleware(['web', 'auth', 'employer'])->prefix('employer')->group(function (): void {
     Route::post('/job-posts', function (Request $request) {
         abort_unless($request->user()->role === 'employer', 403);
 
@@ -220,7 +221,7 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function (): void 
         ]);
     });
 
-    Route::put('/job-posts/{id}/status', function (Request $request, string $id) {
+    Route::put('/job-posts/{id}/status', function (Request $request, string $id, SubscriptionPurchases $purchases) {
         abort_unless($request->user()->role === 'employer', 403);
         JobPostLifecycle::expireDue();
 
@@ -229,10 +230,12 @@ Route::middleware(['web', 'auth'])->prefix('employer')->group(function (): void 
             'inactive_reason' => ['required_if:status,inactive', 'nullable', 'string', 'max:255'],
         ]);
 
-        return DB::transaction(function () use ($request, $id, $input) {
+        return DB::transaction(function () use ($request, $id, $input, $purchases) {
             $company = DB::table('companies')
                 ->where('owner_user_id', $request->user()->id)->lockForUpdate()->first();
             abort_if($company === null, 404, 'Perusahaan employer tidak ditemukan');
+
+            $purchases->activateForCompany($company->id);
 
             $job = DB::table('job_posts')->where('id', $id)
                 ->where('company_id', $company->id)
