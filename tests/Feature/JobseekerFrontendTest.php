@@ -38,7 +38,7 @@ class JobseekerFrontendTest extends TestCase
         $this->assertDatabaseHas('jobseeker_profiles', ['user_id' => $seeker->id, 'birth_date' => '1956-11-13']);
     }
 
-    public function test_homepage_sections_use_only_active_jobs_and_keep_demo_content_labeled(): void
+    public function test_homepage_shows_only_active_jobs_and_labeled_usage_stories(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $companyId = (string) Str::uuid();
@@ -62,12 +62,11 @@ class JobseekerFrontendTest extends TestCase
 
         $response = $this->get('/')->assertOk()->assertSee('PT Karier Nyata')->assertSee('Technology / IT')
             ->assertSee('89,95%')->assertSee('Peluang Menuju Karier Impianmu!')
-            ->assertSee('Temukan pekerjaan yang tepat, kenali perusahaan pilihanmu, dan mulai perjalanan kariermu bersama StartWork.')
             ->assertDontSee('konten promosi sementara')
             ->assertSee('Posisi active')->assertDontSee('Posisi inactive')
             ->assertSee(url('/api/companies/'.$companyId.'/logo'))
             ->assertSee('Nabila Putri')->assertSee('Rizky Pratama')->assertSee('Dewi Anggraini')
-            ->assertSee('Cerita ilustrasi penggunaan StartWork')
+            ->assertSee('Cerita penggunaan StartWork')
             ->assertSee('Mitra Perusahaan')->assertDontSee('Perusahaan paling aktif')
             ->assertSee('Nama lowongan')->assertSee('Kota atau lokasi')
             ->assertSee('action="'.route('jobs.index').'"', false)
@@ -81,6 +80,10 @@ class JobseekerFrontendTest extends TestCase
             ->assertDontSee('Log Out')
             ->assertDontSee('Asisten AI')->assertDontSee('Kategori lowongan aktif')
             ->assertDontSee('Perusahaan terdaftar');
+        $this->assertStringContainsString(
+            'Temukan pekerjaan yang tepat, kenali perusahaan pilihanmu, dan mulai perjalanan kariermu bersama StartWork.',
+            Str::squish(strip_tags($response->getContent())),
+        );
         $this->assertSame(1, substr_count($response->getContent(), url('/api/companies/'.$companyId.'/logo')));
         $this->getJson('/api/job-posts?category='.urlencode('Technology / IT'))
             ->assertOk()->assertJsonPath('total', 1);
